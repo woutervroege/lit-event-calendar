@@ -1,0 +1,61 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  --line: 1px;
+  --line-color: color-mix(in oklab, CanvasText 7%, transparent);
+  /* Month view: columns per row (e.g. 7 for a week). Override via style or parent. */
+  --days-per-row: 7;
+}
+
+section {
+  background:
+    repeating-linear-gradient(
+      to right,
+      var(--line-color) 0 var(--line),
+      transparent var(--line) calc(100% / var(--days))
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--line-color) 0 var(--line),
+      transparent var(--line) calc(100% / var(--hours))
+    );
+  position: relative;
+  height: 100%;
+}
+
+section::before {
+  content: "";
+  position: absolute;
+  left: var(--hover-left, 0);
+  top: var(--hover-top, 0);
+  width: var(--hover-width, 0);
+  height: var(--hover-height, 0);
+  background: color-mix(in oklab, CanvasText 12%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 1;
+}
+
+section[data-drag-hover]::before {
+  opacity: 1;
+  /* Ensure hover target sits above non-dragged events,
+     but still below the actively dragged event (z-index 10). */
+  z-index: 9;
+}
+
+/* Month view: multi-row grid (e.g. 7 columns × N weeks) */
+section.month-view {
+  background:
+    repeating-linear-gradient(
+      to right,
+      var(--line-color) 0 var(--line),
+      transparent var(--line) calc(100% / var(--days))
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--line-color) 0 var(--line),
+      transparent var(--line) calc(100% / var(--grid-rows))
+    );
+}

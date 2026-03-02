@@ -1,0 +1,37 @@
+:host {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+:host([axis="vertical"]) {
+  padding: 6px 8px;
+  margin: -6px -8px;
+  width: 100%;
+  left: 0;
+}
+
+:host([axis="vertical"][position="start"]) {
+  top: 0;
+}
+
+:host([axis="vertical"][position="end"]) {
+  bottom: 0;
+}
+
+:host([axis="horizontal"]) {
+  padding: 8px 6px;
+  margin: -8px -6px;
+  height: 100%;
+  top: 0;
+}
+
+:host([axis="horizontal"][position="start"]) {
+  left: 0;
+}
+
+:host([axis="horizontal"][position="end"]) {
+  right: 0;
+}

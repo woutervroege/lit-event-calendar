@@ -1,0 +1,17 @@
+:host {
+  position: absolute;
+  width: 100%;
+  container-type: size;
+  --background-color: var(--event-card-background, var(--event-card-default-bg));
+}
+
+:host > div {
+  width: calc((100% / var(--days)) * var(--width));
+  left: var(--left);
+  margin-left: calc((100% / var(--days)) * var(--margin-left) + var(--indentation, 0px));
+  z-index: var(--z-index, 1);
+}
+
+::slotted(*) {
+  position: absolute;
+}

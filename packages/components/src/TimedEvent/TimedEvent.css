@@ -1,0 +1,23 @@
+:host {
+  pointer-events: auto;
+  user-select: none;
+  inset: 0;
+  position: absolute;
+}
+
+/* Raise z-index while dragging and briefly after drop so event is on top */
+:host([data-dragging]),
+:host([data-just-dropped]) {
+  z-index: 10;
+}
+
+/* Pass default so event-card can use it when no segment is hovered */
+:host button {
+  --event-card-default-bg: var(--background-color);
+}
+
+/* When any event-card is hovered, expose hover background so all segments show hover state */
+:host button:has(event-card:hover),
+:host button:has(event-card:active) {
+  --event-card-background: var(--background-color-hover);
+}

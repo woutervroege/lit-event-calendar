@@ -1,0 +1,26 @@
+{
+  "name": "lit-calendar",
+  "description": "Calendar UI built with Lit",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "preview": "turbo run preview",
+    "type-check": "turbo run type-check",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "format-and-lint": "biome check .",
+    "format-and-lint:fix": "biome check . --write"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.4",
+    "turbo": "^2.8.11",
+    "typescript": "^5.6.3"
+  }
+}
