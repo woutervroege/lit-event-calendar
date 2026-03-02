@@ -1,5 +1,7 @@
 ## Lit Calendar
 
+**Status: Very early stage, highly experimental, and not ready for production use.**
+
 Calendar UI built with Lit.
 
 ### Prerequisites
