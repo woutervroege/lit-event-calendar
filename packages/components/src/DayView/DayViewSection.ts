@@ -27,6 +27,11 @@ export class DayViewSection extends BaseElement {
   #dragHoverDayIndex: number | null = null;
   #dragHoverTime: Temporal.PlainTime | null = null;
 
+  get #sortedEvents(): EventInput[] {
+    const events = [...(this.events ?? [])];
+    return events.sort((a, b) => this.#compareEventsForRenderOrder(a, b));
+  }
+
   static get properties() {
     return {
       startDate: { type: String, attribute: "start-date" },
@@ -186,7 +191,7 @@ export class DayViewSection extends BaseElement {
             style=${styleMap({ ...this.sectionStyle, ...hoverStyle })}
             ?data-drag-hover=${this.#dragHoverDayIndex !== null}>
 
-            ${(this.events ?? []).map(
+            ${this.#sortedEvents.map(
               (event) => html`
                 ${
                   this.variant === "all-day"
@@ -240,4 +245,20 @@ export class DayViewSection extends BaseElement {
     }
     this.requestUpdate();
   };
+
+  #compareEventsForRenderOrder(a: EventInput, b: EventInput): number {
+    const startDiff = Temporal.PlainDateTime.compare(
+      Temporal.PlainDateTime.from(a.start),
+      Temporal.PlainDateTime.from(b.start)
+    );
+    if (startDiff !== 0) return startDiff;
+
+    const endDiff = Temporal.PlainDateTime.compare(
+      Temporal.PlainDateTime.from(a.end),
+      Temporal.PlainDateTime.from(b.end)
+    );
+    if (endDiff !== 0) return endDiff;
+
+    return a.summary.localeCompare(b.summary);
+  }
 }
