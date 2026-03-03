@@ -10,6 +10,7 @@ import { BaseEvent } from "./BaseEvent";
 @customElement("timed-event")
 export class TimedEvent extends BaseEvent {
   #previewDisplayTime: string | null = null;
+  #keyboardHintId = `timed-event-kbd-${Math.random().toString(36).slice(2, 9)}`;
 
   get siblings(): TimedEvent[] {
     return super.siblings as TimedEvent[];
@@ -319,8 +320,13 @@ export class TimedEvent extends BaseEvent {
         : "none";
 
     return html`
-      <button
-        class="m-0 text-0 relative w-full h-full border-none bg-none outline-none p-0"
+      <div
+        class="interaction-surface m-0 text-0 relative w-full h-full border-none bg-none outline-none p-0"
+        role="group"
+        tabindex="0"
+        aria-label=${this.#interactionLabel}
+        aria-describedby=${this.#keyboardHintId}
+        aria-keyshortcuts="Control+Meta+ArrowUp Control+Meta+ArrowDown Control+Meta+ArrowLeft Control+Meta+ArrowRight Control+Shift+ArrowUp Control+Shift+ArrowDown"
         style=${styleMap({
           ...colorStyles,
           transform: dragTransform,
@@ -332,9 +338,22 @@ export class TimedEvent extends BaseEvent {
         @pointerup=${this.interactionController.pointerUpHandler}
         @keydown=${this.interactionController.keydownHandler}
       >
+        <span
+          id=${this.#keyboardHintId}
+          class="sr-only"
+        >
+          Use Control Command and arrow keys to move this event. Use Control Shift and up or down
+          arrow keys to resize the end time.
+        </span>
         ${this.#renderEventCards()}
-      </button>
+      </div>
     `;
+  }
+
+  get #interactionLabel(): string {
+    const title = this.summary?.trim() || "Untitled event";
+    const time = this.displayTime?.trim();
+    return time ? `${title}. ${time}` : title;
   }
 
   #renderEventCards() {

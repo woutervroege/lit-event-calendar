@@ -12,6 +12,7 @@ import { BaseEvent } from "./BaseEvent";
 export class AllDayEvent extends BaseEvent {
   #lockedStackIndex: number | null = null;
   #previewDisplayTime: string | null = null;
+  #keyboardHintId = `all-day-event-kbd-${Math.random().toString(36).slice(2, 9)}`;
 
   @property({ type: Number })
   daysPerRow: number = 0;
@@ -350,8 +351,13 @@ export class AllDayEvent extends BaseEvent {
         : "none";
 
     return html`
-      <button
-        class="m-0 text-0 relative w-full h-full border-none bg-none outline-none p-0"
+      <div
+        class="interaction-surface m-0 text-0 relative w-full h-full border-none bg-none outline-none p-0"
+        role="group"
+        tabindex="0"
+        aria-label=${this.#interactionLabel}
+        aria-describedby=${this.#keyboardHintId}
+        aria-keyshortcuts="Control+Meta+ArrowUp Control+Meta+ArrowDown Control+Meta+ArrowLeft Control+Meta+ArrowRight Control+Shift+ArrowUp Control+Shift+ArrowDown"
         style=${styleMap({
           ...colorStyles,
           transform: dragTransform,
@@ -363,8 +369,15 @@ export class AllDayEvent extends BaseEvent {
         @pointerup=${this.interactionController.pointerUpHandler}
         @keydown=${this.interactionController.keydownHandler}
       >
+        <span
+          id=${this.#keyboardHintId}
+          class="sr-only"
+        >
+          Use Control Command and arrow keys to move this event. Use Control Shift and up or down
+          arrow keys to resize the end date.
+        </span>
         ${this.#renderEventCards(dayInsets, canResizeStart)}
-      </button>
+      </div>
     `;
   }
 
@@ -442,5 +455,11 @@ export class AllDayEvent extends BaseEvent {
     const value = getComputedStyle(el).getPropertyValue("--event-height").trim();
     const px = parseFloat(value);
     return Number.isFinite(px) ? px : 32;
+  }
+
+  get #interactionLabel(): string {
+    const title = this.summary?.trim() || "Untitled all-day event";
+    const time = this.displayTime?.trim();
+    return time ? `${title}. ${time}` : title;
   }
 }

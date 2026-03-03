@@ -18,9 +18,10 @@ export class ResizeHandle extends BaseElement {
 
   render() {
     return html`
-            <button
+            <div
                 class=${classMap(this.#classes)}
-            ></button>
+                aria-hidden="true"
+            ></div>
         `;
   }
 

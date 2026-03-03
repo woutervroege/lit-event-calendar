@@ -12,17 +12,24 @@
 }
 
 /* Pass default so event-card can use it when no segment is hovered */
-:host button {
+:host .interaction-surface {
   --event-card-default-bg: var(--background-color);
+  --event-card-scale: 1;
 }
 
 /* When any event-card is hovered, expose hover background so all segments show hover state */
-:host button:has(event-card:hover),
-:host button:has(event-card:active) {
+:host .interaction-surface:has(event-card:hover),
+:host .interaction-surface:has(event-card:active) {
   --event-card-background: var(--background-color-hover);
 }
 
+/* Match pointer press scale and apply same affordance for keyboard focus */
+:host .interaction-surface:has(event-card:active),
+:host .interaction-surface:focus-visible {
+  --event-card-scale: 1.01;
+}
+
 /* Increase tint density while focused for clear keyboard targeting */
-:host button:focus-visible {
+:host .interaction-surface:focus-visible {
   --event-card-background: var(--background-color-focus, var(--background-color-hover));
 }
