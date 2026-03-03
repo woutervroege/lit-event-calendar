@@ -1,5 +1,8 @@
 import { Temporal } from "@js-temporal/polyfill";
 
+const SECONDS_IN_DAY = 24 * 60 * 60;
+const MAX_FRACTION = 0.999999;
+
 type TimedEventHost = HTMLElement & {
   start: Temporal.PlainDateTime | string | null;
   end: Temporal.PlainDateTime | string | null;
@@ -50,313 +53,37 @@ export class TimedEventInteractionController {
 
   readonly pointerDownHandler = (e: PointerEvent) => {
     const operation = this.#deriveOperation(e);
-    if (!operation) {
-      return;
-    }
+    if (!operation) return;
 
-    this.#isDragging = true;
-    this.#operation = operation;
-    this.#activePointerId = e.pointerId;
-    this.#pointerCaptureTarget = (e.currentTarget as HTMLElement | null) ?? undefined;
-    this.#pointerCaptureTarget?.setPointerCapture(e.pointerId);
-    window.addEventListener("pointerup", this.pointerUpHandler, true);
-
-    this.#savedY = e.clientY;
-    this.#savedHeight = this.#host.clientHeight;
-    this.#savedStart =
-      this.#host.start != null
-        ? typeof this.#host.start === "string"
-          ? Temporal.PlainDateTime.from(this.#host.start)
-          : this.#host.start
-        : null;
-    this.#savedEnd =
-      this.#host.end != null
-        ? typeof this.#host.end === "string"
-          ? Temporal.PlainDateTime.from(this.#host.end)
-          : this.#host.end
-        : null;
-
-    this.#bounds = this.#host.getBoundingClientRect();
-
-    if (!this.#bounds) return;
-    const clientX = e.clientX - this.#bounds.left;
-    const clientY = e.clientY - this.#bounds.top;
-    const fractionX = this.#bounds.width === 0 ? 0 : clientX / this.#bounds.width;
-    const fractionY = this.#bounds.height === 0 ? 0 : clientY / this.#bounds.height;
-    this.#savedDayIndex = this.#computeDayIndex(fractionX, fractionY);
-    this.#savedClientX = e.clientX;
-    this.#savedClientY = e.clientY;
-    this.#dragOffsetX = 0;
-    this.#dragOffsetY = 0;
-    if (this.#operation === "move") {
-      const sectionEl = this.#host.parentElement;
-      if (sectionEl) {
-        const sectionBounds = sectionEl.getBoundingClientRect();
-        const { left: startLeft, top: startTop } = this.#getEventStartPosition(sectionBounds);
-        this.#grabOffsetX = e.clientX - startLeft;
-        this.#grabOffsetY = e.clientY - startTop;
-      }
-    }
-    window.addEventListener("pointermove", this.pointerMoveHandler, true);
-    this.#dispatchDragStateChange(true);
+    this.#beginInteraction(e, operation);
   };
 
   readonly pointerMoveHandler = (e: PointerEvent) => {
-    // Only handle moves for the active pointer
-    if (
-      !this.#isDragging ||
-      this.#activePointerId === undefined ||
-      e.pointerId !== this.#activePointerId ||
-      !this.#bounds ||
-      !this.#savedStart ||
-      !this.#savedEnd
-    )
+    if (!this.#isActivePointerEvent(e) || !this.#bounds || !this.#savedStart || !this.#savedEnd) {
       return;
+    }
 
-    // For resize operations, update immediately (old behavior)
     if (this.#operation !== "move") {
-      const deltaY = e.clientY - this.#savedY;
-      const deltaYFraction = this.#savedHeight === 0 ? 0 : deltaY / this.#savedHeight;
-
-      const clientX = e.clientX - this.#bounds.left;
-      const clientY = e.clientY - this.#bounds.top;
-      const fractionX = this.#bounds.width === 0 ? 0 : clientX / this.#bounds.width;
-      const fractionY = this.#bounds.height === 0 ? 0 : clientY / this.#bounds.height;
-      const dayIndex = this.#computeDayIndex(fractionX, fractionY);
-
-      const secondsInDay = 24 * 60 * 60;
-      const changedSecondsWithinDay =
-        this.#mode === "all-day" ? 0 : Math.round(deltaYFraction * secondsInDay);
-      const changedDays = dayIndex - this.#savedDayIndex;
-      const changedSeconds = changedSecondsWithinDay + changedDays * secondsInDay;
-
-      const adjustedSeconds = this.#snapSeconds(changedSeconds);
-
-      const changedDuration = Temporal.Duration.from({ seconds: adjustedSeconds });
-      let newStart = this.#savedStart.add(changedDuration);
-      let newEnd = this.#savedEnd.add(changedDuration);
-
-      const ctor = this.constructor as typeof TimedEventInteractionController;
-      const minDurationSeconds = ctor.snapInterval * 60;
-
-      if (this.#operation === "resize-start") {
-        const maxStart = this.#savedEnd?.subtract({ seconds: minDurationSeconds });
-        if (maxStart && Temporal.PlainDateTime.compare(newStart, maxStart) > 0) {
-          newStart = maxStart;
-        }
-      }
-
-      if (this.#operation === "resize-end") {
-        const minEnd = this.#savedStart?.add({ seconds: minDurationSeconds });
-        if (minEnd && Temporal.PlainDateTime.compare(newEnd, minEnd) < 0) {
-          newEnd = minEnd;
-        }
-      }
-
-      if (this.#operation !== "resize-end") {
-        this.#host.start = newStart.toString();
-      }
-
-      if (this.#operation !== "resize-start") {
-        this.#host.end = newEnd.toString();
-      }
+      this.#handleResizePointerMove(e);
       return;
     }
 
-    // For move operations: event start visual = pointer minus grab offset, so it follows the pointer 1:1
-    const sectionElement = this.#host.parentElement;
-    if (!sectionElement) return;
-
-    const sectionBounds = sectionElement.getBoundingClientRect();
-    const eventStartVisualLeft = e.clientX - this.#grabOffsetX;
-    const eventStartVisualTop = e.clientY - this.#grabOffsetY;
-    const relativeX = eventStartVisualLeft - sectionBounds.left;
-    const relativeY = eventStartVisualTop - sectionBounds.top;
-    const fractionX = sectionBounds.width === 0 ? 0 : relativeX / sectionBounds.width;
-    const fractionY = sectionBounds.height === 0 ? 0 : relativeY / sectionBounds.height;
-
-    const hoveredDayIndex = this.#computeDayIndex(fractionX, fractionY);
-
-    // For timed mode, calculate which time slot the event start is over (with snapping)
-    let hoveredTime: Temporal.PlainTime | null = null;
-    if (this.#mode === "timed") {
-      const secondsInDay = 24 * 60 * 60;
-      const targetTimeFraction = Math.max(0, Math.min(1, fractionY));
-      const targetSecondsWithinDay = Math.round(targetTimeFraction * secondsInDay);
-      const adjustedSeconds = this.#snapSeconds(targetSecondsWithinDay);
-      const hours = Math.floor(adjustedSeconds / 3600);
-      const minutes = Math.floor((adjustedSeconds % 3600) / 60);
-      hoveredTime = Temporal.PlainTime.from({ hour: hours, minute: minutes, second: 0 });
-    }
-
-    // Store highlighted area for use on dragend (cell under event start)
-    this.#highlightedDayIndex = hoveredDayIndex;
-    this.#highlightedTime = hoveredTime;
-
-    // Dispatch hover event for highlighting (cell under event start)
-    this.#dispatchDragHover({
-      dayIndex: hoveredDayIndex,
-      time: hoveredTime,
-      clientX: eventStartVisualLeft,
-      clientY: eventStartVisualTop,
-    });
-
-    // Do not update position during drag so indentation/stacking only recalculates on drag end
-
-    // Offset = where we want the event start (pointer - grab) minus current event start position
-    const { left: currentStartLeft, top: currentStartTop } =
-      this.#getEventStartPosition(sectionBounds);
-    this.#dragOffsetX = e.clientX - this.#grabOffsetX - currentStartLeft;
-    this.#dragOffsetY = e.clientY - this.#grabOffsetY - currentStartTop;
-
-    this.#dispatchDragOffset({
-      offsetX: this.#dragOffsetX,
-      offsetY: this.#dragOffsetY,
-    });
+    this.#handleMovePointerMove(e);
   };
 
   readonly pointerUpHandler = (e: PointerEvent) => {
-    if (this.#activePointerId === undefined || e.pointerId !== this.#activePointerId) return;
+    if (this.#activePointerId === undefined || e.pointerId !== this.#activePointerId) {
+      return;
+    }
 
     window.removeEventListener("pointermove", this.pointerMoveHandler, true);
 
-    // Calculate final position and update event (only for move operations)
-    // Resize operations are already handled in pointerMoveHandler
     if (this.#operation === "move" && this.#bounds && this.#savedStart && this.#savedEnd) {
-      // Use the highlighted area (cell under event start) tracked during drag, or calculate from event start position if not set
-      let dayIndex = this.#highlightedDayIndex;
-      let time = this.#highlightedTime;
-
-      if (dayIndex === null) {
-        // Fallback: calculate from event start visual position
-        const sectionElement = this.#host.parentElement;
-        if (!sectionElement) return;
-        const sectionBounds = sectionElement.getBoundingClientRect();
-        const { left: eventStartLeft, top: eventStartTop } =
-          this.#getEventStartPosition(sectionBounds);
-        const eventStartVisualLeft = eventStartLeft + this.#dragOffsetX;
-        const eventStartVisualTop = eventStartTop + this.#dragOffsetY;
-        const relativeX = eventStartVisualLeft - sectionBounds.left;
-        const relativeY = eventStartVisualTop - sectionBounds.top;
-        const fractionX = sectionBounds.width === 0 ? 0 : relativeX / sectionBounds.width;
-        const fractionY = sectionBounds.height === 0 ? 0 : relativeY / sectionBounds.height;
-        dayIndex = this.#computeDayIndex(fractionX, fractionY);
-
-        if (this.#mode === "timed") {
-          const secondsInDay = 24 * 60 * 60;
-          const targetTimeFraction = Math.max(0, Math.min(1, fractionY));
-          const targetSecondsWithinDay = Math.round(targetTimeFraction * secondsInDay);
-          const adjustedSeconds = this.#snapSeconds(targetSecondsWithinDay);
-          const hours = Math.floor(adjustedSeconds / 3600);
-          const minutes = Math.floor((adjustedSeconds % 3600) / 60);
-          time = Temporal.PlainTime.from({ hour: hours, minute: minutes, second: 0 });
-        }
-      }
-
-      if (dayIndex === null) return;
-
-      const renderedDays = (this.#host as { renderedDays?: Temporal.PlainDate[] }).renderedDays;
-      if (!renderedDays || dayIndex < 0 || dayIndex >= renderedDays.length) return;
-
-      const targetDay = renderedDays[dayIndex];
-
-      // Set start to highlighted area
-      let targetStart: Temporal.PlainDateTime;
-      let targetEnd: Temporal.PlainDateTime;
-
-      if (this.#mode === "all-day") {
-        // For all-day: start at 00:00 of the highlighted day
-        targetStart = targetDay.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
-
-        // Calculate the number of days the event spans (inclusive)
-        // Get the inclusive end date (last day the event actually spans)
-        const startDate = this.#savedStart.toPlainDate();
-        // The end DateTime might have a time component, so get the date and subtract 1 nanosecond
-        // to get the actual last day (matching AllDayEvent.endDate logic)
-        const inclusiveEndDate = this.#savedEnd.subtract({ nanoseconds: 1 }).toPlainDate();
-
-        // Count days inclusively: from startDate to inclusiveEndDate
-        // If event spans Jan 8-9, startDate=Jan8, inclusiveEndDate=Jan9
-        // until(Jan8, Jan9) = 1 day difference, but we need 2 days (Jan8 AND Jan9)
-        const daysDiff = startDate.until(inclusiveEndDate, { largestUnit: "day" });
-        const daysCount = daysDiff.days + 1; // Add 1 for inclusive count
-
-        // End should be at 00:00 of the day after the last day (exclusive end format)
-        // If event spans 2 days starting on targetDay, end is targetDay + 2 days
-        const targetEndDate = targetDay.add({ days: daysCount });
-        targetEnd = targetEndDate.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
-      } else {
-        // For timed: use the highlighted time (already snapped during dragmove)
-        if (!time) return;
-        targetStart = targetDay.toPlainDateTime({
-          hour: time.hour,
-          minute: time.minute,
-          second: 0,
-        });
-
-        // Calculate the exact duration from saved start/end
-        const duration = this.#savedStart.until(this.#savedEnd);
-        // Calculate end by adding the exact duration to the new start
-        targetEnd = targetStart.add(duration);
-      }
-
-      // Update position; the drag transform will be cleared in the next frame
-      // after the new position has rendered.
-      this.#host.start = targetStart.toString();
-      this.#host.end = targetEnd.toString();
-
-      // Dispatch update event
-      this.#host.dispatchEvent(new CustomEvent("update"));
-
-      // Clear hover state immediately
-      this.#highlightedDayIndex = null;
-      this.#highlightedTime = null;
-      this.#dispatchDragHover(null);
-
-      // Reset pointerId and most state immediately to prevent interference with other drags,
-      // but keep #isDragging true and the current drag offset until the new position has rendered.
-      const oldPointerId = this.#activePointerId;
-      this.#activePointerId = undefined;
-      this.#bounds = null;
-      this.#savedStart = null;
-      this.#savedEnd = null;
-
-      // Clean up pointer capture and listeners
-      this.#pointerCaptureTarget?.releasePointerCapture(oldPointerId ?? 0);
-      this.#pointerCaptureTarget = undefined;
-
-      // Wait for the position update to render, then clear the transform and drag state.
-      requestAnimationFrame(() => {
-        this.#dragOffsetX = 0;
-        this.#dragOffsetY = 0;
-        this.#dispatchDragOffset({ offsetX: 0, offsetY: 0 });
-        this.#isDragging = false;
-        this.#dispatchDragStateChange(false);
-      });
-      return; // Early return to prevent clearing isDragging below
+      this.#finalizeMove();
+      return;
     }
 
-    window.removeEventListener("pointerup", this.pointerUpHandler, true);
-    window.removeEventListener("pointermove", this.pointerMoveHandler, true);
-    this.#pointerCaptureTarget?.releasePointerCapture(this.#activePointerId);
-    this.#pointerCaptureTarget = undefined;
-    this.#activePointerId = undefined;
-    this.#isDragging = false;
-    this.#highlightedDayIndex = null;
-    this.#highlightedTime = null;
-
-    // Clear hover state
-    this.#dispatchDragHover(null);
-
-    // Only clear transform offset here if we didn't update position (non-move operations)
-    if (this.#operation !== "move") {
-      this.#dragOffsetX = 0;
-      this.#dragOffsetY = 0;
-      this.#dispatchDragOffset({ offsetX: 0, offsetY: 0 });
-    }
-
-    this.#host.dispatchEvent(new CustomEvent("update"));
-    this.#dispatchDragStateChange(false);
+    this.#finalizeNonMove();
   };
 
   #deriveOperation(event: PointerEvent): InteractionOperation | null {
@@ -374,6 +101,378 @@ export class TimedEventInteractionController {
     }
 
     return "move";
+  }
+
+  #beginInteraction(e: PointerEvent, operation: InteractionOperation) {
+    this.#isDragging = true;
+    this.#operation = operation;
+    this.#activePointerId = e.pointerId;
+    this.#pointerCaptureTarget = (e.currentTarget as HTMLElement | null) ?? undefined;
+    this.#pointerCaptureTarget?.setPointerCapture(e.pointerId);
+    window.addEventListener("pointerup", this.pointerUpHandler, true);
+
+    this.#savedY = e.clientY;
+    this.#savedHeight = this.#host.clientHeight;
+    this.#savedStart = this.#toPlainDateTimeOrNull(this.#host.start);
+    this.#savedEnd = this.#toPlainDateTimeOrNull(this.#host.end);
+
+    this.#initializeBoundsAndDayIndex(e);
+    this.#initializeGrabOffsets(e);
+
+    window.addEventListener("pointermove", this.pointerMoveHandler, true);
+    this.#dispatchDragStateChange(true);
+  }
+
+  #initializeBoundsAndDayIndex(e: PointerEvent) {
+    this.#bounds = this.#host.getBoundingClientRect();
+    const bounds = this.#bounds;
+    if (!bounds) return;
+
+    const clientX = e.clientX - bounds.left;
+    const clientY = e.clientY - bounds.top;
+    const fractionX = bounds.width === 0 ? 0 : clientX / bounds.width;
+    const fractionY = bounds.height === 0 ? 0 : clientY / bounds.height;
+    this.#savedDayIndex = this.#computeDayIndex(fractionX, fractionY);
+    this.#savedClientX = e.clientX;
+    this.#savedClientY = e.clientY;
+    this.#dragOffsetX = 0;
+    this.#dragOffsetY = 0;
+  }
+
+  #initializeGrabOffsets(e: PointerEvent) {
+    if (this.#operation !== "move") return;
+
+    const sectionEl = this.#host.parentElement;
+    if (!sectionEl) return;
+
+    const sectionBounds = sectionEl.getBoundingClientRect();
+    const { left: startLeft, top: startTop } = this.#getEventStartPosition(sectionBounds);
+    this.#grabOffsetX = e.clientX - startLeft;
+    this.#grabOffsetY = e.clientY - startTop;
+  }
+
+  #toPlainDateTimeOrNull(
+    value: Temporal.PlainDateTime | string | null | undefined
+  ): Temporal.PlainDateTime | null {
+    if (value == null) return null;
+    if (typeof value === "string") return Temporal.PlainDateTime.from(value);
+    return value;
+  }
+
+  #isActivePointerEvent(e: PointerEvent): boolean {
+    return this.#isDragging && this.#activePointerId !== undefined && e.pointerId === this.#activePointerId;
+  }
+
+  #handleResizePointerMove(e: PointerEvent) {
+    const resizeContext = this.#getResizeContext(e);
+    if (!resizeContext) return;
+
+    const { savedStart, savedEnd, adjustedSeconds } = resizeContext;
+    const { newStart, newEnd } = this.#getResizedRange(savedStart, savedEnd, adjustedSeconds);
+
+    this.#applyResizeResult(newStart, newEnd);
+  }
+
+  #getResizeContext(e: PointerEvent):
+    | { savedStart: Temporal.PlainDateTime; savedEnd: Temporal.PlainDateTime; adjustedSeconds: number }
+    | null {
+    const bounds = this.#bounds;
+    const savedStart = this.#savedStart;
+    const savedEnd = this.#savedEnd;
+
+    if (!bounds || !savedStart || !savedEnd) return null;
+
+    const deltaY = e.clientY - this.#savedY;
+    const deltaYFraction = this.#savedHeight === 0 ? 0 : deltaY / this.#savedHeight;
+
+    const clientX = e.clientX - bounds.left;
+    const clientY = e.clientY - bounds.top;
+    const fractionX = bounds.width === 0 ? 0 : clientX / bounds.width;
+    const fractionY = bounds.height === 0 ? 0 : clientY / bounds.height;
+    const dayIndex = this.#computeDayIndex(fractionX, fractionY);
+
+    const changedSecondsWithinDay =
+      this.#mode === "all-day" ? 0 : Math.round(deltaYFraction * SECONDS_IN_DAY);
+    const changedDays = dayIndex - this.#savedDayIndex;
+    const changedSeconds = changedSecondsWithinDay + changedDays * SECONDS_IN_DAY;
+
+    const adjustedSeconds = this.#snapSeconds(changedSeconds);
+
+    return { savedStart, savedEnd, adjustedSeconds };
+  }
+
+  #getResizedRange(
+    savedStart: Temporal.PlainDateTime,
+    savedEnd: Temporal.PlainDateTime,
+    adjustedSeconds: number
+  ): { newStart: Temporal.PlainDateTime; newEnd: Temporal.PlainDateTime } {
+    const changedDuration = Temporal.Duration.from({ seconds: adjustedSeconds });
+    let newStart = savedStart.add(changedDuration);
+    let newEnd = savedEnd.add(changedDuration);
+
+    const ctor = this.constructor as typeof TimedEventInteractionController;
+    const minDurationSeconds = ctor.snapInterval * 60;
+
+    if (this.#operation === "resize-start") {
+      const maxStart = savedEnd.subtract({ seconds: minDurationSeconds });
+      if (Temporal.PlainDateTime.compare(newStart, maxStart) > 0) {
+        newStart = maxStart;
+      }
+    }
+
+    if (this.#operation === "resize-end") {
+      const minEnd = savedStart.add({ seconds: minDurationSeconds });
+      if (Temporal.PlainDateTime.compare(newEnd, minEnd) < 0) {
+        newEnd = minEnd;
+      }
+    }
+
+    return { newStart, newEnd };
+  }
+
+  #applyResizeResult(newStart: Temporal.PlainDateTime, newEnd: Temporal.PlainDateTime) {
+    if (this.#operation !== "resize-end") {
+      this.#host.start = newStart.toString();
+    }
+
+    if (this.#operation !== "resize-start") {
+      this.#host.end = newEnd.toString();
+    }
+  }
+
+  #handleMovePointerMove(e: PointerEvent) {
+    const sectionElement = this.#host.parentElement;
+    if (!sectionElement) return;
+
+    const sectionBounds = sectionElement.getBoundingClientRect();
+    const { fractionX, fractionY, eventStartVisualLeft, eventStartVisualTop } =
+      this.#getMovePointerFractions(e, sectionBounds);
+
+    const hoveredDayIndex = this.#computeDayIndex(fractionX, fractionY);
+    const hoveredTime = this.#getHoveredTimeFromFraction(fractionY);
+
+    this.#updateHoverState(hoveredDayIndex, hoveredTime);
+    this.#dispatchDragHover({
+      dayIndex: hoveredDayIndex,
+      time: hoveredTime,
+      clientX: eventStartVisualLeft,
+      clientY: eventStartVisualTop,
+    });
+
+    this.#updateDragOffset(e, sectionBounds);
+  }
+
+  #getMovePointerFractions(
+    e: PointerEvent,
+    sectionBounds: DOMRect
+  ): { fractionX: number; fractionY: number; eventStartVisualLeft: number; eventStartVisualTop: number } {
+    const eventStartVisualLeft = e.clientX - this.#grabOffsetX;
+    const eventStartVisualTop = e.clientY - this.#grabOffsetY;
+    const relativeX = eventStartVisualLeft - sectionBounds.left;
+    const relativeY = eventStartVisualTop - sectionBounds.top;
+    const fractionX = sectionBounds.width === 0 ? 0 : relativeX / sectionBounds.width;
+    const fractionY = sectionBounds.height === 0 ? 0 : relativeY / sectionBounds.height;
+
+    return { fractionX, fractionY, eventStartVisualLeft, eventStartVisualTop };
+  }
+
+  #getHoveredTimeFromFraction(fractionY: number): Temporal.PlainTime | null {
+    if (this.#mode !== "timed") return null;
+    return this.#getSnappedTimeFromFraction(fractionY);
+  }
+
+  #updateHoverState(dayIndex: number, time: Temporal.PlainTime | null) {
+    this.#highlightedDayIndex = dayIndex;
+    this.#highlightedTime = time;
+  }
+
+  #updateDragOffset(e: PointerEvent, sectionBounds: DOMRect) {
+    const { left: currentStartLeft, top: currentStartTop } =
+      this.#getEventStartPosition(sectionBounds);
+    this.#dragOffsetX = e.clientX - this.#grabOffsetX - currentStartLeft;
+    this.#dragOffsetY = e.clientY - this.#grabOffsetY - currentStartTop;
+
+    this.#dispatchDragOffset({
+      offsetX: this.#dragOffsetX,
+      offsetY: this.#dragOffsetY,
+    });
+  }
+
+  #finalizeMove() {
+    const context = this.#getFinalizeMoveContext();
+    if (!context) return;
+
+    const { dayIndex, time, savedStart, savedEnd, renderedDays } = context;
+    const { targetStart, targetEnd } = this.#getFinalTargetRange(
+      dayIndex,
+      time,
+      savedStart,
+      savedEnd,
+      renderedDays
+    );
+
+    this.#applyFinalMove(targetStart, targetEnd);
+    this.#cleanupAfterFinalMove();
+  }
+
+  #getFinalizeMoveContext():
+    | {
+        dayIndex: number;
+        time: Temporal.PlainTime | null;
+        savedStart: Temporal.PlainDateTime;
+        savedEnd: Temporal.PlainDateTime;
+        renderedDays: Temporal.PlainDate[];
+      }
+    | null {
+    const bounds = this.#bounds;
+    const savedStart = this.#savedStart;
+    const savedEnd = this.#savedEnd;
+    const renderedDays = (this.#host as { renderedDays?: Temporal.PlainDate[] }).renderedDays;
+
+    if (!bounds || !savedStart || !savedEnd || !renderedDays || !renderedDays.length) {
+      return null;
+    }
+
+    const dayIndex = this.#getFinalDayIndex(bounds);
+    const time = this.#getFinalTime(bounds);
+
+    if (dayIndex === null || dayIndex < 0 || dayIndex >= renderedDays.length) {
+      return null;
+    }
+
+    return { dayIndex, time, savedStart, savedEnd, renderedDays };
+  }
+
+  #getFinalDayIndex(bounds: DOMRect): number | null {
+    if (this.#highlightedDayIndex !== null) return this.#highlightedDayIndex;
+
+    const sectionElement = this.#host.parentElement;
+    if (!sectionElement) return null;
+    const sectionBounds = sectionElement.getBoundingClientRect();
+    const { left: eventStartLeft, top: eventStartTop } =
+      this.#getEventStartPosition(sectionBounds);
+    const eventStartVisualLeft = eventStartLeft + this.#dragOffsetX;
+    const eventStartVisualTop = eventStartTop + this.#dragOffsetY;
+    const relativeX = eventStartVisualLeft - sectionBounds.left;
+    const relativeY = eventStartVisualTop - sectionBounds.top;
+    const fractionX = sectionBounds.width === 0 ? 0 : relativeX / sectionBounds.width;
+    const fractionY = sectionBounds.height === 0 ? 0 : relativeY / sectionBounds.height;
+    return this.#computeDayIndex(fractionX, fractionY);
+  }
+
+  #getFinalTime(bounds: DOMRect): Temporal.PlainTime | null {
+    if (this.#highlightedTime) return this.#highlightedTime;
+
+    if (this.#mode !== "timed") return null;
+
+    const sectionElement = this.#host.parentElement;
+    if (!sectionElement) return null;
+    const sectionBounds = sectionElement.getBoundingClientRect();
+    const { left: eventStartLeft, top: eventStartTop } =
+      this.#getEventStartPosition(sectionBounds);
+    const eventStartVisualLeft = eventStartLeft + this.#dragOffsetX;
+    const eventStartVisualTop = eventStartTop + this.#dragOffsetY;
+    const relativeX = eventStartVisualLeft - sectionBounds.left;
+    const relativeY = eventStartVisualTop - sectionBounds.top;
+    const fractionY =
+      sectionBounds.height === 0 ? 0 : relativeY / sectionBounds.height;
+
+    return this.#getSnappedTimeFromFraction(fractionY);
+  }
+
+  #getFinalTargetRange(
+    dayIndex: number,
+    time: Temporal.PlainTime | null,
+    savedStart: Temporal.PlainDateTime,
+    savedEnd: Temporal.PlainDateTime,
+    renderedDays: Temporal.PlainDate[]
+  ): { targetStart: Temporal.PlainDateTime; targetEnd: Temporal.PlainDateTime } {
+    const targetDay = renderedDays[dayIndex];
+
+    if (this.#mode === "all-day") {
+      const targetStart = targetDay.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
+
+      const startDate = savedStart.toPlainDate();
+      const inclusiveEndDate = savedEnd.subtract({ nanoseconds: 1 }).toPlainDate();
+
+      const daysDiff = startDate.until(inclusiveEndDate, { largestUnit: "day" });
+      const daysCount = daysDiff.days + 1;
+
+      const targetEndDate = targetDay.add({ days: daysCount });
+      const targetEnd = targetEndDate.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
+
+      return { targetStart, targetEnd };
+    }
+
+    if (!time) {
+      throw new Error("Timed move requires a time value.");
+    }
+
+    const targetStart = targetDay.toPlainDateTime({
+      hour: time.hour,
+      minute: time.minute,
+      second: 0,
+    });
+
+    const duration = savedStart.until(savedEnd);
+    const targetEnd = targetStart.add(duration);
+
+    return { targetStart, targetEnd };
+  }
+
+  #applyFinalMove(targetStart: Temporal.PlainDateTime, targetEnd: Temporal.PlainDateTime) {
+    this.#host.start = targetStart.toString();
+    this.#host.end = targetEnd.toString();
+    this.#host.dispatchEvent(new CustomEvent("update"));
+  }
+
+  #cleanupAfterFinalMove() {
+    this.#highlightedDayIndex = null;
+    this.#highlightedTime = null;
+    this.#dispatchDragHover(null);
+
+    const oldPointerId = this.#activePointerId;
+    this.#activePointerId = undefined;
+    this.#bounds = null;
+    this.#savedStart = null;
+    this.#savedEnd = null;
+
+    if (oldPointerId !== undefined) {
+      this.#pointerCaptureTarget?.releasePointerCapture(oldPointerId);
+    }
+    this.#pointerCaptureTarget = undefined;
+
+    requestAnimationFrame(() => {
+      this.#dragOffsetX = 0;
+      this.#dragOffsetY = 0;
+      this.#dispatchDragOffset({ offsetX: 0, offsetY: 0 });
+      this.#isDragging = false;
+      this.#dispatchDragStateChange(false);
+    });
+  }
+
+  #finalizeNonMove() {
+    window.removeEventListener("pointerup", this.pointerUpHandler, true);
+    window.removeEventListener("pointermove", this.pointerMoveHandler, true);
+    if (this.#activePointerId !== undefined) {
+      this.#pointerCaptureTarget?.releasePointerCapture(this.#activePointerId);
+    }
+    this.#pointerCaptureTarget = undefined;
+    this.#activePointerId = undefined;
+    this.#isDragging = false;
+    this.#highlightedDayIndex = null;
+    this.#highlightedTime = null;
+
+    this.#dispatchDragHover(null);
+
+    if (this.#operation !== "move") {
+      this.#dragOffsetX = 0;
+      this.#dragOffsetY = 0;
+      this.#dispatchDragOffset({ offsetX: 0, offsetY: 0 });
+    }
+
+    this.#host.dispatchEvent(new CustomEvent("update"));
+    this.#dispatchDragStateChange(false);
   }
 
   #getAllowedTarget(target: EventTarget | null, composedPath: EventTarget[]): HTMLElement | null {
@@ -414,14 +513,14 @@ export class TimedEventInteractionController {
     const daysPerRow = this.#getDaysPerRow();
     if (daysPerRow > 0 && daysPerRow < dayCount && fractionY !== undefined) {
       const totalRows = Math.ceil(dayCount / daysPerRow);
-      const clampedX = Math.max(0, Math.min(0.999999, fractionX));
-      const clampedY = Math.max(0, Math.min(0.999999, fractionY));
+      const clampedX = Math.max(0, Math.min(MAX_FRACTION, fractionX));
+      const clampedY = Math.max(0, Math.min(MAX_FRACTION, fractionY));
       const row = Math.floor(clampedY * totalRows);
       const col = Math.floor(clampedX * daysPerRow);
       const index = row * daysPerRow + col;
       return Math.min(index, dayCount - 1);
     }
-    const clampedFraction = Math.max(0, Math.min(0.999999, fractionX));
+    const clampedFraction = Math.max(0, Math.min(MAX_FRACTION, fractionX));
     return Math.floor(clampedFraction * dayCount);
   }
 
@@ -443,34 +542,58 @@ export class TimedEventInteractionController {
     if (!this.#savedStart || !renderedDays?.length) {
       return { left: sectionBounds.left, top: sectionBounds.top };
     }
-    const startDate = this.#savedStart.toPlainDate();
-    const startDayIndex = renderedDays.findIndex(
-      (d) => (typeof d === "string" ? d : d.toString()) === startDate.toString()
-    );
-    if (startDayIndex < 0) return { left: sectionBounds.left, top: sectionBounds.top };
 
-    const daysPerRow = this.#getDaysPerRow();
-    const dayCount = renderedDays.length;
-
-    if (this.#mode === "all-day") {
-      if (daysPerRow > 0 && daysPerRow < dayCount) {
-        const gridRows = (this.#host as { gridRows?: number }).gridRows ?? 1;
-        const colIndex = startDayIndex % daysPerRow;
-        const rowIndex = Math.floor(startDayIndex / daysPerRow);
-        const left = sectionBounds.left + (colIndex / daysPerRow) * sectionBounds.width;
-        const top = sectionBounds.top + (rowIndex / gridRows) * sectionBounds.height;
-        return { left, top };
-      }
-      const left = sectionBounds.left + (startDayIndex / dayCount) * sectionBounds.width;
-      return { left, top: sectionBounds.top };
+    const startDayIndex = this.#getStartDayIndex(renderedDays, this.#savedStart);
+    if (startDayIndex < 0) {
+      return { left: sectionBounds.left, top: sectionBounds.top };
     }
 
-    // Timed: start day column + start time row
+    if (this.#mode === "all-day") {
+      return this.#getAllDayStartPosition(sectionBounds, startDayIndex, renderedDays.length);
+    }
+
+    return this.#getTimedStartPosition(sectionBounds, startDayIndex, renderedDays.length);
+  }
+
+  #getStartDayIndex(
+    renderedDays: Temporal.PlainDate[],
+    savedStart: Temporal.PlainDateTime
+  ): number {
+    const startDate = savedStart.toPlainDate();
+    return renderedDays.findIndex(
+      (d) => (typeof d === "string" ? d : d.toString()) === startDate.toString()
+    );
+  }
+
+  #getAllDayStartPosition(
+    sectionBounds: DOMRect,
+    startDayIndex: number,
+    dayCount: number
+  ): { left: number; top: number } {
+    const daysPerRow = this.#getDaysPerRow();
+
+    if (daysPerRow > 0 && daysPerRow < dayCount) {
+      const gridRows = (this.#host as { gridRows?: number }).gridRows ?? 1;
+      const colIndex = startDayIndex % daysPerRow;
+      const rowIndex = Math.floor(startDayIndex / daysPerRow);
+      const left = sectionBounds.left + (colIndex / daysPerRow) * sectionBounds.width;
+      const top = sectionBounds.top + (rowIndex / gridRows) * sectionBounds.height;
+      return { left, top };
+    }
+
     const left = sectionBounds.left + (startDayIndex / dayCount) * sectionBounds.width;
-    const startTime = this.#savedStart.toPlainTime();
-    const secondsInDay = 24 * 60 * 60;
+    return { left, top: sectionBounds.top };
+  }
+
+  #getTimedStartPosition(
+    sectionBounds: DOMRect,
+    startDayIndex: number,
+    dayCount: number
+  ): { left: number; top: number } {
+    const left = sectionBounds.left + (startDayIndex / dayCount) * sectionBounds.width;
+    const startTime = this.#savedStart!.toPlainTime();
     const seconds = startTime.hour * 3600 + startTime.minute * 60 + startTime.second;
-    const fractionY = seconds / secondsInDay;
+    const fractionY = seconds / SECONDS_IN_DAY;
     const top = sectionBounds.top + fractionY * sectionBounds.height;
     return { left, top };
   }
@@ -479,6 +602,15 @@ export class TimedEventInteractionController {
     const ctor = this.constructor as typeof TimedEventInteractionController;
     const increment = ctor.snapInterval * 60;
     return Math.round(seconds / increment) * increment;
+  }
+
+  #getSnappedTimeFromFraction(fractionY: number): Temporal.PlainTime {
+    const targetTimeFraction = Math.max(0, Math.min(1, fractionY));
+    const targetSecondsWithinDay = Math.round(targetTimeFraction * SECONDS_IN_DAY);
+    const adjustedSeconds = this.#snapSeconds(targetSecondsWithinDay);
+    const hours = Math.floor(adjustedSeconds / 3600);
+    const minutes = Math.floor((adjustedSeconds % 3600) / 60);
+    return Temporal.PlainTime.from({ hour: hours, minute: minutes, second: 0 });
   }
 
   #dispatchDragStateChange(isDragging: boolean) {
