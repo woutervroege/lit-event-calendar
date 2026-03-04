@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "./DayViewSection.js";
+import "./EventCalendar.js";
 
 const sampleEvents = [
   {
@@ -43,8 +43,8 @@ const sampleEvents = [
 ];
 
 const meta: Meta = {
-  title: "DayView/DayViewSection",
-  component: "day-view-section",
+  title: "EventCalendar/EventCalendar",
+  component: "event-calendar",
   tags: ["autodocs"],
   argTypes: {
     startDate: { control: "text", description: "Start date (YYYY-MM-DD)" },
@@ -61,7 +61,7 @@ const meta: Meta = {
     events: sampleEvents,
   },
   render: (args) => {
-    const el = document.createElement("day-view-section");
+    const el = document.createElement("event-calendar");
     el.setAttribute("start-date", args.startDate);
     el.setAttribute("days", String(args.days));
     el.setAttribute("variant", args.variant);

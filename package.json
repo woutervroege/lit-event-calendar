@@ -1,6 +1,6 @@
 {
-  "name": "lit-calendar",
-  "description": "Calendar UI built with Lit",
+  "name": "lit-event-calendar",
+  "description": "Event Calendar using Lit and Tailwind CSS",
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@10.15.0",

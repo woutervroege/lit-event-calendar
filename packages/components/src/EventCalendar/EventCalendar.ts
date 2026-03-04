@@ -5,9 +5,9 @@ import { styleMap } from "lit/directives/style-map.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import "../TimedEvent/TimedEvent.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import componentStyle from "./DayView.css?inline";
+import componentStyle from "./EventCalendar.css?inline";
 import "../TimedEvent/AllDayEvent.js";
-import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController";
+import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController.js";
 
 type EventInput = {
   start: string;
@@ -16,8 +16,8 @@ type EventInput = {
   color: string;
 };
 
-@customElement("day-view-section")
-export class DayViewSection extends BaseElement {
+@customElement("event-calendar")
+export class EventCalendar extends BaseElement {
   #startDate?: string;
   #days!: number;
   #hours: number = 24;
