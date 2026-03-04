@@ -20,6 +20,7 @@ type EventInput = {
 @customElement("event-calendar")
 export class EventCalendar extends BaseElement {
   #startDate?: string;
+  #currentTime?: string;
   #days!: number;
   #hours: number = 24;
   #snapInterval: number = TimedEventInteractionController.snapInterval;
@@ -49,6 +50,15 @@ export class EventCalendar extends BaseElement {
         },
       },
       snapInterval: { type: Number, attribute: "snap-interval" },
+      currentTime: {
+        attribute: "current-time",
+        converter: {
+          fromAttribute: (v: string | null): Temporal.PlainDateTime | undefined =>
+            v ? Temporal.PlainDateTime.from(v) : undefined,
+          toAttribute: (v: Temporal.PlainDateTime | null | undefined): string | null =>
+            v ? v.toString() : null,
+        },
+      },
     } as const;
   }
 
@@ -82,6 +92,16 @@ export class EventCalendar extends BaseElement {
 
   set startDate(startDate: string) {
     this.#startDate = startDate;
+  }
+
+  get currentTime(): Temporal.PlainDateTime {
+    return this.#currentTime
+      ? Temporal.PlainDateTime.from(this.#currentTime)
+      : Temporal.Now.plainDateTimeISO();
+  }
+
+  set currentTime(currentTime: Temporal.PlainDateTime | string | undefined) {
+    this.#currentTime = currentTime ? Temporal.PlainDateTime.from(currentTime).toString() : undefined;
   }
 
   get days(): Temporal.PlainDate[] {
@@ -235,6 +255,7 @@ export class EventCalendar extends BaseElement {
     const cols = this.#isMonthView ? this.daysPerRow : this.#days;
     const days = this.days;
     const totalDays = days.length;
+    const currentDay = this.currentTime.toPlainDate();
     const monthFormatter = new Intl.DateTimeFormat(this.locale, { month: "short" });
     const dayFormatter = new Intl.NumberFormat(this.locale);
 
@@ -252,15 +273,17 @@ export class EventCalendar extends BaseElement {
         ? `${monthFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)))} `
         : "";
       const label = `${monthPrefix}${dayFormatter.format(day.day)}`;
+      const isCurrentDay = Temporal.PlainDate.compare(day, currentDay) === 0;
 
       return html`
         <time
-          class="absolute p-1 text-sm z-0 font-medium"
+          class="absolute p-1 text-sm mt-2 z-0 font-medium rounded-full flex justify-center items-center ${monthPrefix ? "min-w-6 px-2" : "w-6" } h-6 ${isCurrentDay
+            ? "current-day"
+            : ""}"
           datetime=${day.toString()}
           style=${styleMap({
             right: `calc(${right}% + 6px)`,
             top: `${top}%`,
-            color: "var(--day-name-color, var(--line-color))",
           })}
         >
           ${label}

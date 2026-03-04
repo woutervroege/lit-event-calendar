@@ -66,6 +66,7 @@ const meta: Meta = {
     el.setAttribute("days", String(args.days));
     el.setAttribute("variant", args.variant);
     el.setAttribute("snap-interval", String(args.snapInterval));
+    el.setAttribute("current-time", args.currentTime);
     if (args.locale) {
       el.setAttribute("locale", args.locale);
     }
@@ -87,6 +88,7 @@ export const Month: Story = {
     snapInterval: 5,
     variant: "all-day",
     events: sampleEvents,
+    currentTime: "2025-01-09T14:30:00"
   },
 };
 

@@ -5,10 +5,12 @@
   --line: 1px;
   --line-color: color-mix(in oklab, CanvasText 7%, transparent);
   --day-name-color: color-mix(in oklab, CanvasText 30%, transparent);
+  --current-day-bg: #ff0000;
+  --current-day-color:white;
   /* Month view: columns per row (e.g. 7 for a week). Override via style or parent. */
   --days-per-row: 7;
   /* Vertical space reserved for per-cell day number labels in all-day mode. */
-  --all-day-day-number-space: 24px;
+  --all-day-day-number-space: 36px;
 }
 
 section {
@@ -73,4 +75,13 @@ section.month-view {
   background-repeat:
     repeat-x,
     repeat-y;
+}
+
+time {
+  color: var(--day-name-color, var(--line-color));
+}
+
+time.current-day {
+  background-color: var(--current-day-bg, transparent);
+  color: var(--current-day-color, var(--day-name-color, var(--line-color)));
 }
