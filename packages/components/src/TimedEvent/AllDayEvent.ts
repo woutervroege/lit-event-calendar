@@ -182,12 +182,13 @@ export class AllDayEvent extends BaseEvent {
 
   #getTopPosition(rowIndex: number, stackIndex: number): string {
     const hasGrid = this.daysPerRow > 0 && this.gridRows > 0;
+    const dayNumberOffset = "var(--all-day-day-number-space)";
 
     if (hasGrid) {
-      return `calc(var(--row-height, 100%) * ${rowIndex} + var(--event-height, 32px) * ${stackIndex})`;
+      return `calc(var(--row-height, 100%) * ${rowIndex} + ${dayNumberOffset} + var(--event-height, 32px) * ${stackIndex})`;
     }
 
-    return `calc(var(--event-height, 32px) * ${stackIndex})`;
+    return `calc(${dayNumberOffset} + var(--event-height, 32px) * ${stackIndex})`;
   }
 
   get dayInsets() {

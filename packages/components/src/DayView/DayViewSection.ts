@@ -190,6 +190,7 @@ export class DayViewSection extends BaseElement {
             class="relative flex-1 flex-row h-full text-[0px] ${this.#isMonthView ? "month-view" : ""}"
             style=${styleMap({ ...this.sectionStyle, ...hoverStyle })}
             ?data-drag-hover=${this.#dragHoverDayIndex !== null}>
+            ${this.variant === "all-day" ? this.#renderDayNumbers() : ""}
 
             ${this.#sortedEvents.map(
               (event) => html`
@@ -225,6 +226,43 @@ export class DayViewSection extends BaseElement {
 
         </section>
     `;
+  }
+
+  #renderDayNumbers() {
+    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    const days = this.days;
+    const totalDays = days.length;
+    const monthFormatter = new Intl.DateTimeFormat(this.locale, { month: "short" });
+    const dayFormatter = new Intl.NumberFormat(this.locale);
+
+    return days.map((day, dayIndex) => {
+      if (cols <= 0 || totalDays <= 0) return "";
+
+      const colIndex = this.#isMonthView ? dayIndex % cols : dayIndex;
+      const rowIndex = this.#isMonthView ? Math.floor(dayIndex / cols) : 0;
+      const right = ((cols - colIndex - 1) / cols) * 100;
+      const top = this.#isMonthView ? (rowIndex / this.gridRows) * 100 : 0;
+      const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
+      const startsNewMonth =
+        previousDay === null || previousDay.month !== day.month || previousDay.year !== day.year;
+      const monthPrefix = startsNewMonth
+        ? `${monthFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)))} `
+        : "";
+      const label = `${monthPrefix}${dayFormatter.format(day.day)}`;
+
+      return html`
+        <time
+          class="absolute p-1 text-sm z-20 text-gray-400 font-medium"
+          datetime=${day.toString()}
+          style=${styleMap({
+            right: `calc(${right}% + 6px)`,
+            top: `${top}%`,
+          })}
+        >
+          ${label}
+        </time>
+      `;
+    });
   }
 
   #handleDragHover = (event: Event) => {
