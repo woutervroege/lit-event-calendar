@@ -7,6 +7,10 @@
   --day-name-color: color-mix(in oklab, CanvasText 30%, transparent);
   --current-day-bg: #ff0000;
   --current-day-color:white;
+  --current-time-line-color: red;
+  --current-time-line-width: 2px;
+  --current-time-dot-size: 9px;
+  --current-time-dot-color: var(--current-time-line-color);
   /* Month view: columns per row (e.g. 7 for a week). Override via style or parent. */
   --days-per-row: 7;
   /* Vertical space reserved for per-cell day number labels in all-day mode. */

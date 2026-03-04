@@ -212,6 +212,7 @@ export class EventCalendar extends BaseElement {
             style=${styleMap({ ...this.sectionStyle, ...hoverStyle })}
             ?data-drag-hover=${this.#dragHoverDayIndex !== null}>
             ${this.variant === "all-day" ? this.#renderDayNumbers() : ""}
+            ${this.variant === "timed" ? this.#renderCurrentTimeIndicator() : ""}
 
             ${repeat(
               this.#sortedEvents,
@@ -290,6 +291,39 @@ export class EventCalendar extends BaseElement {
         </time>
       `;
     });
+  }
+
+  #renderCurrentTimeIndicator() {
+    const days = this.days;
+    if (!days.length || this.#days <= 0) return "";
+
+    const currentDateTime = this.currentTime;
+    const currentDay = currentDateTime.toPlainDate();
+    const currentDayIndex = days.findIndex((day) => Temporal.PlainDate.compare(day, currentDay) === 0);
+    if (currentDayIndex < 0) return "";
+
+    const hourFloat =
+      currentDateTime.hour +
+      currentDateTime.minute / 60 +
+      currentDateTime.second / 3600 +
+      currentDateTime.millisecond / 3_600_000;
+    if (hourFloat < 0 || hourFloat > this.hours) return "";
+
+    const top = (hourFloat / this.hours) * 100;
+    const left = (currentDayIndex / this.#days) * 100;
+    const width = (1 / this.#days) * 100;
+
+    return html`
+      <div
+        class="current-time-indicator absolute z-[100] m-0 pointer-events-none before:content-[''] before:absolute before:left-0 before:top-0 before:rounded-full before:-translate-x-[2px] before:-translate-y-1/2 before:[width:var(--current-time-dot-size)] before:[height:var(--current-time-dot-size)] before:[background-color:var(--current-time-dot-color)]"
+        style=${styleMap({
+          top: `${top}%`,
+          left: `${left}%`,
+          width: `${width}%`,
+          borderTop: "var(--current-time-line-width, 2px) solid var(--current-time-line-color, red)",
+        })}
+      ></div>
+    `;
   }
 
   #handleDragHover = (event: Event) => {
