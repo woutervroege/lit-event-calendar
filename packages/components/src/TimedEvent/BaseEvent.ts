@@ -148,6 +148,8 @@ export abstract class BaseEvent extends BaseElement {
       this.removeAttribute("data-dragging");
       this.dragOffsetX = 0;
       this.dragOffsetY = 0;
+      this.style.setProperty("--drag-offset-x", "0px");
+      this.style.setProperty("--drag-offset-y", "0px");
       this.onDragEnd();
     }
     this.requestUpdate();
@@ -156,8 +158,13 @@ export abstract class BaseEvent extends BaseElement {
   #handleInteractionDragOffset = (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const { offsetX, offsetY } = event.detail || {};
-    this.dragOffsetX = offsetX ?? 0;
-    this.dragOffsetY = offsetY ?? 0;
-    this.requestUpdate();
+    const nextOffsetX = offsetX ?? 0;
+    const nextOffsetY = offsetY ?? 0;
+    if (this.dragOffsetX === nextOffsetX && this.dragOffsetY === nextOffsetY) return;
+
+    this.dragOffsetX = nextOffsetX;
+    this.dragOffsetY = nextOffsetY;
+    this.style.setProperty("--drag-offset-x", `${nextOffsetX}px`);
+    this.style.setProperty("--drag-offset-y", `${nextOffsetY}px`);
   };
 }

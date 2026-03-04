@@ -351,13 +351,15 @@ export class TimedEventInteractionController {
     const hoveredDayIndex = this.#computeDayIndex(fractionX, fractionY);
     const hoveredTime = this.#getHoveredTimeFromFraction(fractionY);
 
-    this.#updateHoverState(hoveredDayIndex, hoveredTime);
-    this.#dispatchDragHover({
-      dayIndex: hoveredDayIndex,
-      time: hoveredTime,
-      clientX: eventStartVisualLeft,
-      clientY: eventStartVisualTop,
-    });
+    const hoverChanged = this.#updateHoverState(hoveredDayIndex, hoveredTime);
+    if (hoverChanged) {
+      this.#dispatchDragHover({
+        dayIndex: hoveredDayIndex,
+        time: hoveredTime,
+        clientX: eventStartVisualLeft,
+        clientY: eventStartVisualTop,
+      });
+    }
 
     this.#updateDragOffset(e, sectionBounds);
   }
@@ -381,9 +383,18 @@ export class TimedEventInteractionController {
     return this.#getSnappedTimeFromFraction(fractionY);
   }
 
-  #updateHoverState(dayIndex: number, time: Temporal.PlainTime | null) {
+  #updateHoverState(dayIndex: number, time: Temporal.PlainTime | null): boolean {
+    const previousDayIndex = this.#highlightedDayIndex;
+    const previousTime = this.#highlightedTime;
+    const unchanged =
+      previousDayIndex === dayIndex &&
+      (previousTime === null
+        ? time === null
+        : time !== null && previousTime.toString() === time.toString());
+
     this.#highlightedDayIndex = dayIndex;
     this.#highlightedTime = time;
+    return !unchanged;
   }
 
   #updateDragOffset(e: PointerEvent, sectionBounds: DOMRect) {

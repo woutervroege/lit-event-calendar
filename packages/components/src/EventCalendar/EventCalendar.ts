@@ -3,6 +3,7 @@ import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { ifDefined } from "lit/directives/if-defined.js";
+import { repeat } from "lit/directives/repeat.js";
 import "../TimedEvent/TimedEvent.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import componentStyle from "./EventCalendar.css?inline";
@@ -192,7 +193,9 @@ export class EventCalendar extends BaseElement {
             ?data-drag-hover=${this.#dragHoverDayIndex !== null}>
             ${this.variant === "all-day" ? this.#renderDayNumbers() : ""}
 
-            ${this.#sortedEvents.map(
+            ${repeat(
+              this.#sortedEvents,
+              (event) => event,
               (event) => html`
                 ${
                   this.variant === "all-day"
@@ -267,10 +270,15 @@ export class EventCalendar extends BaseElement {
   }
 
   #handleDragHover = (event: Event) => {
+    const previousDayIndex = this.#dragHoverDayIndex;
+    const previousTime = this.#dragHoverTime;
+
     if (!(event instanceof CustomEvent)) {
       this.#dragHoverDayIndex = null;
       this.#dragHoverTime = null;
-      this.requestUpdate();
+      if (previousDayIndex !== null || previousTime !== null) {
+        this.requestUpdate();
+      }
       return;
     }
 
@@ -282,7 +290,18 @@ export class EventCalendar extends BaseElement {
       this.#dragHoverDayIndex = hover.dayIndex ?? null;
       this.#dragHoverTime = hover.time ?? null;
     }
-    this.requestUpdate();
+
+    const nextDayIndex = this.#dragHoverDayIndex;
+    const nextTime = this.#dragHoverTime;
+    const changed =
+      previousDayIndex !== nextDayIndex ||
+      (previousTime === null
+        ? nextTime !== null
+        : nextTime === null || previousTime.toString() !== nextTime.toString());
+
+    if (changed) {
+      this.requestUpdate();
+    }
   };
 
   #compareEventsForRenderOrder(a: EventInput, b: EventInput): number {

@@ -270,8 +270,11 @@ export class TimedEvent extends BaseEvent {
     }
 
     const { previewStart, previewEnd } = preview;
-    this.#previewDisplayTime = this.#formatDisplayTime(previewStart, previewEnd);
-    this.requestUpdate();
+    const nextPreviewDisplayTime = this.#formatDisplayTime(previewStart, previewEnd);
+    if (this.#previewDisplayTime !== nextPreviewDisplayTime) {
+      this.#previewDisplayTime = nextPreviewDisplayTime;
+      this.requestUpdate();
+    }
   };
 
   #getHoverDetail(event: CustomEvent):
@@ -293,6 +296,7 @@ export class TimedEvent extends BaseEvent {
   }
 
   #clearPreviewDisplayTime() {
+    if (this.#previewDisplayTime === null) return;
     this.#previewDisplayTime = null;
     this.requestUpdate();
   }
@@ -314,10 +318,6 @@ export class TimedEvent extends BaseEvent {
 
   render() {
     const colorStyles = getEventColorStyles(this.color);
-    const dragTransform =
-      this.interactionController.isDragging || this.dragOffsetX !== 0 || this.dragOffsetY !== 0
-        ? `translate(${this.dragOffsetX}px, ${this.dragOffsetY}px)`
-        : "none";
 
     return html`
       <div
@@ -329,7 +329,7 @@ export class TimedEvent extends BaseEvent {
         aria-keyshortcuts="Control+Meta+ArrowUp Control+Meta+ArrowDown Control+Meta+ArrowLeft Control+Meta+ArrowRight Control+Shift+ArrowUp Control+Shift+ArrowDown"
         style=${styleMap({
           ...colorStyles,
-          transform: dragTransform,
+          transform: "translate(var(--drag-offset-x, 0px), var(--drag-offset-y, 0px))",
           // Disable transform animation entirely to avoid any snap/flash at drag end.
           transition: "none",
         })}
