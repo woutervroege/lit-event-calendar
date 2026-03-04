@@ -181,15 +181,7 @@ export class AllDayEvent extends BaseEvent {
   }
 
   #getTopPosition(rowIndex: number, stackIndex: number): string {
-    const isDragging = this.interactionController.isDragging;
     const hasGrid = this.daysPerRow > 0 && this.gridRows > 0;
-
-    if (isDragging) {
-      if (hasGrid) {
-        return `calc(var(--row-height, 100%) * ${rowIndex})`;
-      }
-      return "0";
-    }
 
     if (hasGrid) {
       return `calc(var(--row-height, 100%) * ${rowIndex} + var(--event-height, 32px) * ${stackIndex})`;
@@ -341,13 +333,9 @@ export class AllDayEvent extends BaseEvent {
     const colorStyles = getEventColorStyles(this.color);
     const isDragging = this.interactionController.isDragging;
     const hasOffset = this.dragOffsetX !== 0 || this.dragOffsetY !== 0;
-    const stackOffsetY =
-      (isDragging || hasOffset) && this.#lockedStackIndex !== null
-        ? this.#lockedStackIndex * this.#getEventHeightPx()
-        : 0;
     const dragTransform =
       isDragging || hasOffset
-        ? `translate(${this.dragOffsetX}px, ${this.dragOffsetY + stackOffsetY}px)`
+        ? `translate(${this.dragOffsetX}px, ${this.dragOffsetY}px)`
         : "none";
 
     return html`
