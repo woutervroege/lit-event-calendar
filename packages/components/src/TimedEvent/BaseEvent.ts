@@ -93,6 +93,14 @@ export abstract class BaseEvent extends BaseElement {
     this.#end = end?.toString() ?? undefined;
   }
 
+  setStartFromPlainDateTime(value: Temporal.PlainDateTime) {
+    this.#start = this.#serializeUpdatedDateTime(value, this.#start);
+  }
+
+  setEndFromPlainDateTime(value: Temporal.PlainDateTime) {
+    this.#end = this.#serializeUpdatedDateTime(value, this.#end);
+  }
+
   get currentTime(): Temporal.PlainDateTime {
     if (!this.#currentTime) {
       return Temporal.Now.zonedDateTimeISO(this.timezone).toPlainDateTime();
@@ -247,5 +255,18 @@ export abstract class BaseEvent extends BaseElement {
   #hasTimeComponent(value: string | undefined): boolean {
     if (!value) return false;
     return value.includes("T");
+  }
+
+  #serializeUpdatedDateTime(
+    value: Temporal.PlainDateTime,
+    originalValue: string | undefined
+  ): string {
+    if (!originalValue || !this.#isTimezonedString(originalValue)) {
+      return value.toString();
+    }
+
+    const originalTimeZone = Temporal.ZonedDateTime.from(originalValue).timeZoneId;
+    const displayZonedDateTime = value.toZonedDateTime(this.timezone);
+    return displayZonedDateTime.withTimeZone(originalTimeZone).toString();
   }
 }

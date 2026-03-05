@@ -6,6 +6,8 @@ const MAX_FRACTION = 0.999999;
 type TimedEventHost = HTMLElement & {
   start: Temporal.PlainDateTime | string | null;
   end: Temporal.PlainDateTime | string | null;
+  setStartFromPlainDateTime?: (value: Temporal.PlainDateTime) => void;
+  setEndFromPlainDateTime?: (value: Temporal.PlainDateTime) => void;
   renderedDays?: unknown;
   daysPerRow?: number;
   gridRows?: number;
@@ -128,8 +130,8 @@ export class TimedEventInteractionController {
 
     if (this.#mode === "all-day") {
       const delta = Temporal.Duration.from({ days: direction });
-      this.#host.start = start.add(delta).toString();
-      this.#host.end = end.add(delta).toString();
+      this.#setHostStart(start.add(delta));
+      this.#setHostEnd(end.add(delta));
       this.#host.dispatchEvent(new CustomEvent("update"));
       return;
     }
@@ -137,8 +139,8 @@ export class TimedEventInteractionController {
     const ctor = this.constructor as typeof TimedEventInteractionController;
     const minutes = ctor.snapInterval * direction;
     const delta = Temporal.Duration.from({ minutes });
-    this.#host.start = start.add(delta).toString();
-    this.#host.end = end.add(delta).toString();
+    this.#setHostStart(start.add(delta));
+    this.#setHostEnd(end.add(delta));
     this.#host.dispatchEvent(new CustomEvent("update"));
   }
 
@@ -148,8 +150,8 @@ export class TimedEventInteractionController {
     if (!start || !end) return;
 
     const delta = Temporal.Duration.from({ hours });
-    this.#host.start = start.add(delta).toString();
-    this.#host.end = end.add(delta).toString();
+    this.#setHostStart(start.add(delta));
+    this.#setHostEnd(end.add(delta));
     this.#host.dispatchEvent(new CustomEvent("update"));
   }
 
@@ -182,7 +184,7 @@ export class TimedEventInteractionController {
       nextEnd = minEnd;
     }
 
-    this.#host.end = nextEnd.toString();
+    this.#setHostEnd(nextEnd);
     this.#host.dispatchEvent(new CustomEvent("update"));
   }
 
@@ -332,11 +334,11 @@ export class TimedEventInteractionController {
 
   #applyResizeResult(newStart: Temporal.PlainDateTime, newEnd: Temporal.PlainDateTime) {
     if (this.#operation !== "resize-end") {
-      this.#host.start = newStart.toString();
+      this.#setHostStart(newStart);
     }
 
     if (this.#operation !== "resize-start") {
-      this.#host.end = newEnd.toString();
+      this.#setHostEnd(newEnd);
     }
   }
 
@@ -521,9 +523,25 @@ export class TimedEventInteractionController {
   }
 
   #applyFinalMove(targetStart: Temporal.PlainDateTime, targetEnd: Temporal.PlainDateTime) {
-    this.#host.start = targetStart.toString();
-    this.#host.end = targetEnd.toString();
+    this.#setHostStart(targetStart);
+    this.#setHostEnd(targetEnd);
     this.#host.dispatchEvent(new CustomEvent("update"));
+  }
+
+  #setHostStart(value: Temporal.PlainDateTime) {
+    if (typeof this.#host.setStartFromPlainDateTime === "function") {
+      this.#host.setStartFromPlainDateTime(value);
+      return;
+    }
+    this.#host.start = value.toString();
+  }
+
+  #setHostEnd(value: Temporal.PlainDateTime) {
+    if (typeof this.#host.setEndFromPlainDateTime === "function") {
+      this.#host.setEndFromPlainDateTime(value);
+      return;
+    }
+    this.#host.end = value.toString();
   }
 
   #cleanupAfterFinalMove() {
