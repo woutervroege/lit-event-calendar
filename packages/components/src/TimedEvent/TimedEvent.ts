@@ -456,7 +456,6 @@ export class TimedEvent extends BaseEvent {
         time-detail=${isFirst ? this.displayTimeDetail : ""}
         segment-direction="vertical"
         ?past=${this.isPast}
-        locale=${this.locale}
         style=${styleMap(inset)}
         ?first-segment=${hasRoundedStart}
         ?last-segment=${hasRoundedEnd}

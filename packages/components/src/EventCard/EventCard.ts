@@ -1,11 +1,26 @@
 import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
+import { ContextConsumer } from "@lit/context";
 import { BaseElement } from "../BaseElement/BaseElement";
+import { calendarViewContext, type CalendarViewContextValue } from "../context/CalendarViewContext";
 import componentStyle from "./EventCard.css?inline";
 
 @customElement("event-card")
 export class EventCard extends BaseElement {
+  @property({ type: String })
+  locale?: string;
+
+  #calendarView?: CalendarViewContextValue;
+  #calendarViewConsumer = new ContextConsumer(this, {
+    context: calendarViewContext,
+    subscribe: true,
+    callback: (value: CalendarViewContextValue | undefined) => {
+      this.#calendarView = value;
+      this.requestUpdate();
+    },
+  });
+
   @property({ type: String })
   summary = "";
 
@@ -32,7 +47,10 @@ export class EventCard extends BaseElement {
   }
 
   get dir() {
-    return new Intl.Locale(this.locale).getTextInfo().direction;
+    const locale = this.locale || this.#calendarView?.locale || navigator.language;
+    const language = locale.toLowerCase().split("-")[0];
+    const rtlLanguages = new Set(["ar", "fa", "he", "ur"]);
+    return rtlLanguages.has(language) ? "rtl" : "ltr";
   }
 
   render() {

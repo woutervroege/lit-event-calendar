@@ -2,8 +2,10 @@ import { Temporal } from "@js-temporal/polyfill";
 import type { PropertyValues } from "lit";
 import { unsafeCSS } from "lit";
 import { property } from "lit/decorators.js";
+import { ContextConsumer } from "@lit/context";
 import { BaseElement } from "../BaseElement/BaseElement";
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController";
+import { calendarViewContext, type CalendarViewContextValue } from "../context/CalendarViewContext";
 import componentStyle from "./TimedEvent.css?inline";
 
 export abstract class BaseEvent extends BaseElement {
@@ -11,7 +13,17 @@ export abstract class BaseEvent extends BaseElement {
   #end?: string;
   #currentTime?: string;
   #timezone?: string;
+  #locale?: string;
   #justDroppedTimeout: ReturnType<typeof setTimeout> | null = null;
+  #calendarView?: CalendarViewContextValue;
+  #calendarViewConsumer = new ContextConsumer(this, {
+    context: calendarViewContext,
+    subscribe: true,
+    callback: (value: CalendarViewContextValue | undefined) => {
+      this.#calendarView = value;
+      this.requestUpdate();
+    },
+  });
 
   protected interactionController: TimedEventInteractionController;
   protected dragOffsetX = 0;
@@ -30,6 +42,7 @@ export abstract class BaseEvent extends BaseElement {
     return {
       start: { type: String },
       end: { type: String },
+      locale: { type: String },
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
     } as const;
@@ -106,10 +119,10 @@ export abstract class BaseEvent extends BaseElement {
   }
 
   get currentTime(): Temporal.PlainDateTime {
-    if (!this.#currentTime) {
-      return Temporal.Now.zonedDateTimeISO(this.timezone).toPlainDateTime();
-    }
-    return this.#toPlainDateTime(this.#currentTime);
+    if (this.#currentTime) return this.#toPlainDateTime(this.#currentTime);
+    const contextCurrentTime = this.#calendarView?.currentTime;
+    if (contextCurrentTime) return this.#toPlainDateTime(contextCurrentTime);
+    return Temporal.Now.zonedDateTimeISO(this.timezone).toPlainDateTime();
   }
 
   set currentTime(
@@ -119,11 +132,19 @@ export abstract class BaseEvent extends BaseElement {
   }
 
   get timezone(): string {
-    return this.#timezone ?? Temporal.Now.timeZoneId();
+    return this.#timezone ?? this.#calendarView?.timezone ?? Temporal.Now.timeZoneId();
   }
 
   set timezone(timezone: string | null | undefined) {
     this.#timezone = timezone ?? undefined;
+  }
+
+  get locale(): string {
+    return this.#locale ?? this.#calendarView?.locale ?? navigator.language;
+  }
+
+  set locale(locale: string | null | undefined) {
+    this.#locale = locale ?? undefined;
   }
 
   get startDate(): Temporal.PlainDate | null {

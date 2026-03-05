@@ -1,13 +1,14 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { html, unsafeCSS } from "lit";
+import { html, type PropertyValues, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
-import { ifDefined } from "lit/directives/if-defined.js";
+import { ContextProvider } from "@lit/context";
 import "../TimedEvent/TimedEvent.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import componentStyle from "./EventCalendar.css?inline";
 import "../TimedEvent/AllDayEvent.js";
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController.js";
+import { calendarViewContext, type CalendarViewContextValue } from "../context/CalendarViewContext.js";
 
 type EventInput = {
   /**
@@ -32,6 +33,7 @@ export class EventCalendar extends BaseElement {
   #startDate?: string;
   #currentTime?: string;
   #timezone?: string;
+  #locale?: string;
   #days!: number;
   #hours: number = 24;
   #snapInterval: number = TimedEventInteractionController.snapInterval;
@@ -40,6 +42,7 @@ export class EventCalendar extends BaseElement {
   dayNumbersHidden = false;
   #dragHoverDayIndex: number | null = null;
   #dragHoverTime: Temporal.PlainTime | null = null;
+  #calendarViewProvider = new ContextProvider(this, { context: calendarViewContext });
 
   get #sortedEvents(): EventEntry[] {
     const events = this.#eventsForVariant;
@@ -77,6 +80,7 @@ export class EventCalendar extends BaseElement {
         },
       },
       dayNumbersHidden: { type: Boolean, attribute: "day-numbers-hidden", reflect: true },
+      locale: { type: String },
       timezone: { type: String },
       snapInterval: { type: Number, attribute: "snap-interval" },
       currentTime: {
@@ -113,12 +117,24 @@ export class EventCalendar extends BaseElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.#updateCalendarViewContext();
     this.addEventListener("interaction-drag-hover", this.#handleDragHover as EventListener);
   }
 
   disconnectedCallback() {
     this.removeEventListener("interaction-drag-hover", this.#handleDragHover as EventListener);
     super.disconnectedCallback();
+  }
+
+  updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+    if (
+      changedProperties.has("locale") ||
+      changedProperties.has("timezone") ||
+      changedProperties.has("currentTime")
+    ) {
+      this.#updateCalendarViewContext();
+    }
   }
 
   get startDate(): Temporal.PlainDate {
@@ -148,6 +164,14 @@ export class EventCalendar extends BaseElement {
 
   set timezone(timezone: string | undefined) {
     this.#timezone = timezone || undefined;
+  }
+
+  get locale(): string {
+    return this.#locale || navigator.language;
+  }
+
+  set locale(locale: string | undefined) {
+    this.#locale = locale || undefined;
   }
 
   get days(): Temporal.PlainDate[] {
@@ -266,11 +290,8 @@ export class EventCalendar extends BaseElement {
                   this.variant === "all-day"
                     ? html`
                 <all-day-event
-                    locale=${ifDefined(this.locale)}
                     start=${this.#toEventDateTimeString(event.start)}
                     end=${this.#toEventDateTimeString(event.end)}
-                    .currentTime=${this.currentTime}
-                    .timezone=${this.timezone}
                     summary=${event.summary}
                     color=${event.color}
                     .renderedDays=${this.days}
@@ -281,11 +302,8 @@ export class EventCalendar extends BaseElement {
                 `
                     : html`
                 <timed-event
-                    locale=${ifDefined(this.locale)}
                     start=${this.#toEventDateTimeString(event.start)}
                     end=${this.#toEventDateTimeString(event.end)}
-                    .currentTime=${this.currentTime}
-                    .timezone=${this.timezone}
                     summary=${event.summary}
                     color=${event.color}
                     .renderedDays=${this.days as unknown as never[]}
@@ -452,5 +470,14 @@ export class EventCalendar extends BaseElement {
 
   get #eventsAsEntries(): EventEntry[] {
     return Array.from(this.events?.entries() ?? []);
+  }
+
+  #updateCalendarViewContext() {
+    const value: CalendarViewContextValue = {
+      locale: this.locale,
+      timezone: this.timezone,
+      currentTime: this.currentTime.toString(),
+    };
+    this.#calendarViewProvider.setValue(value);
   }
 }

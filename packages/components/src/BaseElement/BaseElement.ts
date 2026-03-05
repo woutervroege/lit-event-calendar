@@ -15,25 +15,8 @@ interface BaseElementConstructor {
 }
 
 export class BaseElement extends LitElement {
-  #locale?: string;
-
-  static get properties() {
-    return {
-      ...(super.properties ?? {}),
-      locale: { type: String },
-    } as any;
-  }
-
   static get styles() {
     return [unsafeCSS(style)];
-  }
-
-  get locale(): string {
-    return this.#locale || navigator.language;
-  }
-
-  set locale(locale: string) {
-    this.#locale = locale;
   }
 
   updated(changedProperties: Map<string | number | symbol, unknown>) {
