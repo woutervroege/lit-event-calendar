@@ -96,7 +96,7 @@ export class TimedEvent extends BaseEvent {
     );
     const overlappingIndex = sortedSiblings.indexOf(this);
     const indentation = overlappingIndex * 12;
-    const width = 1 - indentation / 200;
+    const width = 1;
     const marginLeft = 0;
     return { width, marginLeft, indentation };
   }

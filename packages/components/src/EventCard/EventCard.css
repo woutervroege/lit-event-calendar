@@ -7,7 +7,7 @@
 }
 
 :host > div {
-  width: calc((100% / var(--days)) * var(--width));
+  width: max(0px, calc((100% / var(--days)) * var(--width) - var(--indentation, 0px)));
   left: var(--left);
   margin-left: calc((100% / var(--days)) * var(--margin-left) + var(--indentation, 0px));
   z-index: var(--z-index, 1);
