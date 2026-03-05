@@ -397,6 +397,7 @@ export class AllDayEvent extends BaseEvent {
         time=${isFirst ? this.displayTime : ""}
         segment-direction="horizontal"
         ?past=${this.isPast}
+        locale=${this.locale}
         style=${styleMap(inset)}
         ?first-segment=${hasRoundedStart}
         ?last-segment=${hasRoundedEnd}
