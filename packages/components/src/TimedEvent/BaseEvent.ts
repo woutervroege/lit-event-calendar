@@ -82,7 +82,9 @@ export abstract class BaseEvent extends BaseElement {
   }
 
   set start(start: Temporal.PlainDateTime | Temporal.ZonedDateTime | string | null) {
+    const oldValue = this.#start;
     this.#start = start?.toString() ?? undefined;
+    this.requestUpdate("start", oldValue);
   }
 
   get end(): Temporal.PlainDateTime | null {
@@ -90,15 +92,17 @@ export abstract class BaseEvent extends BaseElement {
   }
 
   set end(end: Temporal.PlainDateTime | Temporal.ZonedDateTime | string | null) {
+    const oldValue = this.#end;
     this.#end = end?.toString() ?? undefined;
+    this.requestUpdate("end", oldValue);
   }
 
   setStartFromPlainDateTime(value: Temporal.PlainDateTime) {
-    this.#start = this.#serializeUpdatedDateTime(value, this.#start);
+    this.start = this.#serializeUpdatedDateTime(value, this.#start);
   }
 
   setEndFromPlainDateTime(value: Temporal.PlainDateTime) {
-    this.#end = this.#serializeUpdatedDateTime(value, this.#end);
+    this.end = this.#serializeUpdatedDateTime(value, this.#end);
   }
 
   get currentTime(): Temporal.PlainDateTime {
