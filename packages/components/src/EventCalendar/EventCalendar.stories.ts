@@ -68,6 +68,21 @@ const timezoneOptions =
     ? Intl.supportedValuesOf("timeZone")
     : ["UTC", "Europe/Amsterdam", "America/New_York", "Asia/Tokyo"];
 
+const localeOptions = [
+  "en-US",
+  "en-GB",
+  "nl-NL",
+  "de-DE",
+  "fr-FR",
+  "es-ES",
+  "it-IT",
+  "pt-BR",
+  "ja-JP",
+  "zh-CN",
+  "ar",
+  "he",
+];
+
 const meta: Meta = {
   title: "EventCalendar/EventCalendar",
   component: "event-calendar",
@@ -75,7 +90,11 @@ const meta: Meta = {
   argTypes: {
     startDate: { control: "text", description: "Start date (YYYY-MM-DD)" },
     days: { control: { type: "number", min: 1, max: 42 }, description: "Number of days" },
-    locale: { control: "text", description: "Locale (e.g. en-US, nl-NL)" },
+    locale: {
+      control: "select",
+      options: localeOptions,
+      description: "Locale",
+    },
     timezone: {
       control: "select",
       options: timezoneOptions,

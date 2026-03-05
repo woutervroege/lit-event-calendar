@@ -31,9 +31,13 @@ export class EventCard extends BaseElement {
     return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
 
+  get dir() {
+    return new Intl.Locale(this.locale).getTextInfo().direction;
+  }
+
   render() {
     return html`
-          <div class=${classMap(this.#cardClasses)}>
+          <div class=${classMap(this.#cardClasses)} dir="${this.dir}">
               ${this.past ? html`<span class="sr-only">Past event.</span>` : ""}
               <h6 class=${classMap(this.#summaryClasses)}>${this.summary}</h6>
               <time class=${classMap(this.#timeClasses)}>
