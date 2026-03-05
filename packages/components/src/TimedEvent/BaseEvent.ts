@@ -82,7 +82,9 @@ export abstract class BaseEvent extends BaseElement {
   }
 
   set start(start: Temporal.PlainDateTime | Temporal.ZonedDateTime | string | null) {
+    const oldValue = this.#start;
     this.#start = start?.toString() ?? undefined;
+    this.requestUpdate("start", oldValue);
   }
 
   get end(): Temporal.PlainDateTime | null {
@@ -90,7 +92,17 @@ export abstract class BaseEvent extends BaseElement {
   }
 
   set end(end: Temporal.PlainDateTime | Temporal.ZonedDateTime | string | null) {
+    const oldValue = this.#end;
     this.#end = end?.toString() ?? undefined;
+    this.requestUpdate("end", oldValue);
+  }
+
+  setStartFromPlainDateTime(value: Temporal.PlainDateTime) {
+    this.start = this.#serializeUpdatedDateTime(value, this.#start);
+  }
+
+  setEndFromPlainDateTime(value: Temporal.PlainDateTime) {
+    this.end = this.#serializeUpdatedDateTime(value, this.#end);
   }
 
   get currentTime(): Temporal.PlainDateTime {
@@ -152,6 +164,32 @@ export abstract class BaseEvent extends BaseElement {
       current = current.add({ days: 1 });
     }
     return days;
+  }
+
+  protected get startInputValue(): string | null {
+    return this.#start ?? null;
+  }
+
+  protected get endInputValue(): string | null {
+    return this.#end ?? null;
+  }
+
+  protected get startHasTimeComponent(): boolean {
+    return this.#hasTimeComponent(this.#start);
+  }
+
+  protected get endHasTimeComponent(): boolean {
+    return this.#hasTimeComponent(this.#end);
+  }
+
+  protected get originalStartZonedDateTime(): Temporal.ZonedDateTime | null {
+    if (!this.#start || !this.#isTimezonedString(this.#start)) return null;
+    return Temporal.ZonedDateTime.from(this.#start);
+  }
+
+  protected get originalEndZonedDateTime(): Temporal.ZonedDateTime | null {
+    if (!this.#end || !this.#isTimezonedString(this.#end)) return null;
+    return Temporal.ZonedDateTime.from(this.#end);
   }
 
   get siblings(): BaseEvent[] {
@@ -216,5 +254,23 @@ export abstract class BaseEvent extends BaseElement {
 
   #isTimezonedString(value: string): boolean {
     return value.includes("[") && value.includes("]");
+  }
+
+  #hasTimeComponent(value: string | undefined): boolean {
+    if (!value) return false;
+    return value.includes("T");
+  }
+
+  #serializeUpdatedDateTime(
+    value: Temporal.PlainDateTime,
+    originalValue: string | undefined
+  ): string {
+    if (!originalValue || !this.#isTimezonedString(originalValue)) {
+      return value.toString();
+    }
+
+    const originalTimeZone = Temporal.ZonedDateTime.from(originalValue).timeZoneId;
+    const displayZonedDateTime = value.toZonedDateTime(this.timezone);
+    return displayZonedDateTime.withTimeZone(originalTimeZone).toString();
   }
 }

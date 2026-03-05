@@ -3,7 +3,6 @@ import { html } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { getEventColorStyles } from "../utils/EventColor";
-import { formatDateRangeShort } from "../utils/DateFormatting";
 import "../EventCard/EventCard";
 import "../ResizeHandle/ResizeHandle";
 import { BaseEvent } from "./BaseEvent";
@@ -241,50 +240,21 @@ export class AllDayEvent extends BaseEvent {
       return this.#previewDisplayTime;
     }
 
+    if (!this.startHasTimeComponent) return "";
+
     const startDate = this.startDate;
-    const endDate = this.endDate;
-    if (!startDate || !endDate) return "";
+    const startTime = this.startTime;
+    if (!startDate || !startTime) return "";
 
-    const renderedDays = this.#getSortedRenderedDays();
-    if (!renderedDays.length) return "";
-
-    const { firstVisibleDay, lastVisibleDay } = this.#getVisibleRange(renderedDays);
-    const { extendsBefore, extendsAfter } = this.#getExtensionFlags(
-      startDate,
-      endDate,
-      firstVisibleDay,
-      lastVisibleDay
+    const isStartVisible = this.renderedDays.some(
+      (day) => Temporal.PlainDate.compare(day, startDate) === 0
     );
+    if (!isStartVisible) return "";
 
-    if ((extendsBefore || extendsAfter) && Temporal.PlainDate.compare(startDate, endDate) !== 0) {
-      return formatDateRangeShort(this.locale, startDate, endDate);
-    }
-
-    return "";
-  }
-
-  #getSortedRenderedDays(): Temporal.PlainDate[] {
-    return [...this.renderedDays].sort((a, b) => Temporal.PlainDate.compare(a, b));
-  }
-
-  #getVisibleRange(renderedDays: Temporal.PlainDate[]): {
-    firstVisibleDay: Temporal.PlainDate;
-    lastVisibleDay: Temporal.PlainDate;
-  } {
-    const firstVisibleDay = renderedDays[0];
-    const lastVisibleDay = renderedDays[renderedDays.length - 1];
-    return { firstVisibleDay, lastVisibleDay };
-  }
-
-  #getExtensionFlags(
-    startDate: Temporal.PlainDate,
-    endDate: Temporal.PlainDate,
-    firstVisibleDay: Temporal.PlainDate,
-    lastVisibleDay: Temporal.PlainDate
-  ): { extendsBefore: boolean; extendsAfter: boolean } {
-    const extendsBefore = Temporal.PlainDate.compare(startDate, firstVisibleDay) < 0;
-    const extendsAfter = Temporal.PlainDate.compare(endDate, lastVisibleDay) > 0;
-    return { extendsBefore, extendsAfter };
+    return startTime.toLocaleString(this.locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   #handleInteractionDragHover = (event: Event) => {
@@ -303,17 +273,16 @@ export class AllDayEvent extends BaseEvent {
     }
 
     const startDate = this.startDate;
-    const endDate = this.endDate;
-    if (!startDate || !endDate) {
+    const startTime = this.startTime;
+    if (!startDate || !startTime) {
       this.#clearPreviewDisplayTime();
       return;
     }
 
-    const { dayIndex } = hover;
-    const targetStartDate = renderedDays[dayIndex];
-    const targetEndDate = this.#getTargetEndDate(startDate, endDate, targetStartDate);
-
-    this.#previewDisplayTime = formatDateRangeShort(this.locale, targetStartDate, targetEndDate);
+    this.#previewDisplayTime = startTime.toLocaleString(this.locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     this.requestUpdate();
   };
 
@@ -346,16 +315,6 @@ export class AllDayEvent extends BaseEvent {
   ): boolean {
     const { dayIndex } = hover;
     return dayIndex != null && dayIndex >= 0 && dayIndex < renderedDays.length;
-  }
-
-  #getTargetEndDate(
-    startDate: Temporal.PlainDate,
-    endDate: Temporal.PlainDate,
-    targetStartDate: Temporal.PlainDate
-  ): Temporal.PlainDate {
-    const diff = startDate.until(endDate, { largestUnit: "day" });
-    const daysCount = diff.days + 1;
-    return targetStartDate.add({ days: daysCount - 1 });
   }
 
   render() {

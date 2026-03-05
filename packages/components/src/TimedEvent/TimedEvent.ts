@@ -10,6 +10,7 @@ import { BaseEvent } from "./BaseEvent";
 @customElement("timed-event")
 export class TimedEvent extends BaseEvent {
   #previewDisplayTime: string | null = null;
+  #previewRange: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime } | null = null;
   #keyboardHintId = `timed-event-kbd-${Math.random().toString(36).slice(2, 9)}`;
 
   get siblings(): TimedEvent[] {
@@ -156,17 +157,18 @@ export class TimedEvent extends BaseEvent {
   }
 
   #formatDisplayTime(start: Temporal.PlainTime | null, end: Temporal.PlainTime | null): string {
-    const startLabel =
-      start?.toLocaleString(this.locale, {
-        hour: "2-digit",
-        minute: "2-digit",
-      }) ?? "";
-    const endLabel =
-      end?.toLocaleString(this.locale, {
-        hour: "2-digit",
-        minute: "2-digit",
-      }) ?? "";
+    const startLabel = this.#formatTimeLabel(start);
+    const endLabel = this.#formatTimeLabel(end);
     return `${startLabel} - ${endLabel}`;
+  }
+
+  #formatTimeLabel(time: Temporal.PlainTime | null): string {
+    return (
+      time?.toLocaleString(this.locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+      }) ?? ""
+    );
   }
 
   get displayTime(): string {
@@ -188,6 +190,38 @@ export class TimedEvent extends BaseEvent {
     }
 
     return this.#formatMultiDayDisplayTime(startDate, endDate, startTime, endTime);
+  }
+
+  get displayTimeDetail(): string {
+    const originalStartSource = this.originalStartZonedDateTime;
+    const originalEndSource = this.originalEndZonedDateTime;
+    if (!originalStartSource || !originalEndSource) return "";
+
+    const originalTimeZone = originalStartSource.timeZoneId;
+    const rangeStart = this.#previewRange?.start ?? this.start;
+    const rangeEnd = this.#previewRange?.end ?? this.end;
+    if (!rangeStart || !rangeEnd) return "";
+
+    const originalStart = rangeStart.toZonedDateTime(this.timezone).withTimeZone(originalTimeZone);
+    const originalEnd = rangeEnd.toZonedDateTime(this.timezone).withTimeZone(originalTimeZone);
+
+    if (!originalStart || !originalEnd) return "";
+    if (!this.#hasOffsetDifferenceFromCurrentTimezone(originalStart, originalEnd)) return "";
+
+    const originalStartLabel = this.#formatTimeLabel(originalStart.toPlainTime());
+    return `${originalStartLabel} ${originalStart.offset}`;
+  }
+
+  #hasOffsetDifferenceFromCurrentTimezone(
+    originalStart: Temporal.ZonedDateTime,
+    originalEnd: Temporal.ZonedDateTime
+  ): boolean {
+    const currentTimezoneStart = originalStart.withTimeZone(this.timezone);
+    const currentTimezoneEnd = originalEnd.withTimeZone(this.timezone);
+    return (
+      originalStart.offset !== currentTimezoneStart.offset ||
+      originalEnd.offset !== currentTimezoneEnd.offset
+    );
   }
 
   #formatMultiDayDisplayTime(
@@ -263,14 +297,21 @@ export class TimedEvent extends BaseEvent {
       return;
     }
 
-    const preview = this.#getPreviewTimeRange(hover.time);
+    const preview = this.#getPreviewTimeRange(hover.dayIndex, hover.time);
     if (!preview) {
       this.#clearPreviewDisplayTime();
       return;
     }
 
     const { previewStart, previewEnd } = preview;
-    this.#previewDisplayTime = this.#formatDisplayTime(previewStart, previewEnd);
+    this.#previewRange = {
+      start: previewStart,
+      end: previewEnd,
+    };
+    this.#previewDisplayTime = this.#formatDisplayTime(
+      previewStart.toPlainTime(),
+      previewEnd.toPlainTime()
+    );
     this.requestUpdate();
   };
 
@@ -294,20 +335,49 @@ export class TimedEvent extends BaseEvent {
 
   #clearPreviewDisplayTime() {
     this.#previewDisplayTime = null;
+    this.#previewRange = null;
     this.requestUpdate();
   }
 
   #getPreviewTimeRange(
+    hoverDayIndex: number,
     hoverTime: Temporal.PlainTime | null
-  ): { previewStart: Temporal.PlainTime; previewEnd: Temporal.PlainTime } | null {
+  ): { previewStart: Temporal.PlainDateTime; previewEnd: Temporal.PlainDateTime } | null {
     const startTime = this.startTime;
     const endTime = this.endTime;
-    if (!hoverTime || !startTime || !endTime) {
+    const startDate = this.startDate;
+    const renderedDays = this.renderedDays;
+    if (
+      !hoverTime ||
+      !startTime ||
+      !endTime ||
+      !startDate ||
+      !renderedDays?.length ||
+      hoverDayIndex < 0 ||
+      hoverDayIndex >= renderedDays.length
+    ) {
       return null;
     }
 
-    const duration = startTime.until(endTime);
-    const previewStart = hoverTime;
+    const targetDay = renderedDays[hoverDayIndex];
+    const previewStart = targetDay.toPlainDateTime({
+      hour: hoverTime.hour,
+      minute: hoverTime.minute,
+      second: 0,
+    });
+    const startDateTime = startDate.toPlainDateTime({
+      hour: startTime.hour,
+      minute: startTime.minute,
+      second: startTime.second,
+    });
+    const endDate = this.endDate;
+    if (!endDate) return null;
+    const endDateTime = endDate.toPlainDateTime({
+      hour: endTime.hour,
+      minute: endTime.minute,
+      second: endTime.second,
+    });
+    const duration = startDateTime.until(endDateTime);
     const previewEnd = previewStart.add(duration);
     return { previewStart, previewEnd };
   }
@@ -376,6 +446,7 @@ export class TimedEvent extends BaseEvent {
       <event-card
         summary=${this.summary}
         time=${isFirst ? this.displayTime : ""}
+        time-detail=${isFirst ? this.displayTimeDetail : ""}
         ?past=${this.isPast}
         style=${styleMap(inset)}
         ?first-segment=${true}

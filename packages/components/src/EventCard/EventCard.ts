@@ -12,6 +12,9 @@ export class EventCard extends BaseElement {
   @property({ type: String })
   time = "";
 
+  @property({ type: String, attribute: "time-detail" })
+  timeDetail = "";
+
   @property({ type: Boolean, attribute: "first-segment" })
   firstSegment = false;
 
@@ -30,7 +33,12 @@ export class EventCard extends BaseElement {
           <div class=${classMap(this.#cardClasses)}>
               ${this.past ? html`<span class="sr-only">Past event.</span>` : ""}
               <h6 class=${classMap(this.#summaryClasses)}>${this.summary}</h6>
-              <time class=${classMap(this.#timeClasses)}>${this.time}</time>
+              <time class=${classMap(this.#timeClasses)}>
+                <span class=${classMap(this.#timeMainClasses)}>${this.time}</span>
+                ${this.timeDetail
+                  ? html`<span class=${classMap(this.#timeDetailClasses)}>(${this.timeDetail})</span>`
+                  : ""}
+              </time>
               <slot></slot>
           </div>
         `;
@@ -55,11 +63,35 @@ export class EventCard extends BaseElement {
       "m-0": true,
       "text-xs": true,
       "text-start": true,
-      "font-bold": true,
       "font-light": true,
+      "tabular-nums": true,
       "p-0": true,
-      "truncate": true,
       "block": true,
+      "max-w-full": true,
+      "overflow-hidden": true,
+      flex: true,
+      "flex-wrap": true,
+      "gap-x-1": true,
+      "leading-tight": true,
+      "line-through": this.past,
+      "decoration-[1.5px]": this.past,
+      "opacity-80": this.past,
+    };
+  }
+
+  get #timeMainClasses() {
+    return {
+      "min-w-0": true,
+      "max-w-full": true,
+      "truncate": true,
+    };
+  }
+
+  get #timeDetailClasses() {
+    return {
+      "min-w-0": true,
+      "max-w-full": true,
+      "truncate": true,
       "line-through": this.past,
       "decoration-[1.5px]": this.past,
       "opacity-80": this.past,

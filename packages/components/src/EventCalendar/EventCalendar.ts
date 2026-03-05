@@ -38,7 +38,7 @@ export class EventCalendar extends BaseElement {
   get #eventsForVariant(): EventInput[] {
     const events = [...(this.events ?? [])];
     if (this.variant === "all-day") {
-      return events.filter((event) => !this.#isTimezonedEvent(event));
+      return events;
     }
 
     return events.filter((event) => !this.#isAllDayEvent(event));
@@ -421,22 +421,12 @@ export class EventCalendar extends BaseElement {
     return this.#isDateOnlyValue(event.start) || this.#isDateOnlyValue(event.end);
   }
 
-  #isTimezonedEvent(event: EventInput): boolean {
-    return this.#isTimezonedValue(event.start) || this.#isTimezonedValue(event.end);
-  }
-
   #isDateOnlyValue(value: EventInput["start"]): boolean {
     if (value instanceof Temporal.PlainDate) return true;
     if (value instanceof Temporal.PlainDateTime || value instanceof Temporal.ZonedDateTime) {
       return false;
     }
     return !value.includes("T");
-  }
-
-  #isTimezonedValue(value: EventInput["start"]): boolean {
-    if (value instanceof Temporal.ZonedDateTime) return true;
-    if (typeof value !== "string") return false;
-    return this.#isTimezonedString(value);
   }
 
   #isTimezonedString(value: string): boolean {
