@@ -64,6 +64,7 @@ export class EventCard extends BaseElement {
       "text-xs": true,
       "text-start": true,
       "font-light": true,
+      "tabular-nums": true,
       "p-0": true,
       "block": true,
       "max-w-full": true,
