@@ -9,7 +9,6 @@ import { BaseEvent } from "./BaseEvent";
 
 @customElement("timed-event")
 export class TimedEvent extends BaseEvent {
-  #previewDisplayTime: string | null = null;
   #previewRange: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime } | null = null;
   #keyboardHintId = `timed-event-kbd-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -172,24 +171,10 @@ export class TimedEvent extends BaseEvent {
   }
 
   get displayTime(): string {
-    if (this.#previewDisplayTime != null) {
-      return this.#previewDisplayTime;
-    }
-
-    const startTime = this.startTime;
-    const endTime = this.endTime;
-    if (!startTime || !endTime) return "";
-
-    const startDate = this.startDate;
-    const endDate = this.endDate;
-    const isMultiDay =
-      startDate && endDate ? startDate.toString() !== endDate.toString() : false;
-
-    if (!isMultiDay) {
-      return this.#formatDisplayTime(startTime, endTime);
-    }
-
-    return this.#formatMultiDayDisplayTime(startDate, endDate, startTime, endTime);
+    const rangeStart = this.#previewRange?.start ?? this.start;
+    const rangeEnd = this.#previewRange?.end ?? this.end;
+    if (!rangeStart || !rangeEnd) return "";
+    return this.#formatDisplayRange(rangeStart, rangeEnd);
   }
 
   get displayTimeDetail(): string {
@@ -222,6 +207,20 @@ export class TimedEvent extends BaseEvent {
       originalStart.offset !== currentTimezoneStart.offset ||
       originalEnd.offset !== currentTimezoneEnd.offset
     );
+  }
+
+  #formatDisplayRange(start: Temporal.PlainDateTime, end: Temporal.PlainDateTime): string {
+    const startDate = start.toPlainDate();
+    const endDate = end.toPlainDate();
+    const startTime = start.toPlainTime();
+    const endTime = end.toPlainTime();
+    const isMultiDay = Temporal.PlainDate.compare(startDate, endDate) !== 0;
+
+    if (!isMultiDay) {
+      return this.#formatDisplayTime(startTime, endTime);
+    }
+
+    return this.#formatMultiDayDisplayTime(startDate, endDate, startTime, endTime);
   }
 
   #formatMultiDayDisplayTime(
@@ -308,10 +307,6 @@ export class TimedEvent extends BaseEvent {
       start: previewStart,
       end: previewEnd,
     };
-    this.#previewDisplayTime = this.#formatDisplayTime(
-      previewStart.toPlainTime(),
-      previewEnd.toPlainTime()
-    );
     this.requestUpdate();
   };
 
@@ -334,7 +329,6 @@ export class TimedEvent extends BaseEvent {
   }
 
   #clearPreviewDisplayTime() {
-    this.#previewDisplayTime = null;
     this.#previewRange = null;
     this.requestUpdate();
   }
