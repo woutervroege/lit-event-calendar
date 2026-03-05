@@ -10,11 +10,22 @@ import "../TimedEvent/AllDayEvent.js";
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController.js";
 
 type EventInput = {
+  /**
+   * iCalendar UID. Repeated occurrences should share this value.
+   */
+  uid?: string;
+  /**
+   * iCalendar RECURRENCE-ID for one occurrence in a recurring series.
+   */
+  recurrenceId?: string;
   start: string | Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime;
   end: string | Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime;
   summary: string;
   color: string;
 };
+
+type EventEntry = [id: string, event: EventInput];
+type EventsMap = Map<string, EventInput>;
 
 @customElement("event-calendar")
 export class EventCalendar extends BaseElement {
@@ -24,31 +35,37 @@ export class EventCalendar extends BaseElement {
   #days!: number;
   #hours: number = 24;
   #snapInterval: number = TimedEventInteractionController.snapInterval;
-  declare events?: EventInput[];
+  declare events?: EventsMap;
   variant: "timed" | "all-day" = "timed";
   dayNumbersHidden = false;
   #dragHoverDayIndex: number | null = null;
   #dragHoverTime: Temporal.PlainTime | null = null;
 
-  get #sortedEvents(): EventInput[] {
+  get #sortedEvents(): EventEntry[] {
     const events = this.#eventsForVariant;
     return events.sort((a, b) => this.#compareEventsForRenderOrder(a, b));
   }
 
-  get #eventsForVariant(): EventInput[] {
-    const events = [...(this.events ?? [])];
+  get #eventsForVariant(): EventEntry[] {
+    const events = this.#eventsAsEntries;
     if (this.variant === "all-day") {
       return events;
     }
 
-    return events.filter((event) => !this.#isAllDayEvent(event));
+    return events.filter(([, event]) => !this.#isAllDayEvent(event));
   }
 
   static get properties() {
     return {
       startDate: { type: String, attribute: "start-date" },
       days: { type: Number },
-      events: { type: Array },
+      events: {
+        type: Object,
+        converter: {
+          fromAttribute: (value: string | null): EventsMap =>
+            new Map(JSON.parse(value || "[]") as EventEntry[]),
+        },
+      },
       variant: {
         type: String,
         attribute: "variant",
@@ -244,7 +261,7 @@ export class EventCalendar extends BaseElement {
             ${this.variant === "timed" ? this.#renderCurrentTimeIndicator() : ""}
 
             ${this.#sortedEvents.map(
-              (event) => html`
+              ([, event]) => html`
                 ${
                   this.variant === "all-day"
                     ? html`
@@ -376,7 +393,7 @@ export class EventCalendar extends BaseElement {
     this.requestUpdate();
   };
 
-  #compareEventsForRenderOrder(a: EventInput, b: EventInput): number {
+  #compareEventsForRenderOrder([, a]: EventEntry, [, b]: EventEntry): number {
     const aStart = this.#toPlainDateTime(a.start);
     const bStart = this.#toPlainDateTime(b.start);
     const startDiff = Temporal.PlainDateTime.compare(
@@ -431,5 +448,9 @@ export class EventCalendar extends BaseElement {
 
   #isTimezonedString(value: string): boolean {
     return value.includes("[") && value.includes("]");
+  }
+
+  get #eventsAsEntries(): EventEntry[] {
+    return Array.from(this.events?.entries() ?? []);
   }
 }
