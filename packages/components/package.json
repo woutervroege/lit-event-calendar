@@ -10,8 +10,8 @@
     "type-check": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "deploy": "npx chromatic ",
-    "chromatic": "npx chromatic "
+    "deploy": "npx chromatic --auto-accept-changes",
+    "chromatic": "npx chromatic"
   },
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1",
