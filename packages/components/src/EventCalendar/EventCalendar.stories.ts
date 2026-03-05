@@ -21,7 +21,7 @@ const sampleEvents = [
     color: "#ff0000",
   },
   {
-    start: "2025-01-06T12:00:00+01:00[Europe/Amsterdam]",
+    start: "2025-01-04T12:00:00+01:00[Europe/Amsterdam]",
     end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
     summary: "Amsterdam Zoned Event",
     color: "#f59e0b",

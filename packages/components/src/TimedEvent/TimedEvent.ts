@@ -454,6 +454,7 @@ export class TimedEvent extends BaseEvent {
         summary=${this.summary}
         time=${isFirst ? this.displayTime : ""}
         time-detail=${isFirst ? this.displayTimeDetail : ""}
+        segment-direction="vertical"
         ?past=${this.isPast}
         style=${styleMap(inset)}
         ?first-segment=${hasRoundedStart}
@@ -481,12 +482,10 @@ export class TimedEvent extends BaseEvent {
 
   #startsBeforeVisibleRange(): boolean {
     const eventStart = this.start;
-    if (!eventStart || !this.renderedDays.length) return false;
+    const dayBounds = this.renderedDayBounds;
+    if (!eventStart || !dayBounds) return false;
 
-    const firstVisibleDay = this.renderedDays.reduce((earliest, day) =>
-      Temporal.PlainDate.compare(day, earliest) < 0 ? day : earliest
-    );
-    const visibleRangeStart = firstVisibleDay.toPlainDateTime({
+    const visibleRangeStart = dayBounds.firstDay.toPlainDateTime({
       hour: 0,
       minute: 0,
       second: 0,
@@ -500,12 +499,10 @@ export class TimedEvent extends BaseEvent {
 
   #endsAfterVisibleRange(): boolean {
     const eventEnd = this.end;
-    if (!eventEnd || !this.renderedDays.length) return false;
+    const dayBounds = this.renderedDayBounds;
+    if (!eventEnd || !dayBounds) return false;
 
-    const lastVisibleDay = this.renderedDays.reduce((latest, day) =>
-      Temporal.PlainDate.compare(day, latest) > 0 ? day : latest
-    );
-    const visibleRangeEndExclusive = lastVisibleDay.add({ days: 1 }).toPlainDateTime({
+    const visibleRangeEndExclusive = dayBounds.lastDay.add({ days: 1 }).toPlainDateTime({
       hour: 0,
       minute: 0,
       second: 0,

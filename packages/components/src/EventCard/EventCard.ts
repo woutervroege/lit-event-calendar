@@ -21,6 +21,9 @@ export class EventCard extends BaseElement {
   @property({ type: Boolean, attribute: "last-segment" })
   lastSegment = false;
 
+  @property({ type: String, attribute: "segment-direction" })
+  segmentDirection: "horizontal" | "vertical" = "horizontal";
+
   @property({ type: Boolean, reflect: true })
   past = false;
 
@@ -99,6 +102,8 @@ export class EventCard extends BaseElement {
   }
 
   get #cardClasses() {
+    const isVertical = this.segmentDirection === "vertical";
+
     return {
       "[@container(max-height:47px)]:flex": true,
       "[@container(max-height:47px)]:gap-1": true,
@@ -111,14 +116,18 @@ export class EventCard extends BaseElement {
       "before:text-[var(--color)]": true,
       "before:transition-colors": true,
       "before:duration-100": true,
-      "before:top-[1px]": true,
-      "before:bottom-[1px]": true,
-      "before:left-[1px]": this.firstSegment,
-      "before:left-0": !this.firstSegment,
-      "before:right-[1px]": this.lastSegment,
-      "before:right-0": !this.lastSegment,
-      "before:rounded-l-sm": this.firstSegment,
-      "before:rounded-r-sm": this.lastSegment,
+      "before:top-[1px]": isVertical ? this.firstSegment : true,
+      "before:top-0": isVertical ? !this.firstSegment : false,
+      "before:bottom-[1px]": isVertical ? this.lastSegment : true,
+      "before:bottom-0": isVertical ? !this.lastSegment : false,
+      "before:left-[1px]": isVertical ? true : this.firstSegment,
+      "before:left-0": isVertical ? false : !this.firstSegment,
+      "before:right-[1px]": isVertical ? true : this.lastSegment,
+      "before:right-0": isVertical ? false : !this.lastSegment,
+      "before:rounded-t-sm": isVertical ? this.firstSegment : false,
+      "before:rounded-b-sm": isVertical ? this.lastSegment : false,
+      "before:rounded-l-sm": isVertical ? false : this.firstSegment,
+      "before:rounded-r-sm": isVertical ? false : this.lastSegment,
       "before:-z-1": true,
       "transition-transform duration-100": true,
       relative: true,

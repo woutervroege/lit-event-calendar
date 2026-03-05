@@ -192,6 +192,21 @@ export abstract class BaseEvent extends BaseElement {
     return Temporal.ZonedDateTime.from(this.#end);
   }
 
+  protected get renderedDayBounds():
+    | { firstDay: Temporal.PlainDate; lastDay: Temporal.PlainDate }
+    | null {
+    if (!this.renderedDays.length) return null;
+
+    let firstDay = this.renderedDays[0];
+    let lastDay = this.renderedDays[0];
+    for (const day of this.renderedDays) {
+      if (Temporal.PlainDate.compare(day, firstDay) < 0) firstDay = day;
+      if (Temporal.PlainDate.compare(day, lastDay) > 0) lastDay = day;
+    }
+
+    return { firstDay, lastDay };
+  }
+
   get siblings(): BaseEvent[] {
     return [...(this.parentElement?.querySelectorAll(this.localName) ?? [])] as BaseEvent[];
   }

@@ -363,8 +363,18 @@ export class AllDayEvent extends BaseEvent {
     dayInsets: Array<Record<string, string | number>>,
     canResizeStart: boolean
   ) {
+    const startsBeforeVisibleRange = this.#startsBeforeVisibleRange();
+    const endsAfterVisibleRange = this.#endsAfterVisibleRange();
+
     return dayInsets.map((inset, index) =>
-      this.#renderEventCard(inset, index, dayInsets.length, canResizeStart)
+      this.#renderEventCard(
+        inset,
+        index,
+        dayInsets.length,
+        canResizeStart,
+        startsBeforeVisibleRange,
+        endsAfterVisibleRange
+      )
     );
   }
 
@@ -372,19 +382,24 @@ export class AllDayEvent extends BaseEvent {
     inset: Record<string, string | number>,
     index: number,
     total: number,
-    canResizeStart: boolean
+    canResizeStart: boolean,
+    startsBeforeVisibleRange: boolean,
+    endsAfterVisibleRange: boolean
   ) {
     const isFirst = index === 0;
     const isLast = index === total - 1;
+    const hasRoundedStart = isFirst && !startsBeforeVisibleRange;
+    const hasRoundedEnd = isLast && !endsAfterVisibleRange;
 
     return html`
       <event-card
         summary=${isFirst ? this.summary : ""}
         time=${isFirst ? this.displayTime : ""}
+        segment-direction="horizontal"
         ?past=${this.isPast}
         style=${styleMap(inset)}
-        ?first-segment=${isFirst}
-        ?last-segment=${isLast}
+        ?first-segment=${hasRoundedStart}
+        ?last-segment=${hasRoundedEnd}
       >
         ${isFirst && canResizeStart
           ? html`
@@ -406,6 +421,22 @@ export class AllDayEvent extends BaseEvent {
           : ""}
       </event-card>
     `;
+  }
+
+  #startsBeforeVisibleRange(): boolean {
+    const startDate = this.startDate;
+    const dayBounds = this.renderedDayBounds;
+    if (!startDate || !dayBounds) return false;
+
+    return Temporal.PlainDate.compare(startDate, dayBounds.firstDay) < 0;
+  }
+
+  #endsAfterVisibleRange(): boolean {
+    const endDate = this.endDate;
+    const dayBounds = this.renderedDayBounds;
+    if (!endDate || !dayBounds) return false;
+
+    return Temporal.PlainDate.compare(endDate, dayBounds.lastDay) > 0;
   }
 
   protected override onDragStart() {
