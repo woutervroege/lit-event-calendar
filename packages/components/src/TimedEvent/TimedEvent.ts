@@ -423,18 +423,31 @@ export class TimedEvent extends BaseEvent {
 
   #renderEventCards() {
     const dayInsets = this.dayInsets;
+    const startsBeforeVisibleRange = this.#startsBeforeVisibleRange();
+    const endsAfterVisibleRange = this.#endsAfterVisibleRange();
+
     return dayInsets.map((inset, index) =>
-      this.#renderEventCard(inset as Record<string, string | number>, index, dayInsets.length)
+      this.#renderEventCard(
+        inset as Record<string, string | number>,
+        index,
+        dayInsets.length,
+        startsBeforeVisibleRange,
+        endsAfterVisibleRange
+      )
     );
   }
 
   #renderEventCard(
     inset: Record<string, string | number>,
     index: number,
-    total: number
+    total: number,
+    startsBeforeVisibleRange: boolean,
+    endsAfterVisibleRange: boolean
   ) {
     const isFirst = index === 0;
     const isLast = index === total - 1;
+    const hasRoundedStart = isFirst && !startsBeforeVisibleRange;
+    const hasRoundedEnd = isLast && !endsAfterVisibleRange;
 
     return html`
       <event-card
@@ -443,8 +456,8 @@ export class TimedEvent extends BaseEvent {
         time-detail=${isFirst ? this.displayTimeDetail : ""}
         ?past=${this.isPast}
         style=${styleMap(inset)}
-        ?first-segment=${true}
-        ?last-segment=${true}
+        ?first-segment=${hasRoundedStart}
+        ?last-segment=${hasRoundedEnd}
       >
         ${isFirst
           ? html`
@@ -464,5 +477,43 @@ export class TimedEvent extends BaseEvent {
           : ""}
       </event-card>
     `;
+  }
+
+  #startsBeforeVisibleRange(): boolean {
+    const eventStart = this.start;
+    if (!eventStart || !this.renderedDays.length) return false;
+
+    const firstVisibleDay = this.renderedDays.reduce((earliest, day) =>
+      Temporal.PlainDate.compare(day, earliest) < 0 ? day : earliest
+    );
+    const visibleRangeStart = firstVisibleDay.toPlainDateTime({
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+      microsecond: 0,
+      nanosecond: 0,
+    });
+
+    return Temporal.PlainDateTime.compare(eventStart, visibleRangeStart) < 0;
+  }
+
+  #endsAfterVisibleRange(): boolean {
+    const eventEnd = this.end;
+    if (!eventEnd || !this.renderedDays.length) return false;
+
+    const lastVisibleDay = this.renderedDays.reduce((latest, day) =>
+      Temporal.PlainDate.compare(day, latest) > 0 ? day : latest
+    );
+    const visibleRangeEndExclusive = lastVisibleDay.add({ days: 1 }).toPlainDateTime({
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+      microsecond: 0,
+      nanosecond: 0,
+    });
+
+    return Temporal.PlainDateTime.compare(eventEnd, visibleRangeEndExclusive) > 0;
   }
 }
