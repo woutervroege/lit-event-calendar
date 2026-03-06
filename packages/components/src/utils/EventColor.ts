@@ -9,12 +9,14 @@ export function getEventColorStyles(color: string): Record<string, string> {
   const backgroundColorFocus = rgbToRgba(tintColor(rgb, 0.55), 1);
   const borderColor = rgbToHex(shadeColor(rgb, 0.15));
   const shadowColor = rgbToHex(shadeColor(rgb, 0.35));
+  const textColor = rgbToHex(shadeColor(rgb, 0.55));
 
   return {
     "--background-color": backgroundColor,
     "--border-color": borderColor,
     "--background-color-hover": backgroundColorHover,
     "--background-color-focus": backgroundColorFocus,
+    "--text-color": textColor,
     "--color": color,
     "--box-shadow": `0 1px 3px 0 ${shadowColor}`,
   };

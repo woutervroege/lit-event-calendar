@@ -6,7 +6,7 @@
   --line-color: color-mix(in oklab, CanvasText 7%, transparent);
   --day-name-color: color-mix(in oklab, CanvasText 30%, transparent);
   --current-day-bg: #ff0000;
-  --current-day-color:white;
+  --current-day-color: white;
   --current-time-line-color: red;
   --current-time-line-width: 2px;
   --current-time-dot-size: 9px;
@@ -17,24 +17,28 @@
   --all-day-day-number-space: 36px;
 }
 
+@media (prefers-color-scheme: dark) {
+  :host {
+    /* Increase contrast in dark mode for grid + day labels. */
+    --line-color: color-mix(in oklab, CanvasText 14%, transparent);
+    --day-name-color: color-mix(in oklab, CanvasText 70%, transparent);
+  }
+}
+
+:host([theme="dark"]),
+:host([data-theme="dark"]) {
+  --line-color: color-mix(in oklab, CanvasText 14%, transparent);
+  --day-name-color: color-mix(in oklab, CanvasText 70%, transparent);
+}
+
 section {
   background-image:
-    linear-gradient(
-      to right,
-      var(--line-color) 0 var(--line),
-      transparent var(--line) 100%
-    ),
-    linear-gradient(
-      to bottom,
-      var(--line-color) 0 var(--line),
-      transparent var(--line) 100%
-    );
+    linear-gradient(to right, var(--line-color) 0 var(--line), transparent var(--line) 100%),
+    linear-gradient(to bottom, var(--line-color) 0 var(--line), transparent var(--line) 100%);
   background-size:
     calc(100% / var(--days)) 100%,
     100% calc(100% / var(--hours));
-  background-repeat:
-    repeat-x,
-    repeat-y;
+  background-repeat: repeat-x, repeat-y;
   position: relative;
   height: 100%;
 }
@@ -63,22 +67,12 @@ section[data-drag-hover]::before {
 /* Month view: multi-row grid (e.g. 7 columns × N weeks) */
 section.month-view {
   background-image:
-    linear-gradient(
-      to right,
-      var(--line-color) 0 var(--line),
-      transparent var(--line) 100%
-    ),
-    linear-gradient(
-      to bottom,
-      var(--line-color) 0 var(--line),
-      transparent var(--line) 100%
-    );
+    linear-gradient(to right, var(--line-color) 0 var(--line), transparent var(--line) 100%),
+    linear-gradient(to bottom, var(--line-color) 0 var(--line), transparent var(--line) 100%);
   background-size:
     calc(100% / var(--days)) 100%,
     100% calc(100% / var(--grid-rows));
-  background-repeat:
-    repeat-x,
-    repeat-y;
+  background-repeat: repeat-x, repeat-y;
 }
 
 time {

@@ -12,6 +12,7 @@
   margin-left: calc((100% / var(--days)) * var(--margin-left) + var(--indentation, 0px));
   z-index: var(--z-index, 1);
   transform: scale(var(--event-card-scale, 1));
+  color: var(--text-color, var(--color, CanvasText));
 }
 
 ::slotted(*) {
