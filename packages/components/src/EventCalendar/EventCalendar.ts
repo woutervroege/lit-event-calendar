@@ -43,6 +43,8 @@ export class EventCalendar extends BaseElement {
   #dragHoverDayIndex: number | null = null;
   #dragHoverTime: Temporal.PlainTime | null = null;
   #calendarViewProvider = new ContextProvider(this, { context: calendarViewContext });
+  #styleObserver?: MutationObserver;
+  #lastDaysPerRowToken = "";
 
   get #sortedEvents(): EventEntry[] {
     const events = this.#eventsForVariant;
@@ -118,10 +120,12 @@ export class EventCalendar extends BaseElement {
   connectedCallback() {
     super.connectedCallback();
     this.#updateCalendarViewContext();
+    this.#startStyleObserver();
     this.addEventListener("interaction-drag-hover", this.#handleDragHover as EventListener);
   }
 
   disconnectedCallback() {
+    this.#stopStyleObserver();
     this.removeEventListener("interaction-drag-hover", this.#handleDragHover as EventListener);
     super.disconnectedCallback();
   }
@@ -200,13 +204,44 @@ export class EventCalendar extends BaseElement {
     TimedEventInteractionController.snapInterval = value;
   }
 
-  /** Reads --days-per-row from CSS (default 7). Multi-row grid when all-day and days > daysPerRow. */
+  /** Reads --lc-days-per-row from CSS (default 7). Multi-row grid when all-day and days > daysPerRow. */
   get daysPerRow(): number {
-    const v =
-      typeof getComputedStyle !== "undefined"
-        ? getComputedStyle(this).getPropertyValue("--days-per-row").trim()
-        : "";
+    const computedStyle =
+      typeof getComputedStyle !== "undefined" ? getComputedStyle(this) : undefined;
+    const v = computedStyle?.getPropertyValue("--lc-days-per-row").trim() || "";
     return v ? parseInt(v, 10) || 7 : 7;
+  }
+
+  #readDaysPerRowToken(): string {
+    if (typeof getComputedStyle === "undefined") return "";
+    return getComputedStyle(this).getPropertyValue("--lc-days-per-row").trim();
+  }
+
+  #startStyleObserver() {
+    if (typeof MutationObserver === "undefined") return;
+    this.#lastDaysPerRowToken = this.#readDaysPerRowToken();
+
+    this.#styleObserver = new MutationObserver(() => {
+      const nextToken = this.#readDaysPerRowToken();
+      if (nextToken === this.#lastDaysPerRowToken) return;
+      this.#lastDaysPerRowToken = nextToken;
+      this.requestUpdate();
+    });
+
+    // Watch host style changes and Storybook addon updates on document/body.
+    this.#styleObserver.observe(this, { attributes: true, attributeFilter: ["style", "class"] });
+    this.#styleObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["style", "class"],
+    });
+    if (document.body) {
+      this.#styleObserver.observe(document.body, { attributes: true, attributeFilter: ["style", "class"] });
+    }
+  }
+
+  #stopStyleObserver() {
+    this.#styleObserver?.disconnect();
+    this.#styleObserver = undefined;
   }
 
   /** True when all-day and we have more days than columns (multi-row grid). */
@@ -221,14 +256,14 @@ export class EventCalendar extends BaseElement {
 
   get sectionStyle(): Record<string, string> {
     const base: Record<string, string> = {
-      "--hours": this.hours.toString(),
+      "--_lc-hours": this.hours.toString(),
     };
     if (this.#isMonthView) {
-      base["--days"] = this.daysPerRow.toString();
-      base["--grid-rows"] = this.gridRows.toString();
-      base["--row-height"] = `calc(100% / ${this.gridRows})`;
+      base["--_lc-days"] = this.daysPerRow.toString();
+      base["--_lc-grid-rows"] = this.gridRows.toString();
+      base["--_lc-row-height"] = `calc(100% / ${this.gridRows})`;
     } else {
-      base["--days"] = this.#days.toString();
+      base["--_lc-days"] = this.#days.toString();
     }
     return base;
   }
@@ -247,18 +282,18 @@ export class EventCalendar extends BaseElement {
           const width = (1 / this.daysPerRow) * 100;
           const top = (row / this.gridRows) * 100;
           const height = (1 / this.gridRows) * 100;
-          hoverStyle["--hover-left"] = `${left}%`;
-          hoverStyle["--hover-width"] = `${width}%`;
-          hoverStyle["--hover-top"] = `${top}%`;
-          hoverStyle["--hover-height"] = `${height}%`;
+          hoverStyle["--_lc-hover-left"] = `${left}%`;
+          hoverStyle["--_lc-hover-width"] = `${width}%`;
+          hoverStyle["--_lc-hover-top"] = `${top}%`;
+          hoverStyle["--_lc-hover-height"] = `${height}%`;
         } else {
           // For single-row view, highlight the entire column
           const left = (this.#dragHoverDayIndex / this.#days) * 100;
           const width = (1 / this.#days) * 100;
-          hoverStyle["--hover-left"] = `${left}%`;
-          hoverStyle["--hover-width"] = `${width}%`;
-          hoverStyle["--hover-top"] = "0%";
-          hoverStyle["--hover-height"] = "100%";
+          hoverStyle["--_lc-hover-left"] = `${left}%`;
+          hoverStyle["--_lc-hover-width"] = `${width}%`;
+          hoverStyle["--_lc-hover-top"] = "0%";
+          hoverStyle["--_lc-hover-height"] = "100%";
         }
       } else if (this.#dragHoverTime !== null) {
         // Highlight the time slot
@@ -268,10 +303,10 @@ export class EventCalendar extends BaseElement {
         const hour = this.#dragHoverTime.hour + this.#dragHoverTime.minute / 60;
         const top = (hour / 24) * 100;
         const slotHeight = (1 / 24) * 100; // One hour slot
-        hoverStyle["--hover-left"] = `${left}%`;
-        hoverStyle["--hover-width"] = `${width}%`;
-        hoverStyle["--hover-top"] = `${top}%`;
-        hoverStyle["--hover-height"] = `${slotHeight}%`;
+        hoverStyle["--_lc-hover-left"] = `${left}%`;
+        hoverStyle["--_lc-hover-width"] = `${width}%`;
+        hoverStyle["--_lc-hover-top"] = `${top}%`;
+        hoverStyle["--_lc-hover-height"] = `${slotHeight}%`;
       }
     }
 
@@ -381,12 +416,12 @@ export class EventCalendar extends BaseElement {
 
     return html`
       <div
-        class="current-time-indicator absolute z-[100] m-0 pointer-events-none before:content-[''] before:absolute before:left-0 before:top-0 before:rounded-full before:-translate-x-[2px] before:-translate-y-1/2 before:[width:var(--current-time-dot-size)] before:[height:var(--current-time-dot-size)] before:[background-color:var(--current-time-dot-color)]"
+        class="current-time-indicator absolute z-[100] m-0 pointer-events-none before:content-[''] before:absolute before:left-0 before:top-0 before:rounded-full before:-translate-x-[2px] before:-translate-y-1/2 before:[width:var(--_lc-current-time-dot-size)] before:[height:var(--_lc-current-time-dot-size)] before:[background-color:var(--_lc-current-day-color)]"
         style=${styleMap({
           top: `${top}%`,
           left: `${left}%`,
           width: `${width}%`,
-          borderTop: "var(--current-time-line-width, 2px) solid var(--current-time-line-color, red)",
+          borderTop: "var(--_lc-current-time-line-width) solid var(--_lc-current-day-color)",
         })}
       ></div>
     `;

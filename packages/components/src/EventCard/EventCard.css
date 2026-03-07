@@ -3,16 +3,26 @@
   width: 100%;
   container-type: size;
   touch-action: none;
-  --background-color: var(--event-card-background, var(--event-card-default-bg));
+  --_lc-event-card-bg: var(--_lc-event-card-bg-active, var(--_lc-event-card-bg-default, var(--_lc-event-bg)));
+  --_lc-event-card-text-color: var(--_lc-event-text-color, CanvasText);
+  --_lc-event-card-accent-color: var(--_lc-event-accent-color, CanvasText);
 }
 
 :host > div {
-  width: max(0px, calc((100% / var(--days)) * var(--width) - var(--indentation, 0px)));
-  left: var(--left);
-  margin-left: calc((100% / var(--days)) * var(--margin-left) + var(--indentation, 0px));
-  z-index: var(--z-index, 1);
+  width: max(
+    0px,
+    calc(
+      (100% / var(--_lc-days)) * var(--_lc-width) -
+        var(--_lc-indentation, 0px)
+    )
+  );
+  left: var(--_lc-left);
+  margin-left: calc(
+    (100% / var(--_lc-days)) * var(--_lc-margin-left) + var(--_lc-indentation, 0px)
+  );
+  z-index: var(--_lc-z-index, 1);
   transform: scale(var(--event-card-scale, 1));
-  color: var(--text-color, var(--color, CanvasText));
+  color: var(--_lc-event-card-text-color);
 }
 
 ::slotted(*) {

@@ -166,10 +166,38 @@ const localeOptions = [
   "he",
 ];
 
+const calendarCssProps = {
+  "lc-current-day-color": {
+    value: "#ff0000",
+    category: "Theme",
+    description: "Accent for current-day label and current-time indicator.",
+  },
+  "lc-event-height": {
+    value: "32px",
+    category: "Layout",
+    description: "Height for all-day event rows.",
+  },
+  "lc-days-per-row": {
+    value: "7",
+    control: "text",
+    category: "Layout",
+    description: "Column count for all-day/month grid layout.",
+  },
+  "lc-grid-base-color": {
+    value: "light-dark(#111, #fff)",
+    category: "Theme",
+    description:
+      "Base grid color; line/day-number/dropzone colors are derived internally with tints.",
+  },
+} as const;
+
 const meta: Meta = {
   title: "EventCalendar/EventCalendar",
   component: "event-calendar",
   tags: ["autodocs"],
+  parameters: {
+    cssprops: calendarCssProps,
+  },
   argTypes: {
     startDate: { control: "text", description: "Start date (YYYY-MM-DD)" },
     days: { control: { type: "number", min: 1, max: 42 }, description: "Number of days" },
@@ -212,7 +240,6 @@ const meta: Meta = {
     if (args.timezone) {
       el.setAttribute("timezone", args.timezone);
     }
-    el.setAttribute("style", "--event-height: 32px; --days-per-row: 7");
     const entries = Array.isArray(args.events) ? args.events : sampleEvents;
     (el as unknown as { events: Map<string, StoryEvent> }).events = new Map(entries);
     return el;
@@ -231,7 +258,7 @@ export const Month: Story = {
     snapInterval: 5,
     variant: "all-day",
     events: sampleEvents,
-    currentTime: "2025-01-09T14:30:00"
+    currentTime: "2025-01-09T14:30:00",
   },
 };
 

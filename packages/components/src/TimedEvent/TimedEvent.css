@@ -13,16 +13,16 @@
 
 /* Pass default so event-card can use it when no segment is hovered */
 :host .interaction-surface {
-  --event-card-default-bg: var(--background-color);
+  --_lc-event-card-bg-default: var(--_lc-event-bg);
 }
 
 /* When any event-card is hovered, expose hover background so all segments show hover state */
 :host .interaction-surface:has(event-card:hover),
 :host .interaction-surface:has(event-card:active) {
-  --event-card-background: var(--background-color-hover);
+  --_lc-event-card-bg-active: var(--_lc-event-bg-hover);
 }
 
 /* Increase tint density while focused for clear keyboard targeting */
 :host .interaction-surface:focus-visible {
-  --event-card-background: var(--background-color-focus, var(--background-color-hover));
+  --_lc-event-card-bg-active: var(--_lc-event-bg-focus, var(--_lc-event-bg-hover));
 }

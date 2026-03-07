@@ -12,13 +12,13 @@ export function getEventColorStyles(color: string): Record<string, string> {
   const textColor = rgbToHex(shadeColor(rgb, 0.55));
 
   return {
-    "--background-color": backgroundColor,
-    "--border-color": borderColor,
-    "--background-color-hover": backgroundColorHover,
-    "--background-color-focus": backgroundColorFocus,
-    "--text-color": textColor,
-    "--color": color,
-    "--box-shadow": `0 1px 3px 0 ${shadowColor}`,
+    "--_lc-event-bg": backgroundColor,
+    "--_lc-event-border-color": borderColor,
+    "--_lc-event-bg-hover": backgroundColorHover,
+    "--_lc-event-bg-focus": backgroundColorFocus,
+    "--_lc-event-text-color": textColor,
+    "--_lc-event-accent-color": color,
+    "--_lc-event-shadow": `0 1px 3px 0 ${shadowColor}`,
   };
 }
 

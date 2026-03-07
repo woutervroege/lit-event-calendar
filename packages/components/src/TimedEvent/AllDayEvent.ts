@@ -153,12 +153,12 @@ export class AllDayEvent extends BaseEvent {
 
     return {
       top,
-      height: `var(--event-height, 32px)`,
-      "--left": `${left}%`,
-      "--width": widthInColumns,
-      "--margin-left": 0,
-      "--indentation": "0px",
-      "--z-index": 1,
+      height: `var(--_lc-event-height, 32px)`,
+      "--_lc-left": `${left}%`,
+      "--_lc-width": widthInColumns,
+      "--_lc-margin-left": 0,
+      "--_lc-indentation": "0px",
+      "--_lc-z-index": 1,
     };
   }
 
@@ -180,13 +180,13 @@ export class AllDayEvent extends BaseEvent {
 
   #getTopPosition(rowIndex: number, stackIndex: number): string {
     const hasGrid = this.daysPerRow > 0 && this.gridRows > 0;
-    const dayNumberOffset = "var(--all-day-day-number-space)";
+    const dayNumberOffset = "var(--_lc-all-day-day-number-space)";
 
     if (hasGrid) {
-      return `calc(var(--row-height, 100%) * ${rowIndex} + ${dayNumberOffset} + var(--event-height, 32px) * ${stackIndex})`;
+      return `calc(var(--_lc-row-height, 100%) * ${rowIndex} + ${dayNumberOffset} + var(--_lc-event-height, 32px) * ${stackIndex})`;
     }
 
-    return `calc(${dayNumberOffset} + var(--event-height, 32px) * ${stackIndex})`;
+    return `calc(${dayNumberOffset} + var(--_lc-event-height, 32px) * ${stackIndex})`;
   }
 
   get dayInsets() {
@@ -462,7 +462,7 @@ export class AllDayEvent extends BaseEvent {
 
   #getEventHeightPx(): number {
     const el = this.parentElement ?? this;
-    const value = getComputedStyle(el).getPropertyValue("--event-height").trim();
+    const value = getComputedStyle(el).getPropertyValue("--_lc-event-height").trim();
     const px = parseFloat(value);
     return Number.isFinite(px) ? px : 32;
   }

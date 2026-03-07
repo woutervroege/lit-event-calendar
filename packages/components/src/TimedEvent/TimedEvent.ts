@@ -134,11 +134,11 @@ export class TimedEvent extends BaseEvent {
     return {
       top: `${top}%`,
       bottom: `${bottom}%`,
-      "--left": `${left}%`,
-      "--width": width,
-      "--margin-left": marginLeft,
-      "--indentation": `${indentation || 0}px`,
-      "--z-index": (indentation || 0) / 12 + 1,
+      "--_lc-left": `${left}%`,
+      "--_lc-width": width,
+      "--_lc-margin-left": marginLeft,
+      "--_lc-indentation": `${indentation || 0}px`,
+      "--_lc-z-index": (indentation || 0) / 12 + 1,
     } as Record<string, string | number>;
   }
 

@@ -3,30 +3,45 @@
   width: 100%;
   height: 100%;
   color-scheme: light dark;
-  --line: 1px;
-  --grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));
-  --day-name-color: light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%));
-  --event-target-ghost-color: light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%));
-  --line-color: var(--grid-line-color);
-  --current-day-bg: #ff0000;
-  --current-day-color: white;
-  --current-time-line-color: red;
-  --current-time-line-width: 2px;
-  --current-time-dot-size: 9px;
-  --current-time-dot-color: var(--current-time-line-color);
-  /* Month view: columns per row (e.g. 7 for a week). Override via style or parent. */
-  --days-per-row: 7;
-  /* Vertical space reserved for per-cell day number labels in all-day mode. */
-  --all-day-day-number-space: 36px;
+  /* Public API: only these 4 vars are supported. */
+  --_lc-current-day-color: var(--lc-current-day-color, #ff0000);
+  --_lc-event-height: var(--lc-event-height, 32px);
+  --_lc-days-per-row: var(--lc-days-per-row, 7);
+  --_lc-grid-base-color: var(--lc-grid-base-color, light-dark(#111, #fff));
+
+  /* Internal implementation tokens (`--_lc-*`). */
+  --_lc-grid-line-width: 1px;
+  --_lc-grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));
+  --_lc-grid-line-day-color: light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%));
+  --_lc-grid-ghost-color: light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%));
+  --_lc-all-day-day-number-space: 36px;
+  --_lc-current-time-line-width: 2px;
+  --_lc-current-time-dot-size: 9px;
+}
+
+@supports (color: color-mix(in srgb, black, white)) {
+  :host {
+    --_lc-grid-line-color: color-mix(in srgb, var(--_lc-grid-base-color) 14%, transparent);
+    --_lc-grid-line-day-color: color-mix(in srgb, var(--_lc-grid-base-color) 72%, transparent);
+    --_lc-grid-ghost-color: color-mix(in srgb, var(--_lc-grid-base-color) 10%, transparent);
+  }
 }
 
 section {
   background-image:
-    linear-gradient(to right, var(--line-color) 0 var(--line), transparent var(--line) 100%),
-    linear-gradient(to bottom, var(--line-color) 0 var(--line), transparent var(--line) 100%);
+    linear-gradient(
+      to right,
+      var(--_lc-grid-line-color) 0 var(--_lc-grid-line-width),
+      transparent var(--_lc-grid-line-width) 100%
+    ),
+    linear-gradient(
+      to bottom,
+      var(--_lc-grid-line-color) 0 var(--_lc-grid-line-width),
+      transparent var(--_lc-grid-line-width) 100%
+    );
   background-size:
-    calc(100% / var(--days)) 100%,
-    100% calc(100% / var(--hours));
+    calc(100% / var(--_lc-days)) 100%,
+    100% calc(100% / var(--_lc-hours));
   background-repeat: repeat-x, repeat-y;
   position: relative;
   height: 100%;
@@ -35,11 +50,11 @@ section {
 section::before {
   content: "";
   position: absolute;
-  left: var(--hover-left, 0);
-  top: var(--hover-top, 0);
-  width: var(--hover-width, 0);
-  height: var(--hover-height, 0);
-  background: var(--event-target-ghost-color, var(--line-color));
+  left: var(--_lc-hover-left, 0);
+  top: var(--_lc-hover-top, 0);
+  width: var(--_lc-hover-width, 0);
+  height: var(--_lc-hover-height, 0);
+  background: var(--_lc-grid-ghost-color);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s;
@@ -56,19 +71,27 @@ section[data-drag-hover]::before {
 /* Month view: multi-row grid (e.g. 7 columns × N weeks) */
 section.month-view {
   background-image:
-    linear-gradient(to right, var(--line-color) 0 var(--line), transparent var(--line) 100%),
-    linear-gradient(to bottom, var(--line-color) 0 var(--line), transparent var(--line) 100%);
+    linear-gradient(
+      to right,
+      var(--_lc-grid-line-color) 0 var(--_lc-grid-line-width),
+      transparent var(--_lc-grid-line-width) 100%
+    ),
+    linear-gradient(
+      to bottom,
+      var(--_lc-grid-line-color) 0 var(--_lc-grid-line-width),
+      transparent var(--_lc-grid-line-width) 100%
+    );
   background-size:
-    calc(100% / var(--days)) 100%,
-    100% calc(100% / var(--grid-rows));
+    calc(100% / var(--_lc-days)) 100%,
+    100% calc(100% / var(--_lc-grid-rows));
   background-repeat: repeat-x, repeat-y;
 }
 
 time {
-  color: var(--day-name-color, var(--line-color));
+  color: var(--_lc-grid-line-day-color);
 }
 
 time.current-day {
-  background-color: var(--current-day-bg, transparent);
-  color: var(--current-day-color, var(--day-name-color, var(--line-color)));
+  background-color: var(--_lc-current-day-color);
+  color: white;
 }
