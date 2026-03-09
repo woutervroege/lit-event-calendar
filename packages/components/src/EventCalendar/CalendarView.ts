@@ -440,7 +440,7 @@ export class CalendarView extends BaseElement {
 
         return html`
           <div
-            class="absolute z-[3] text-xs font-medium leading-tight text-left px-[8px] py-2 pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis text-[var(--_lc-grid-line-day-color)]"
+            class="absolute z-[3] text-xs font-medium leading-tight text-left px-[8px] pt-1 pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis text-[var(--_lc-grid-line-day-color)]"
             style=${styleMap({
               left: `${left}%`,
               top: `${top}px`,
