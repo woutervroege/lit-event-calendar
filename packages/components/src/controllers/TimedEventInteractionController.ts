@@ -492,16 +492,17 @@ export class TimedEventInteractionController {
     const targetDay = renderedDays[dayIndex];
 
     if (this.#mode === "all-day") {
-      const targetStart = targetDay.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
-
-      const startDate = savedStart.toPlainDate();
-      const inclusiveEndDate = savedEnd.subtract({ nanoseconds: 1 }).toPlainDate();
-
-      const daysDiff = startDate.until(inclusiveEndDate, { largestUnit: "day" });
-      const daysCount = daysDiff.days + 1;
-
-      const targetEndDate = targetDay.add({ days: daysCount });
-      const targetEnd = targetEndDate.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
+      const startTime = savedStart.toPlainTime();
+      const targetStart = targetDay.toPlainDateTime({
+        hour: startTime.hour,
+        minute: startTime.minute,
+        second: startTime.second,
+        millisecond: startTime.millisecond,
+        microsecond: startTime.microsecond,
+        nanosecond: startTime.nanosecond,
+      });
+      const duration = savedStart.until(savedEnd);
+      const targetEnd = targetStart.add(duration);
 
       return { targetStart, targetEnd };
     }

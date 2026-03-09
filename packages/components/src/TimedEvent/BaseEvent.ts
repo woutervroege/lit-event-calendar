@@ -301,6 +301,10 @@ export abstract class BaseEvent extends BaseElement {
     value: Temporal.PlainDateTime,
     originalValue: string | undefined
   ): string {
+    if (originalValue && !this.#hasTimeComponent(originalValue)) {
+      return value.toPlainDate().toString();
+    }
+
     if (!originalValue || !this.#isTimezonedString(originalValue)) {
       return value.toString();
     }
