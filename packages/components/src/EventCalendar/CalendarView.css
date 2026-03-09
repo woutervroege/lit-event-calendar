@@ -108,6 +108,7 @@ time.current-day {
 
 .hour-labels {
   flex-direction: column;
+  margin-top: -9px;
 }
 .calendar-layout.with-time-labels {
   gap: var(--_lc-time-label-gap, 6px);
