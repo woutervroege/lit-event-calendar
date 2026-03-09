@@ -266,6 +266,18 @@ const meta: Meta = {
         end: detail.end?.toString() ?? null,
       });
     });
+    el.addEventListener("event-deleted", (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const detail = event.detail as BaseEvent | null;
+      if (!detail?.eventId) return;
+      if (!el.events.has(detail.eventId)) return;
+
+      const nextEvents = new Map(el.events);
+      nextEvents.delete(detail.eventId);
+      el.events = nextEvents;
+
+      console.info("event-deleted", { eventId: detail.eventId });
+    });
     return el;
   },
 };

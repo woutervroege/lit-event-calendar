@@ -90,6 +90,18 @@ export class TimedEventInteractionController {
   };
 
   readonly keydownHandler = (e: KeyboardEvent) => {
+    if (this.#isDeleteKey(e)) {
+      if (this.#shouldIgnoreDeleteShortcut(e)) return;
+      e.preventDefault();
+      this.#host.dispatchEvent(
+        new CustomEvent("delete", {
+          bubbles: true,
+          composed: true,
+        })
+      );
+      return;
+    }
+
     if (e.shiftKey === true && e.ctrlKey === true) {
       if (e.key === "ArrowUp") {
         e.preventDefault();
@@ -122,6 +134,20 @@ export class TimedEventInteractionController {
       }
     }
   };
+
+  #isDeleteKey(e: KeyboardEvent): boolean {
+    return e.key === "Delete" || e.key === "Backspace";
+  }
+
+  #shouldIgnoreDeleteShortcut(e: KeyboardEvent): boolean {
+    if (this.#isDragging) return true;
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return true;
+    const target = e.target as EventTarget | null;
+    if (!(target instanceof HTMLElement)) return false;
+    if (target.isContentEditable) return true;
+    const tagName = target.tagName;
+    return tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
+  }
 
   #moveBySingleStep(direction: -1 | 1) {
     const start = this.#toPlainDateTimeOrNull(this.#host.start);

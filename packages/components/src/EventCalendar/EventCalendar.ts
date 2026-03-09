@@ -2,6 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { ContextProvider } from "@lit/context";
 import { html, type PropertyValues, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
+import { keyed } from "lit/directives/keyed.js";
 import { styleMap } from "lit/directives/style-map.js";
 import "../TimedEvent/TimedEvent.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
@@ -324,7 +325,8 @@ export class EventCalendar extends BaseElement {
 
             ${this.#sortedEvents.map(
               ([id, event]) => html`
-                ${
+                ${keyed(
+                  id,
                   this.variant === "all-day"
                     ? html`
                 <all-day-event
@@ -337,6 +339,7 @@ export class EventCalendar extends BaseElement {
                     .daysPerRow=${this.#isMonthView ? this.daysPerRow : 0}
                     .gridRows=${this.#isMonthView ? this.gridRows : 1}
                     @update=${this.#handleEventUpdate}
+                    @delete=${this.#handleEventDelete}
                 ></all-day-event>
                 `
                     : html`
@@ -348,9 +351,10 @@ export class EventCalendar extends BaseElement {
                     color=${event.color}
                     .renderedDays=${this.days as unknown as never[]}
                     @update=${this.#handleEventUpdate}
+                    @delete=${this.#handleEventDelete}
                 ></timed-event>
                 `
-                }
+                )}
                 `
             )}
 
@@ -362,6 +366,23 @@ export class EventCalendar extends BaseElement {
     this.dispatchEvent(
       new CustomEvent("event-modified", {
         detail: event.target as BaseEvent,
+        bubbles: true,
+        composed: true,
+      })
+    );
+  };
+
+  #handleEventDelete = (event: Event) => {
+    const target = event.target as BaseEvent | null;
+    if (!target) return;
+
+    // Optimistic visual removal while external state catches up.
+    target.hidden = true;
+    target.inert = true;
+
+    this.dispatchEvent(
+      new CustomEvent("event-deleted", {
+        detail: target,
         bubbles: true,
         composed: true,
       })
