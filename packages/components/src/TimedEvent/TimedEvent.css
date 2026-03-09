@@ -17,12 +17,13 @@
 }
 
 /* When any event-card is hovered, expose hover background so all segments show hover state */
-:host .interaction-surface:has(event-card:hover),
-:host .interaction-surface:has(event-card:active) {
+:host .interaction-surface:has(event-card:hover):not(:focus):not(:focus-visible),
+:host .interaction-surface:has(event-card:active):not(:focus):not(:focus-visible) {
   --_lc-event-card-bg-active: var(--_lc-event-bg-hover);
 }
 
-/* Increase tint density while focused for clear keyboard targeting */
+/* Apply the same visual focus state for keyboard and pointer focus. */
+:host .interaction-surface:focus,
 :host .interaction-surface:focus-visible {
   --_lc-event-card-bg-active: var(--_lc-event-bg-focus, var(--_lc-event-bg-hover));
 }
