@@ -691,18 +691,20 @@ export class TimedEventInteractionController {
   ): { left: number; top: number } {
     const daysPerRow = this.#getDaysPerRow();
     const stackOffsetY = this.#getAllDayStackOffsetY();
+    const dayNumberOffsetY = this.#getAllDayDayNumberOffsetY();
 
     if (daysPerRow > 0 && daysPerRow < dayCount) {
       const gridRows = (this.#host as { gridRows?: number }).gridRows ?? 1;
       const colIndex = startDayIndex % daysPerRow;
       const rowIndex = Math.floor(startDayIndex / daysPerRow);
       const left = sectionBounds.left + (colIndex / daysPerRow) * sectionBounds.width;
-      const top = sectionBounds.top + (rowIndex / gridRows) * sectionBounds.height + stackOffsetY;
+      const top =
+        sectionBounds.top + (rowIndex / gridRows) * sectionBounds.height + dayNumberOffsetY + stackOffsetY;
       return { left, top };
     }
 
     const left = sectionBounds.left + (startDayIndex / dayCount) * sectionBounds.width;
-    return { left, top: sectionBounds.top + stackOffsetY };
+    return { left, top: sectionBounds.top + dayNumberOffsetY + stackOffsetY };
   }
 
   #getAllDayStackOffsetY(): number {
@@ -710,6 +712,12 @@ export class TimedEventInteractionController {
     if (typeof getter !== "function") return 0;
     const offset = getter.call(this.#host);
     return Number.isFinite(offset) ? offset : 0;
+  }
+
+  #getAllDayDayNumberOffsetY(): number {
+    const value = getComputedStyle(this.#host).getPropertyValue("--_lc-all-day-day-number-space").trim();
+    const px = parseFloat(value);
+    return Number.isFinite(px) ? px : 0;
   }
 
   #getTimedStartPosition(
