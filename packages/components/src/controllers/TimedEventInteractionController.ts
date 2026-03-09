@@ -2,6 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 
 const SECONDS_IN_DAY = 24 * 60 * 60;
 const MAX_FRACTION = 0.999999;
+const MOVE_DRAG_ACTIVATION_DISTANCE_PX = 4;
 
 type TimedEventHost = HTMLElement & {
   start: Temporal.PlainDateTime | string | null;
@@ -81,7 +82,13 @@ export class TimedEventInteractionController {
 
     window.removeEventListener("pointermove", this.pointerMoveHandler, true);
 
-    if (this.#operation === "move" && this.#bounds && this.#savedStart && this.#savedEnd) {
+    if (
+      this.#operation === "move" &&
+      this.#isDragging &&
+      this.#bounds &&
+      this.#savedStart &&
+      this.#savedEnd
+    ) {
       this.#finalizeMove();
       return;
     }
@@ -232,7 +239,7 @@ export class TimedEventInteractionController {
   }
 
   #beginInteraction(e: PointerEvent, operation: InteractionOperation) {
-    this.#isDragging = true;
+    this.#isDragging = operation !== "move";
     this.#operation = operation;
     this.#activePointerId = e.pointerId;
     this.#pointerCaptureTarget = (e.currentTarget as HTMLElement | null) ?? undefined;
@@ -248,7 +255,9 @@ export class TimedEventInteractionController {
     this.#initializeGrabOffsets(e);
 
     window.addEventListener("pointermove", this.pointerMoveHandler, true);
-    this.#dispatchDragStateChange(true);
+    if (this.#isDragging) {
+      this.#dispatchDragStateChange(true);
+    }
   }
 
   #initializeBoundsAndDayIndex(e: PointerEvent) {
@@ -288,7 +297,7 @@ export class TimedEventInteractionController {
   }
 
   #isActivePointerEvent(e: PointerEvent): boolean {
-    return this.#isDragging && this.#activePointerId !== undefined && e.pointerId === this.#activePointerId;
+    return this.#activePointerId !== undefined && e.pointerId === this.#activePointerId;
   }
 
   #handleResizePointerMove(e: PointerEvent) {
@@ -372,6 +381,18 @@ export class TimedEventInteractionController {
     const sectionElement = this.#host.parentElement;
     if (!sectionElement) return;
 
+    if (!this.#isDragging) {
+      const deltaX = e.clientX - this.#savedClientX;
+      const deltaY = e.clientY - this.#savedClientY;
+      const pointerDistance = Math.hypot(deltaX, deltaY);
+      if (pointerDistance < MOVE_DRAG_ACTIVATION_DISTANCE_PX) {
+        return;
+      }
+
+      this.#isDragging = true;
+      this.#dispatchDragStateChange(true);
+    }
+
     const sectionBounds = sectionElement.getBoundingClientRect();
     const { fractionX, fractionY, eventStartVisualLeft, eventStartVisualTop } =
       this.#getMovePointerFractions(e, sectionBounds);
@@ -428,7 +449,10 @@ export class TimedEventInteractionController {
 
   #finalizeMove() {
     const context = this.#getFinalizeMoveContext();
-    if (!context) return;
+    if (!context) {
+      this.#cleanupAfterFinalMove();
+      return;
+    }
 
     const { dayIndex, time, savedStart, savedEnd, renderedDays } = context;
     const { targetStart, targetEnd } = this.#getFinalTargetRange(
@@ -461,8 +485,8 @@ export class TimedEventInteractionController {
       return null;
     }
 
-    const dayIndex = this.#getFinalDayIndex(bounds);
-    const time = this.#getFinalTime(bounds);
+    const dayIndex = this.#getFinalDayIndex();
+    const time = this.#getFinalTime();
 
     if (dayIndex === null || dayIndex < 0 || dayIndex >= renderedDays.length) {
       return null;
@@ -471,14 +495,13 @@ export class TimedEventInteractionController {
     return { dayIndex, time, savedStart, savedEnd, renderedDays };
   }
 
-  #getFinalDayIndex(bounds: DOMRect): number | null {
+  #getFinalDayIndex(): number | null {
     if (this.#highlightedDayIndex !== null) return this.#highlightedDayIndex;
 
     const sectionElement = this.#host.parentElement;
     if (!sectionElement) return null;
     const sectionBounds = sectionElement.getBoundingClientRect();
-    const { left: eventStartLeft, top: eventStartTop } =
-      this.#getEventStartPosition(sectionBounds);
+    const { left: eventStartLeft, top: eventStartTop } = this.#getEventStartPosition(sectionBounds);
     const eventStartVisualLeft = eventStartLeft + this.#dragOffsetX;
     const eventStartVisualTop = eventStartTop + this.#dragOffsetY;
     const relativeX = eventStartVisualLeft - sectionBounds.left;
@@ -488,7 +511,7 @@ export class TimedEventInteractionController {
     return this.#computeDayIndex(fractionX, fractionY);
   }
 
-  #getFinalTime(bounds: DOMRect): Temporal.PlainTime | null {
+  #getFinalTime(): Temporal.PlainTime | null {
     if (this.#highlightedTime) return this.#highlightedTime;
 
     if (this.#mode !== "timed") return null;
@@ -496,11 +519,8 @@ export class TimedEventInteractionController {
     const sectionElement = this.#host.parentElement;
     if (!sectionElement) return null;
     const sectionBounds = sectionElement.getBoundingClientRect();
-    const { left: eventStartLeft, top: eventStartTop } =
-      this.#getEventStartPosition(sectionBounds);
-    const eventStartVisualLeft = eventStartLeft + this.#dragOffsetX;
+    const { top: eventStartTop } = this.#getEventStartPosition(sectionBounds);
     const eventStartVisualTop = eventStartTop + this.#dragOffsetY;
-    const relativeX = eventStartVisualLeft - sectionBounds.left;
     const relativeY = eventStartVisualTop - sectionBounds.top;
     const fractionY =
       sectionBounds.height === 0 ? 0 : relativeY / sectionBounds.height;
@@ -572,6 +592,8 @@ export class TimedEventInteractionController {
   }
 
   #cleanupAfterFinalMove() {
+    window.removeEventListener("pointerup", this.pointerUpHandler, true);
+    window.removeEventListener("pointermove", this.pointerMoveHandler, true);
     this.#highlightedDayIndex = null;
     this.#highlightedTime = null;
     this.#dispatchDragHover(null);
@@ -597,6 +619,7 @@ export class TimedEventInteractionController {
   }
 
   #finalizeNonMove() {
+    const wasDragging = this.#isDragging;
     window.removeEventListener("pointerup", this.pointerUpHandler, true);
     window.removeEventListener("pointermove", this.pointerMoveHandler, true);
     if (this.#activePointerId !== undefined) {
@@ -616,8 +639,13 @@ export class TimedEventInteractionController {
       this.#dispatchDragOffset({ offsetX: 0, offsetY: 0 });
     }
 
-    this.#host.dispatchEvent(new CustomEvent("update"));
-    this.#dispatchDragStateChange(false);
+    if (this.#operation !== "move") {
+      this.#host.dispatchEvent(new CustomEvent("update"));
+    }
+
+    if (wasDragging) {
+      this.#dispatchDragStateChange(false);
+    }
   }
 
   #getAllowedTarget(target: EventTarget | null, composedPath: EventTarget[]): HTMLElement | null {
@@ -752,7 +780,11 @@ export class TimedEventInteractionController {
     dayCount: number
   ): { left: number; top: number } {
     const left = sectionBounds.left + (startDayIndex / dayCount) * sectionBounds.width;
-    const startTime = this.#savedStart!.toPlainTime();
+    const savedStart = this.#savedStart;
+    if (!savedStart) {
+      return { left, top: sectionBounds.top };
+    }
+    const startTime = savedStart.toPlainTime();
     const seconds = startTime.hour * 3600 + startTime.minute * 60 + startTime.second;
     const fractionY = seconds / SECONDS_IN_DAY;
     const top = sectionBounds.top + fractionY * sectionBounds.height;
