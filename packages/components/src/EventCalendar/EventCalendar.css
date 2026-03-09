@@ -30,12 +30,12 @@
 section {
   background-image:
     linear-gradient(
-      to right,
+      to left,
       var(--_lc-grid-line-color) 0 var(--_lc-grid-line-width),
       transparent var(--_lc-grid-line-width) 100%
     ),
     linear-gradient(
-      to bottom,
+      to top,
       var(--_lc-grid-line-color) 0 var(--_lc-grid-line-width),
       transparent var(--_lc-grid-line-width) 100%
     );
