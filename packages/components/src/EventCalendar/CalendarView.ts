@@ -53,6 +53,7 @@ export class CalendarView extends BaseElement {
   #optimisticallyDeletingEventIds = new Set<string>();
   #sectionHeightPx = 0;
   #resizeObserver?: ResizeObserver;
+  #resizeSyncRafId: number | null = null;
 
   get #sortedEvents(): EventEntry[] {
     const events = this.#eventsForVariant;
@@ -130,6 +131,7 @@ export class CalendarView extends BaseElement {
   disconnectedCallback() {
     this.#stopStyleObserver();
     this.#stopResizeObserver();
+    this.#cancelScheduledResizeSync();
     this.removeEventListener("interaction-drag-hover", this.#handleDragHover as EventListener);
     super.disconnectedCallback();
   }
@@ -263,7 +265,7 @@ export class CalendarView extends BaseElement {
 
   #startResizeObserver() {
     if (typeof ResizeObserver === "undefined") return;
-    this.#resizeObserver = new ResizeObserver(() => this.#syncSectionHeight());
+    this.#resizeObserver = new ResizeObserver(() => this.#scheduleSectionHeightSync());
     this.#resizeObserver.observe(this);
   }
 
@@ -272,7 +274,23 @@ export class CalendarView extends BaseElement {
     this.#resizeObserver = undefined;
   }
 
+  #scheduleSectionHeightSync() {
+    if (this.variant !== "all-day") return;
+    if (this.#resizeSyncRafId !== null || typeof requestAnimationFrame === "undefined") return;
+    this.#resizeSyncRafId = requestAnimationFrame(() => {
+      this.#resizeSyncRafId = null;
+      this.#syncSectionHeight();
+    });
+  }
+
+  #cancelScheduledResizeSync() {
+    if (this.#resizeSyncRafId === null || typeof cancelAnimationFrame === "undefined") return;
+    cancelAnimationFrame(this.#resizeSyncRafId);
+    this.#resizeSyncRafId = null;
+  }
+
   #syncSectionHeight() {
+    if (this.variant !== "all-day") return;
     const section = this.renderRoot.querySelector("section");
     if (!section) return;
     const nextHeight = section.getBoundingClientRect().height;
