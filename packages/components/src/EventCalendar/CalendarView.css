@@ -44,11 +44,20 @@ section {
       to top,
       var(--_lc-grid-line-color) 0 var(--_lc-grid-line-width),
       transparent var(--_lc-grid-line-width) 100%
-    );
+    ),
+    linear-gradient(to right, var(--_lc-grid-line-color), var(--_lc-grid-line-color)),
+    linear-gradient(to bottom, var(--_lc-grid-line-color), var(--_lc-grid-line-color));
   background-size:
     calc(100% / var(--_lc-days)) 100%,
-    100% calc(100% / var(--_lc-hours));
-  background-repeat: repeat-x, repeat-y;
+    100% calc(100% / var(--_lc-hours)),
+    100% var(--_lc-grid-line-width),
+    var(--_lc-grid-line-width) 100%;
+  background-position:
+    left top,
+    left top,
+    left top,
+    left top;
+  background-repeat: repeat-x, repeat-y, no-repeat, no-repeat;
   position: relative;
   height: 100%;
 }
@@ -86,11 +95,20 @@ section.month-view {
       to bottom,
       var(--_lc-grid-line-color) 0 var(--_lc-grid-line-width),
       transparent var(--_lc-grid-line-width) 100%
-    );
+    ),
+    linear-gradient(to right, var(--_lc-grid-line-color), var(--_lc-grid-line-color)),
+    linear-gradient(to bottom, var(--_lc-grid-line-color), var(--_lc-grid-line-color));
   background-size:
     calc(100% / var(--_lc-days)) 100%,
-    100% calc(100% / var(--_lc-grid-rows));
-  background-repeat: repeat-x, repeat-y;
+    100% calc(100% / var(--_lc-grid-rows)),
+    var(--_lc-grid-line-width) 100%,
+    100% var(--_lc-grid-line-width);
+  background-position:
+    left top,
+    left top,
+    right top,
+    left bottom;
+  background-repeat: repeat-x, repeat-y, no-repeat, no-repeat;
 }
 
 time {
@@ -108,7 +126,7 @@ time.current-day {
 
 .hour-labels {
   flex-direction: column;
-  margin-top: -9px;
+  margin-top: -8px;
 }
 .calendar-layout.with-time-labels {
   gap: var(--_lc-time-label-gap, 6px);
