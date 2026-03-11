@@ -57,11 +57,18 @@ export class CalendarView extends BaseElement {
   #sectionHeightPx = 0;
   #resizeObserver?: ResizeObserver;
   #resizeSyncRafId: number | null = null;
+  #resizeDebounceTimerId: number | null = null;
+  #resizeDebounceDelayMs = 180;
   #lastObservedHostHeightPx = 0;
   #lastObservedHostWidthPx = 0;
   #isCompactMonth = false;
+  #lastMaxVisibleRowsByHeight: number | null = null;
   #lastDayLabelTap: { dayIndex: number; timestamp: number } | null = null;
   #lastDayLabelTapMaxDelayMs = 350;
+  #cachedDaysKey = "";
+  #cachedDays: Temporal.PlainDate[] = [];
+  #cachedEventEntriesSource?: EventsMap;
+  #cachedEventEntries: EventEntry[] = [];
 
   get #sortedEvents(): EventEntry[] {
     const events = this.#eventsForVariant;
@@ -197,10 +204,18 @@ export class CalendarView extends BaseElement {
   }
 
   get days(): Temporal.PlainDate[] {
+    const startDate = this.startDate;
+    const cacheKey = `${startDate.toString()}|${this.#days}`;
+    if (cacheKey === this.#cachedDaysKey) {
+      return this.#cachedDays;
+    }
+
     const values: Temporal.PlainDate[] = [];
     for (let i = 0; i < this.#days; i++) {
-      values.push(this.startDate.add({ days: i }));
+      values.push(startDate.add({ days: i }));
     }
+    this.#cachedDaysKey = cacheKey;
+    this.#cachedDays = values;
     return values;
   }
 
@@ -286,13 +301,12 @@ export class CalendarView extends BaseElement {
       const nextWidth = entries[0]?.contentRect.width;
       if (Number.isFinite(nextWidth) && Math.abs(nextWidth - this.#lastObservedHostWidthPx) >= 0.5) {
         this.#lastObservedHostWidthPx = nextWidth;
-        this.#syncCompactMonthState(nextWidth);
       }
       const nextHeight = entries[0]?.contentRect.height;
-      if (!Number.isFinite(nextHeight)) return;
-      if (Math.abs(nextHeight - this.#lastObservedHostHeightPx) < 0.5) return;
-      this.#lastObservedHostHeightPx = nextHeight;
-      this.#scheduleSectionHeightSync();
+      if (Number.isFinite(nextHeight) && Math.abs(nextHeight - this.#lastObservedHostHeightPx) >= 0.5) {
+        this.#lastObservedHostHeightPx = nextHeight;
+      }
+      this.#scheduleDebouncedResizeSync();
     });
     this.#resizeObserver.observe(this);
     this.#scheduleSectionHeightSync();
@@ -306,6 +320,25 @@ export class CalendarView extends BaseElement {
     this.#isCompactMonth = false;
   }
 
+  #scheduleDebouncedResizeSync() {
+    if (typeof window === "undefined") return;
+    if (this.#resizeDebounceTimerId !== null) {
+      window.clearTimeout(this.#resizeDebounceTimerId);
+    }
+    this.#resizeDebounceTimerId = window.setTimeout(() => {
+      this.#resizeDebounceTimerId = null;
+      this.#syncCompactMonthState(this.#lastObservedHostWidthPx);
+      this.#scheduleSectionHeightSync();
+    }, this.#resizeDebounceDelayMs);
+  }
+
+  #cancelDebouncedResizeSync() {
+    if (typeof window === "undefined") return;
+    if (this.#resizeDebounceTimerId === null) return;
+    window.clearTimeout(this.#resizeDebounceTimerId);
+    this.#resizeDebounceTimerId = null;
+  }
+
   #scheduleSectionHeightSync() {
     if (this.variant !== "all-day") return;
     if (this.#resizeSyncRafId !== null || typeof requestAnimationFrame === "undefined") return;
@@ -316,6 +349,7 @@ export class CalendarView extends BaseElement {
   }
 
   #cancelScheduledResizeSync() {
+    this.#cancelDebouncedResizeSync();
     if (this.#resizeSyncRafId === null || typeof cancelAnimationFrame === "undefined") return;
     cancelAnimationFrame(this.#resizeSyncRafId);
     this.#resizeSyncRafId = null;
@@ -329,7 +363,11 @@ export class CalendarView extends BaseElement {
     const nextHeight = section.getBoundingClientRect().height;
     if (!Number.isFinite(nextHeight)) return;
     if (Math.abs(nextHeight - this.#sectionHeightPx) < 0.5) return;
+    const previousMaxVisibleRows = this.#lastMaxVisibleRowsByHeight;
     this.#sectionHeightPx = nextHeight;
+    const nextMaxVisibleRows = this.#getMaxRowsPerCellByHeight();
+    this.#lastMaxVisibleRowsByHeight = nextMaxVisibleRows;
+    if (previousMaxVisibleRows === nextMaxVisibleRows) return;
     if (!this.isUpdatePending) this.requestUpdate();
   }
 
@@ -924,7 +962,12 @@ export class CalendarView extends BaseElement {
   }
 
   get #eventsAsEntries(): EventEntry[] {
-    return Array.from(this.events?.entries() ?? []);
+    if (this.events === this.#cachedEventEntriesSource) {
+      return this.#cachedEventEntries;
+    }
+    this.#cachedEventEntriesSource = this.events;
+    this.#cachedEventEntries = Array.from(this.events?.entries() ?? []);
+    return this.#cachedEventEntries;
   }
 
   #getAllDayOverflowLayout(): { maxVisibleRows: number; hiddenCountsByDay: Map<number, number> } {
