@@ -8,12 +8,14 @@
   --_lc-event-height: var(--lc-event-height, 32px);
   --_lc-days-per-row: var(--lc-days-per-row, 7);
   --_lc-grid-base-color: var(--lc-grid-base-color, light-dark(#111, #fff));
+  --_lc-compact-month-max-inline-size: var(--lc-compact-month-max-inline-size, 480px);
 
   /* Internal implementation tokens (`--_lc-*`). */
   --_lc-grid-line-width: 1px;
   --_lc-grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));
   --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
   --_lc-grid-line-day-color: light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%));
+  --_lc-outside-month-day-color: light-dark(rgb(15 23 42 / 42%), rgb(255 255 255 / 46%));
   --_lc-grid-ghost-color: light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%));
   --_lc-weekend-bg-color: light-dark(rgb(15 23 42 / 4%), rgb(255 255 255 / 6%));
   --_lc-all-day-day-number-space: 36px;
@@ -30,6 +32,7 @@
     --_lc-grid-line-color: color-mix(in srgb, var(--_lc-grid-base-color) 14%, transparent);
     --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
     --_lc-grid-line-day-color: color-mix(in srgb, var(--_lc-grid-base-color) 72%, transparent);
+    --_lc-outside-month-day-color: color-mix(in srgb, var(--_lc-grid-base-color) 42%, transparent);
     --_lc-grid-ghost-color: color-mix(in srgb, var(--_lc-grid-base-color) 10%, transparent);
     --_lc-weekend-bg-color: color-mix(in srgb, var(--_lc-grid-base-color) 6%, transparent);
   }
@@ -47,6 +50,7 @@
   display: flex;
   height: 100%;
   min-height: 0;
+  container-type: inline-size;
 }
 
 section {
@@ -127,11 +131,37 @@ section.month-view {
   background-repeat: repeat-x, repeat-y, no-repeat, no-repeat;
 }
 
+section.month-view.compact-month-view {
+  background-image: none;
+  --_lc-event-height: 0px;
+}
+
+section.month-view.compact-month-view .day-label {
+  margin-top: 0;
+}
+
+section.month-view.compact-month-view all-day-event {
+  display: none;
+}
+
+@container (max-width: 480px) {
+  section.month-view {
+    background-image: none;
+    aspect-ratio: 1 / 1;
+    height: auto;
+  }
+}
+
 .weekend-cell {
   position: absolute;
   background: var(--_lc-weekend-bg-color);
   pointer-events: none;
   z-index: 0;
+}
+
+.day-label.outside-month-day-label,
+.day-label.outside-month-day-label time {
+  color: var(--_lc-outside-month-day-color);
 }
 
 time {

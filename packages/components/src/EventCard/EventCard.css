@@ -25,6 +25,34 @@
   color: var(--_lc-event-card-text-color);
 }
 
+@container (max-height: 12px) {
+  :host > div {
+    min-height: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  :host > div::before {
+    position: static;
+    width: var(--_lc-compact-event-dot-size, 7px);
+    height: var(--_lc-compact-event-dot-size, 7px);
+    border: 0;
+    border-radius: 999px;
+    background: var(--_lc-compact-event-dot-color, rgb(255 255 255 / 88%));
+  }
+
+  :host h6,
+  :host time {
+    display: none;
+  }
+
+  ::slotted(*) {
+    display: none;
+  }
+}
+
 ::slotted(*) {
   position: absolute;
 }
