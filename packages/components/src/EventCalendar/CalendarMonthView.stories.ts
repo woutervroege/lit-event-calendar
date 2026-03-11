@@ -16,7 +16,21 @@ const meta: Meta = {
   argTypes: {
     month: { control: { type: "number", min: 1, max: 12 } },
     year: { control: { type: "number", min: 1900, max: 2100 } },
-    weekStart: { control: "select", options: ["monday", "sunday"] },
+    weekStart: {
+      control: {
+        type: "select",
+        labels: {
+          1: "Monday",
+          2: "Tuesday",
+          3: "Wednesday",
+          4: "Thursday",
+          5: "Friday",
+          6: "Saturday",
+          7: "Sunday",
+        },
+      },
+      options: [1, 2, 3, 4, 5, 6, 7],
+    },
     locale: {
       control: "select",
       options: localeOptions,
@@ -32,7 +46,7 @@ const meta: Meta = {
   args: {
     month: 1,
     year: 2025,
-    weekStart: "monday",
+    weekStart: 1,
     locale: "en-US",
     timezone: "Europe/Amsterdam",
     currentTime: "2025-01-15T14:30:00",
@@ -45,7 +59,9 @@ const meta: Meta = {
     el.style.height = "100%";
     el.setAttribute("month", String(args.month));
     el.setAttribute("year", String(args.year));
-    el.setAttribute("week-start", args.weekStart);
+    if (typeof args.weekStart === "number") {
+      el.setAttribute("week-start", String(args.weekStart));
+    }
     if (args.locale) {
       el.setAttribute("locale", args.locale);
     }
@@ -69,6 +85,6 @@ export const MondayWeekStart: Story = {};
 
 export const SundayWeekStart: Story = {
   args: {
-    weekStart: "sunday",
+    weekStart: 7,
   },
 };

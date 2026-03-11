@@ -20,12 +20,17 @@ type EventInput = {
 };
 
 type EventsMap = Map<string, EventInput>;
+type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
+  return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
+}
 
 @customElement("calendar-month-view")
 export class CalendarMonthView extends BaseElement {
   month = Temporal.Now.plainDateISO().month;
   year = Temporal.Now.plainDateISO().year;
-  weekStart: "monday" | "sunday" = "monday";
+  weekStart?: WeekdayNumber;
   declare events?: EventsMap;
   locale?: string;
   timezone?: string;
@@ -36,13 +41,16 @@ export class CalendarMonthView extends BaseElement {
       month: { type: Number },
       year: { type: Number },
       weekStart: {
-        type: String,
+        type: Number,
         attribute: "week-start",
         reflect: true,
         converter: {
-          fromAttribute: (v: string | null): "monday" | "sunday" =>
-            v === "sunday" ? "sunday" : "monday",
-          toAttribute: (v: string): string => v,
+          fromAttribute: (v: string | null): WeekdayNumber | undefined => {
+            if (v === null) return undefined;
+            const day = Number(v);
+            return isWeekdayNumber(day) ? day : undefined;
+          },
+          toAttribute: (v: number | undefined): string | null => (v ? String(v) : null),
         },
       },
       events: {
@@ -66,28 +74,30 @@ export class CalendarMonthView extends BaseElement {
     });
 
     const weekStart = this.#resolvedWeekStart;
-    const weekdayOffset = weekStart === "monday"
-      ? firstOfMonth.dayOfWeek - 1
-      : firstOfMonth.dayOfWeek % 7;
+    const weekdayOffset = (firstOfMonth.dayOfWeek - weekStart + 7) % 7;
 
     return firstOfMonth.subtract({ days: weekdayOffset });
   }
 
-  get #resolvedWeekStart(): "monday" | "sunday" {
-    if (this.hasAttribute("week-start")) return this.weekStart;
+  get #resolvedWeekStart(): WeekdayNumber {
+    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
     return this.#weekStartFromLocale(this.locale);
   }
 
-  #weekStartFromLocale(locale: string | undefined): "monday" | "sunday" {
+  #weekStartFromLocale(locale: string | undefined): WeekdayNumber {
     const resolvedLocale = locale || navigator.language || "en-US";
 
     try {
-      const firstDay = new Intl.Locale(resolvedLocale).weekInfo?.firstDay;
-      return firstDay === 7 ? "sunday" : "monday";
+      const localeInfo = new Intl.Locale(resolvedLocale) as Intl.Locale & {
+        getWeekInfo?: () => { firstDay?: number };
+        weekInfo?: { firstDay?: number };
+      };
+      const firstDay = localeInfo.getWeekInfo?.().firstDay ?? localeInfo.weekInfo?.firstDay;
+      if (isWeekdayNumber(firstDay)) return firstDay;
     } catch {
       // Conservative fallback: default to Monday when locale parsing is unavailable.
-      return "monday";
     }
+    return 1;
   }
 
   render() {

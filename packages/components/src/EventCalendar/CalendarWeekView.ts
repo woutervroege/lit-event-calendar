@@ -22,13 +22,18 @@ type EventInput = {
 
 type EventEntry = [id: string, event: EventInput];
 type EventsMap = Map<string, EventInput>;
+type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
+  return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
+}
 
 @customElement("calendar-week-view")
 export class CalendarWeekView extends BaseElement {
   weekNumber = Temporal.Now.plainDateISO().weekOfYear;
   year = Temporal.Now.plainDateISO().year;
-  weekStart: "monday" | "sunday" = "monday";
-  daysPerWeek: 5 | 7 = 7;
+  weekStart?: WeekdayNumber;
+  daysPerWeek = 7;
   declare events?: EventsMap;
   locale?: string;
   timezone?: string;
@@ -41,13 +46,16 @@ export class CalendarWeekView extends BaseElement {
       weekNumber: { type: Number, attribute: "week-number" },
       year: { type: Number },
       weekStart: {
-        type: String,
+        type: Number,
         attribute: "week-start",
         reflect: true,
         converter: {
-          fromAttribute: (v: string | null): "monday" | "sunday" =>
-            v === "sunday" ? "sunday" : "monday",
-          toAttribute: (v: string): string => v,
+          fromAttribute: (v: string | null): WeekdayNumber | undefined => {
+            if (v === null) return undefined;
+            const day = Number(v);
+            return isWeekdayNumber(day) ? day : undefined;
+          },
+          toAttribute: (v: number | undefined): string | null => (v ? String(v) : null),
         },
       },
       daysPerWeek: {
@@ -55,7 +63,11 @@ export class CalendarWeekView extends BaseElement {
         attribute: "days-per-week",
         reflect: true,
         converter: {
-          fromAttribute: (v: string | null): 5 | 7 => (v === "5" ? 5 : 7),
+          fromAttribute: (v: string | null): number => {
+            const n = Number(v);
+            if (!Number.isFinite(n)) return 7;
+            return Math.max(1, Math.min(7, Math.floor(n)));
+          },
           toAttribute: (v: number): string => String(v),
         },
       },
@@ -151,8 +163,8 @@ export class CalendarWeekView extends BaseElement {
     return firstWeekStart.add({ days: (normalizedWeek - 1) * 7 });
   }
 
-  get #resolvedWeekStart(): "monday" | "sunday" {
-    if (this.hasAttribute("week-start")) return this.weekStart;
+  get #resolvedWeekStart(): WeekdayNumber {
+    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
     return this.#weekStartFromLocale(this.locale);
   }
 
@@ -182,19 +194,24 @@ export class CalendarWeekView extends BaseElement {
     );
   }
 
-  #startOfWeekFor(date: Temporal.PlainDate, weekStart: "monday" | "sunday"): Temporal.PlainDate {
-    const weekdayOffset = weekStart === "monday" ? date.dayOfWeek - 1 : date.dayOfWeek % 7;
+  #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {
+    const weekdayOffset = (date.dayOfWeek - weekStart + 7) % 7;
     return date.subtract({ days: weekdayOffset });
   }
 
-  #weekStartFromLocale(locale: string | undefined): "monday" | "sunday" {
+  #weekStartFromLocale(locale: string | undefined): WeekdayNumber {
     const resolvedLocale = locale || navigator.language || "en-US";
     try {
-      const firstDay = new Intl.Locale(resolvedLocale).weekInfo?.firstDay;
-      return firstDay === 7 ? "sunday" : "monday";
+      const localeInfo = new Intl.Locale(resolvedLocale) as Intl.Locale & {
+        getWeekInfo?: () => { firstDay?: number };
+        weekInfo?: { firstDay?: number };
+      };
+      const firstDay = localeInfo.getWeekInfo?.().firstDay ?? localeInfo.weekInfo?.firstDay;
+      if (isWeekdayNumber(firstDay)) return firstDay;
     } catch {
-      return "monday";
+      // Conservative fallback: default to Monday when locale parsing is unavailable.
     }
+    return 1;
   }
 
   render() {
