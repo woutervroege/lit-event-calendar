@@ -3,7 +3,7 @@ import { css, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import "./CalendarMonthView.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
+import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 
 type EventInput = {
   uid?: string;
@@ -93,11 +93,13 @@ export class CalendarYearView extends BaseElement {
 
         .month-title {
           margin: 0;
-          padding: 0 2px 14px;
+          padding-block: 0 14px;
+          padding-inline: 2px;
           font-size: 17px;
           font-weight: 600;
           line-height: 1.2;
           color: var(--lc-higlight-color, #ff0000);
+          text-align: start;
         }
 
         @container (max-width: 1520px) {
@@ -149,8 +151,13 @@ export class CalendarYearView extends BaseElement {
   }
 
   render() {
+    const direction = getLocaleDirection(this.#resolvedLocale);
+
     return html`
-      <div class="year-grid">
+      <div
+        class="year-grid"
+        dir=${direction}
+      >
         ${Array.from({ length: 12 }, (_, index) => index + 1).map(
           (month) => html`
             <section class="month-card">
