@@ -138,9 +138,24 @@ time {
   color: var(--_lc-grid-line-day-color);
 }
 
-time.current-day {
+.day-label {
+  color: var(--_lc-grid-line-day-color);
+}
+
+.day-label:focus-visible {
+  background-color: var(--_lc-grid-ghost-color);
+  outline: 2px solid var(--_lc-grid-line-day-color);
+  outline-offset: 1px;
+}
+
+time.current-day,
+.day-label.current-day {
   background-color: var(--_lc-current-day-color);
   color: white;
+}
+
+.day-label.current-day time {
+  color: inherit;
 }
 
 .hour-label {
