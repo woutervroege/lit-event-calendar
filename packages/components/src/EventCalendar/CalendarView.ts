@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { ContextProvider } from "@lit/context";
-import { html, type PropertyValues, unsafeCSS } from "lit";
+import { html, type PropertyValues, type TemplateResult, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { keyed } from "lit/directives/keyed.js";
 import { styleMap } from "lit/directives/style-map.js";
@@ -58,6 +58,8 @@ export class CalendarView extends BaseElement {
   #resizeObserver?: ResizeObserver;
   #resizeSyncRafId: number | null = null;
   #lastObservedHostHeightPx = 0;
+  #lastDayLabelTap: { dayIndex: number; timestamp: number } | null = null;
+  #lastDayLabelTapMaxDelayMs = 350;
 
   get #sortedEvents(): EventEntry[] {
     const events = this.#eventsForVariant;
@@ -412,52 +414,116 @@ export class CalendarView extends BaseElement {
           ?data-drag-hover=${this.#dragHoverDayIndex !== null}
         >
           ${this.#renderWeekendHighlights()}
-          ${this.variant === "all-day" && !this.labelsHidden ? this.#renderDayNumbers() : ""}
           ${this.variant === "timed" ? this.#renderCurrentTimeIndicator() : ""}
-
-          ${this.#sortedEvents.map(
-            ([id, event]) => html`
-              ${keyed(
-                id,
-                this.variant === "all-day"
-                  ? html`
-                      <all-day-event
-                        event-id=${id}
-                        start=${this.#toEventDateTimeString(event.start)}
-                        end=${this.#toEventDateTimeString(event.end)}
-                        summary=${event.summary}
-                        color=${event.color}
-                        ?hidden=${this.#optimisticallyDeletingEventIds.has(id)}
-                        ?inert=${this.#optimisticallyDeletingEventIds.has(id)}
-                        .renderedDays=${this.days}
-                        .daysPerRow=${this.#isMonthView ? this.daysPerRow : 0}
-                        .gridRows=${this.#isMonthView ? this.gridRows : 1}
-                        .maxVisibleRows=${allDayOverflow.maxVisibleRows}
-                        @update=${this.#handleEventUpdate}
-                        @delete=${this.#handleEventDelete}
-                      ></all-day-event>
-                    `
-                  : html`
-                      <timed-event
-                        event-id=${id}
-                        start=${this.#toEventDateTimeString(event.start)}
-                        end=${this.#toEventDateTimeString(event.end)}
-                        summary=${event.summary}
-                        color=${event.color}
-                        ?hidden=${this.#optimisticallyDeletingEventIds.has(id)}
-                        ?inert=${this.#optimisticallyDeletingEventIds.has(id)}
-                        .renderedDays=${this.days as unknown as never[]}
-                        @update=${this.#handleEventUpdate}
-                        @delete=${this.#handleEventDelete}
-                      ></timed-event>
-                    `
-              )}
-            `
-          )}
+          ${this.variant === "all-day" && !this.labelsHidden
+            ? this.#renderAllDayInterleavedByDate(allDayOverflow)
+            : this.#renderEventEntries(allDayOverflow)}
           ${this.variant === "all-day" ? this.#renderAllDayOverflowIndicators(allDayOverflow) : ""}
         </section>
       </div>
     `;
+  }
+
+  #renderEventEntries(allDayOverflow: { maxVisibleRows: number }): TemplateResult[] {
+    return this.#sortedEvents.map(([id, event]) => this.#renderEventEntry(id, event, allDayOverflow));
+  }
+
+  #renderEventEntry(
+    id: string,
+    event: EventInput,
+    allDayOverflow: { maxVisibleRows: number }
+  ): TemplateResult {
+    return html`
+      ${keyed(
+        id,
+        this.variant === "all-day"
+          ? html`
+              <all-day-event
+                event-id=${id}
+                start=${this.#toEventDateTimeString(event.start)}
+                end=${this.#toEventDateTimeString(event.end)}
+                summary=${event.summary}
+                color=${event.color}
+                ?hidden=${this.#optimisticallyDeletingEventIds.has(id)}
+                ?inert=${this.#optimisticallyDeletingEventIds.has(id)}
+                .renderedDays=${this.days}
+                .daysPerRow=${this.#isMonthView ? this.daysPerRow : 0}
+                .gridRows=${this.#isMonthView ? this.gridRows : 1}
+                .maxVisibleRows=${allDayOverflow.maxVisibleRows}
+                @update=${this.#handleEventUpdate}
+                @delete=${this.#handleEventDelete}
+              ></all-day-event>
+            `
+          : html`
+              <timed-event
+                event-id=${id}
+                start=${this.#toEventDateTimeString(event.start)}
+                end=${this.#toEventDateTimeString(event.end)}
+                summary=${event.summary}
+                color=${event.color}
+                ?hidden=${this.#optimisticallyDeletingEventIds.has(id)}
+                ?inert=${this.#optimisticallyDeletingEventIds.has(id)}
+                .renderedDays=${this.days as unknown as never[]}
+                @update=${this.#handleEventUpdate}
+                @delete=${this.#handleEventDelete}
+              ></timed-event>
+            `
+      )}
+    `;
+  }
+
+  #renderAllDayInterleavedByDate(allDayOverflow: { maxVisibleRows: number }): TemplateResult[] {
+    const days = this.days;
+    if (!days.length) return this.#renderEventEntries(allDayOverflow);
+
+    const dayKeyToIndex = new Map<string, number>();
+    days.forEach((day, index) => {
+      dayKeyToIndex.set(day.toString(), index);
+    });
+
+    const eventsByDay = new Map<number, TemplateResult[]>();
+    const unanchoredEvents: TemplateResult[] = [];
+
+    for (const [id, event] of this.#sortedEvents) {
+      const eventTemplate = this.#renderEventEntry(id, event, allDayOverflow);
+      const firstDayIndex = this.#firstVisibleDayIndexForEvent(event, dayKeyToIndex);
+      if (firstDayIndex === null) {
+        unanchoredEvents.push(eventTemplate);
+        continue;
+      }
+      const dayBucket = eventsByDay.get(firstDayIndex) ?? [];
+      dayBucket.push(eventTemplate);
+      eventsByDay.set(firstDayIndex, dayBucket);
+    }
+
+    const content: TemplateResult[] = [];
+    days.forEach((day, dayIndex) => {
+      content.push(this.#renderDayNumber(day, dayIndex));
+      content.push(...(eventsByDay.get(dayIndex) ?? []));
+    });
+    content.push(...unanchoredEvents);
+    return content;
+  }
+
+  #firstVisibleDayIndexForEvent(
+    event: EventInput,
+    dayKeyToIndex: Map<string, number>
+  ): number | null {
+    const renderedDays = this.days;
+    if (!renderedDays.length) return null;
+    const eventStart = this.#toPlainDateTime(event.start).toPlainDate();
+    const eventEnd = this.#toPlainDateTime(event.end).subtract({ nanoseconds: 1 }).toPlainDate();
+
+    if (Temporal.PlainDate.compare(eventEnd, renderedDays[0]) < 0) return null;
+    if (Temporal.PlainDate.compare(eventStart, renderedDays[renderedDays.length - 1]) > 0) return null;
+
+    for (const day of renderedDays) {
+      if (Temporal.PlainDate.compare(day, eventStart) < 0) continue;
+      if (Temporal.PlainDate.compare(day, eventEnd) > 0) break;
+      const dayIndex = dayKeyToIndex.get(day.toString());
+      if (typeof dayIndex === "number") return dayIndex;
+    }
+    return null;
   }
 
   #renderWeekendHighlights() {
@@ -570,49 +636,105 @@ export class CalendarView extends BaseElement {
     );
   };
 
-  #renderDayNumbers() {
+  #renderDayNumber(day: Temporal.PlainDate, dayIndex: number): TemplateResult {
     const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    const totalDays = this.days.length;
+    if (cols <= 0 || totalDays <= 0) return html``;
+
     const days = this.days;
-    const totalDays = days.length;
     const currentDay = this.currentTime.toPlainDate();
     const isRtl = getLocaleDirection(this.locale) === "rtl";
     const monthFormatter = new Intl.DateTimeFormat(this.locale, { month: "short" });
     const dayFormatter = new Intl.NumberFormat(this.locale);
+    const fullDateFormatter = new Intl.DateTimeFormat(this.locale, { dateStyle: "full" });
+    const colIndex = this.#isMonthView ? dayIndex % cols : dayIndex;
+    const rowIndex = this.#isMonthView ? Math.floor(dayIndex / cols) : 0;
+    const right = ((cols - colIndex - 1) / cols) * 100;
+    const left = (colIndex / cols) * 100;
+    const top = this.#isMonthView ? (rowIndex / this.gridRows) * 100 : 0;
+    const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
+    const startsNewMonth =
+      previousDay === null || previousDay.month !== day.month || previousDay.year !== day.year;
+    const monthPrefix = startsNewMonth
+      ? `${monthFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)))} `
+      : "";
+    const label = `${monthPrefix}${dayFormatter.format(day.day)}`;
+    const isCurrentDay = Temporal.PlainDate.compare(day, currentDay) === 0;
+    const fullDateLabel = fullDateFormatter.format(
+      new Date(Date.UTC(day.year, day.month - 1, day.day))
+    );
 
-    return days.map((day, dayIndex) => {
-      if (cols <= 0 || totalDays <= 0) return "";
+    return html`
+      <button
+        type="button"
+        class="day-label absolute p-1 text-sm mt-2 z-0 font-medium rounded-full flex justify-center items-center cursor-pointer border-0 bg-transparent text-inherit leading-none ${
+          monthPrefix ? "min-w-6 px-2" : "w-6"
+        } h-6 ${
+          isCurrentDay ? "current-day" : ""
+        }"
+        aria-label=${fullDateLabel}
+        aria-current=${isCurrentDay ? "date" : undefined}
+        style=${styleMap({
+          [isRtl ? "right" : "left"]: `calc(${isRtl ? right : left}% + 6px)`,
+          top: `${top}%`,
+        })}
+        @dblclick=${(event: MouseEvent) => this.#handleDayLabelDoubleClick(day, dayIndex, event)}
+        @pointerup=${(event: PointerEvent) => this.#handleDayLabelPointerUp(day, dayIndex, event)}
+        @keydown=${(event: KeyboardEvent) => this.#handleDayLabelKeyDown(day, dayIndex, event)}
+      >
+        <time datetime=${day.toString()}>${label}</time>
+      </button>
+    `;
+  }
 
-      const colIndex = this.#isMonthView ? dayIndex % cols : dayIndex;
-      const rowIndex = this.#isMonthView ? Math.floor(dayIndex / cols) : 0;
-      const right = ((cols - colIndex - 1) / cols) * 100;
-      const left = (colIndex / cols) * 100;
-      const top = this.#isMonthView ? (rowIndex / this.gridRows) * 100 : 0;
-      const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
-      const startsNewMonth =
-        previousDay === null || previousDay.month !== day.month || previousDay.year !== day.year;
-      const monthPrefix = startsNewMonth
-        ? `${monthFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)))} `
-        : "";
-      const label = `${monthPrefix}${dayFormatter.format(day.day)}`;
-      const isCurrentDay = Temporal.PlainDate.compare(day, currentDay) === 0;
+  #handleDayLabelDoubleClick(day: Temporal.PlainDate, dayIndex: number, event: MouseEvent) {
+    this.#emitDayLabelDoublePointerEvent(day, dayIndex, "double-click", "mouse", event);
+  }
 
-      return html`
-        <time
-          class="absolute p-1 text-sm mt-2 z-0 font-medium rounded-full flex justify-center items-center ${
-            monthPrefix ? "min-w-6 px-2" : "w-6"
-          } h-6 ${
-            isCurrentDay ? "current-day" : ""
-          }"
-          datetime=${day.toString()}
-          style=${styleMap({
-            [isRtl ? "right" : "left"]: `calc(${isRtl ? right : left}% + 6px)`,
-            top: `${top}%`,
-          })}
-        >
-          ${label}
-        </time>
-      `;
-    });
+  #handleDayLabelPointerUp(day: Temporal.PlainDate, dayIndex: number, event: PointerEvent) {
+    if (event.pointerType === "mouse") return;
+    const now = event.timeStamp;
+    const previous = this.#lastDayLabelTap;
+    const isDoubleTap =
+      previous !== null &&
+      previous.dayIndex === dayIndex &&
+      now - previous.timestamp <= this.#lastDayLabelTapMaxDelayMs;
+
+    if (isDoubleTap) {
+      this.#lastDayLabelTap = null;
+      this.#emitDayLabelDoublePointerEvent(day, dayIndex, "double-tap", event.pointerType, event);
+      return;
+    }
+
+    this.#lastDayLabelTap = { dayIndex, timestamp: now };
+  }
+
+  #handleDayLabelKeyDown(day: Temporal.PlainDate, dayIndex: number, event: KeyboardEvent) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    this.#emitDayLabelDoublePointerEvent(day, dayIndex, "keyboard", "keyboard", event);
+  }
+
+  #emitDayLabelDoublePointerEvent(
+    day: Temporal.PlainDate,
+    dayIndex: number,
+    trigger: "double-click" | "double-tap" | "keyboard",
+    pointerType: string,
+    sourceEvent: Event
+  ) {
+    this.dispatchEvent(
+      new CustomEvent("day-label-double-pointer", {
+        detail: {
+          date: day.toString(),
+          dayIndex,
+          trigger,
+          pointerType,
+          sourceEvent,
+        },
+        bubbles: true,
+        composed: true,
+      })
+    );
   }
 
   #renderCurrentTimeIndicator() {
