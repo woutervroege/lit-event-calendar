@@ -128,6 +128,11 @@ export class EventCard extends BaseElement {
 
   get #cardClasses() {
     const isVertical = this.segmentDirection === "vertical";
+    const isRtl = this.dir === "rtl";
+    const horizontalStartEdge = this.firstSegment;
+    const horizontalEndEdge = this.lastSegment;
+    const horizontalLeftEdge = isRtl ? horizontalEndEdge : horizontalStartEdge;
+    const horizontalRightEdge = isRtl ? horizontalStartEdge : horizontalEndEdge;
 
     return {
       "[@container(max-height:47px)]:flex": true,
@@ -145,14 +150,14 @@ export class EventCard extends BaseElement {
       "before:top-0": isVertical ? !this.firstSegment : false,
       "before:bottom-[1px]": isVertical ? this.lastSegment : true,
       "before:bottom-0": isVertical ? !this.lastSegment : false,
-      "before:left-[1px]": isVertical ? true : this.firstSegment,
-      "before:left-0": isVertical ? false : !this.firstSegment,
-      "before:right-[1px]": isVertical ? true : this.lastSegment,
-      "before:right-0": isVertical ? false : !this.lastSegment,
+      "before:left-[1px]": isVertical ? true : horizontalLeftEdge,
+      "before:left-0": isVertical ? false : !horizontalLeftEdge,
+      "before:right-[1px]": isVertical ? true : horizontalRightEdge,
+      "before:right-0": isVertical ? false : !horizontalRightEdge,
       "before:rounded-t-sm": isVertical ? this.firstSegment : false,
       "before:rounded-b-sm": isVertical ? this.lastSegment : false,
-      "before:rounded-l-sm": isVertical ? false : this.firstSegment,
-      "before:rounded-r-sm": isVertical ? false : this.lastSegment,
+      "before:rounded-l-sm": isVertical ? false : horizontalLeftEdge,
+      "before:rounded-r-sm": isVertical ? false : horizontalRightEdge,
       "before:-z-1": true,
       "transition-transform duration-100": true,
       relative: true,
