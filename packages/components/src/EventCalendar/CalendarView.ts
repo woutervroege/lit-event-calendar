@@ -718,7 +718,6 @@ export class CalendarView extends BaseElement {
     const outsideVisibleMonth = this.#isOutsideVisibleMonth(day);
     const compactColCenter = ((colIndex + 0.5) / cols) * 100;
     const compactRtlColCenter = ((cols - colIndex - 0.5) / cols) * 100;
-    const compactRowCenter = ((rowIndex + 0.5) / this.gridRows) * 100;
 
     return html`
       <button
@@ -738,11 +737,11 @@ export class CalendarView extends BaseElement {
           [isRtl ? "right" : "left"]: compactMonthView
             ? `${isRtl ? compactRtlColCenter : compactColCenter}%`
             : `calc(${isRtl ? right : left}% + 6px)`,
-          top: compactMonthView ? `${compactRowCenter}%` : `${top}%`,
+          top: compactMonthView ? `calc(${top}% + 6px)` : `${top}%`,
           transform: compactMonthView
             ? isRtl
-              ? "translate(50%, -50%)"
-              : "translate(-50%, -50%)"
+              ? "translateX(50%)"
+              : "translateX(-50%)"
             : "",
         })}
         @dblclick=${(event: MouseEvent) => this.#handleDayLabelDoubleClick(day, dayIndex, event)}

@@ -133,15 +133,12 @@ section.month-view {
 
 section.month-view.compact-month-view {
   background-image: none;
-  --_lc-event-height: 0px;
+  --_lc-event-height: 3px;
+  --_lc-all-day-day-number-space: 36px;
 }
 
 section.month-view.compact-month-view .day-label {
   margin-top: 0;
-}
-
-section.month-view.compact-month-view all-day-event {
-  display: none;
 }
 
 @container (max-width: 480px) {

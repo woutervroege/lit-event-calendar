@@ -29,18 +29,18 @@
   :host > div {
     min-height: 0;
     padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   :host > div::before {
-    position: static;
-    width: var(--_lc-compact-event-dot-size, 7px);
-    height: var(--_lc-compact-event-dot-size, 7px);
+    top: 0;
+    bottom: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: var(--_lc-event-height, 3px);
     border: 0;
     border-radius: 999px;
-    background: var(--_lc-compact-event-dot-color, rgb(255 255 255 / 88%));
+    background: var(--_lc-event-card-bg);
   }
 
   :host h6,
