@@ -121,9 +121,20 @@ export class CalendarWeekView extends BaseElement {
           z-index: 1;
         }
 
-        .sidebar {
+        .all-day-sidebar-label {
           grid-column: 1;
-          grid-row: 1 / 3;
+          grid-row: 1;
+          display: flex;
+          justify-content: flex-end;
+          align-items: flex-start;
+          padding-top: 8px;
+          padding-right: 4px;
+          font-size: 12px;
+          line-height: 1;
+          font-weight: 500;
+          white-space: nowrap;
+          color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
+          pointer-events: none;
         }
 
         .all-day {
@@ -134,13 +145,25 @@ export class CalendarWeekView extends BaseElement {
         }
 
         .timed-scroll {
-          grid-column: 2;
+          grid-column: 1 / 3;
           grid-row: 2;
           display: block;
           height: calc(100% - var(--_lc-week-timed-top-offset, 8px));
           min-height: 0;
           margin-top: var(--_lc-week-timed-top-offset, 8px);
           overflow-y: auto;
+        }
+
+        .timed-content {
+          display: grid;
+          grid-template-columns: var(--_lc-time-sidebar-width, 56px) 1fr;
+          column-gap: var(--_lc-time-label-gap, 6px);
+          min-height: 100%;
+          height: calc(var(--_lc-week-timed-height-factor, 1) * 100%);
+        }
+
+        .timed-sidebar {
+          min-height: 100%;
         }
 
         .timed {
@@ -215,15 +238,12 @@ export class CalendarWeekView extends BaseElement {
   }
 
   render() {
+    const clampedVisibleHours = Math.max(1, Math.min(24, Math.floor(Number(this.visibleHours) || 12)));
+    const timedHeightFactor = 24 / clampedVisibleHours;
+
     return html`
       <div class="week-layout">
-        <calendar-time-sidebar
-          class="sidebar"
-          .locale=${this.locale}
-          .hours=${24}
-          .visibleHours=${this.visibleHours}
-          .showAllDayLabel=${true}
-        ></calendar-time-sidebar>
+        <div class="all-day-sidebar-label" aria-hidden="true">All-day</div>
         <calendar-view
           class="all-day"
           start-date=${this.startDate.toString()}
@@ -238,22 +258,28 @@ export class CalendarWeekView extends BaseElement {
           @event-modified=${this.#reemit}
           @event-deleted=${this.#reemit}
         ></calendar-view>
-        <div class="timed-scroll" @scroll=${this.#handleTimedScroll}>
-          <calendar-view
-            class="timed"
-            start-date=${this.startDate.toString()}
-            .days=${this.daysPerWeek}
-            variant="timed"
-            .events=${this.#timedEvents}
-            .locale=${this.locale}
-            .timezone=${this.timezone}
-            .currentTime=${this.currentTime}
-            .snapInterval=${this.snapInterval}
-            .visibleHours=${this.visibleHours}
-            .labelsHidden=${true}
-            @event-modified=${this.#reemit}
-            @event-deleted=${this.#reemit}
-          ></calendar-view>
+        <div class="timed-scroll">
+          <div class="timed-content" style=${`--_lc-week-timed-height-factor: ${timedHeightFactor};`}>
+            <calendar-time-sidebar
+              class="timed-sidebar"
+              .locale=${this.locale}
+              .hours=${24}
+            ></calendar-time-sidebar>
+            <calendar-view
+              class="timed"
+              start-date=${this.startDate.toString()}
+              .days=${this.daysPerWeek}
+              variant="timed"
+              .events=${this.#timedEvents}
+              .locale=${this.locale}
+              .timezone=${this.timezone}
+              .currentTime=${this.currentTime}
+              .snapInterval=${this.snapInterval}
+              .labelsHidden=${true}
+              @event-modified=${this.#reemit}
+              @event-deleted=${this.#reemit}
+            ></calendar-view>
+          </div>
         </div>
       </div>
     `;
@@ -270,15 +296,4 @@ export class CalendarWeekView extends BaseElement {
     );
   };
 
-  #handleTimedScroll = (event: Event) => {
-    const target = event.currentTarget;
-    if (!(target instanceof HTMLElement)) return;
-    const sidebar = this.renderRoot.querySelector("calendar-time-sidebar.sidebar");
-    if (!(sidebar instanceof HTMLElement)) return;
-    (
-      sidebar as unknown as {
-        setHourLabelsScrollTop?: (scrollTop: number) => void;
-      }
-    ).setHourLabelsScrollTop?.(target.scrollTop);
-  };
 }

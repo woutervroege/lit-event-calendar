@@ -7,7 +7,6 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 export class CalendarTimeSidebar extends BaseElement {
   locale?: string;
   hours = 24;
-  visibleHours = 24;
   showAllDayLabel = false;
   allDayLabel = "All-day";
 
@@ -15,7 +14,6 @@ export class CalendarTimeSidebar extends BaseElement {
     return {
       locale: { type: String },
       hours: { type: Number },
-      visibleHours: { type: Number, attribute: "visible-hours" },
       showAllDayLabel: { type: Boolean, attribute: "show-all-day-label", reflect: true },
       allDayLabel: { type: String, attribute: "all-day-label" },
     } as const;
@@ -28,7 +26,6 @@ export class CalendarTimeSidebar extends BaseElement {
         :host {
           display: block;
           width: var(--_lc-time-sidebar-width, auto);
-          height: 100%;
           min-height: 0;
           color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
         }
@@ -56,31 +53,18 @@ export class CalendarTimeSidebar extends BaseElement {
         }
 
         .hour-labels {
-          height: calc(var(--_lc-sidebar-hours-height-factor, 1) * 100%);
+          flex: 1;
           display: flex;
           flex-direction: column;
           pointer-events: none;
         }
 
-        .hour-labels-viewport {
-          flex: 1;
-          min-height: 0;
-          margin-top: 0;
-          overflow-y: hidden;
-        }
-
-        :host(:not([show-all-day-label])) .hour-labels-viewport {
+        :host(:not([show-all-day-label])) .hour-labels {
           margin-top: -8px;
         }
 
-        :host([show-all-day-label]) .hour-labels-viewport {
+        :host([show-all-day-label]) .hour-labels {
           margin-top: var(--_lc-week-timed-top-offset, 8px);
-          overflow-y: auto;
-          scrollbar-width: none;
-        }
-
-        :host([show-all-day-label]) .hour-labels-viewport::-webkit-scrollbar {
-          display: none;
         }
 
         .hour-label-row {
@@ -106,44 +90,29 @@ export class CalendarTimeSidebar extends BaseElement {
     return this.locale || navigator.language;
   }
 
-  get #resolvedVisibleHours(): number {
-    const n = Number(this.visibleHours);
-    if (!Number.isFinite(n)) return 24;
-    return Math.max(1, Math.min(24, Math.floor(n)));
-  }
-
-  setHourLabelsScrollTop(scrollTop: number) {
-    const viewport = this.renderRoot.querySelector(".hour-labels-viewport");
-    if (!(viewport instanceof HTMLElement)) return;
-    viewport.scrollTop = scrollTop;
-  }
-
   render() {
     const clampedHours = Math.max(0, Math.floor(this.hours));
-    const hoursHeightFactor = 24 / this.#resolvedVisibleHours;
 
     return html`
       <div class="container">
         ${this.showAllDayLabel ? html`<div class="all-day-label">${this.allDayLabel}</div>` : ""}
-        <div class="hour-labels-viewport">
-          <div class="hour-labels" style=${`--_lc-sidebar-hours-height-factor: ${hoursHeightFactor};`}>
-            ${Array.from({ length: clampedHours }, (_, hour) => {
-              const label = Temporal.PlainTime.from({ hour, minute: 0 }).toLocaleString(
-                this.#resolvedLocale,
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }
-              );
-              return html`
-                <div class="hour-label-row">
-                  <time class="hour-label" datetime=${`${hour.toString().padStart(2, "0")}:00`}>
-                    ${label}
-                  </time>
-                </div>
-              `;
-            })}
-          </div>
+        <div class="hour-labels">
+          ${Array.from({ length: clampedHours }, (_, hour) => {
+            const label = Temporal.PlainTime.from({ hour, minute: 0 }).toLocaleString(
+              this.#resolvedLocale,
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            );
+            return html`
+              <div class="hour-label-row">
+                <time class="hour-label" datetime=${`${hour.toString().padStart(2, "0")}:00`}>
+                  ${label}
+                </time>
+              </div>
+            `;
+          })}
         </div>
       </div>
     `;
