@@ -34,8 +34,8 @@
   :host > div::before {
     top: 0;
     bottom: auto;
-    left: 0;
-    right: 0;
+    left: 2px;
+    right: 2px;
     width: auto;
     height: var(--_lc-event-height, 3px);
     border: 0;
