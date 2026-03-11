@@ -59,6 +59,7 @@ const meta: Meta = {
     variant: { control: "select", options: ["timed", "all-day"] },
     labelsHidden: { control: "boolean", description: "Hide day number labels" },
     snapInterval: { control: { type: "number", min: 5, max: 60, step: 5 } },
+    visibleHours: { control: { type: "number", min: 1, max: 24, step: 1 } },
   },
   args: {
     startDate: "2025-01-05",
@@ -67,6 +68,7 @@ const meta: Meta = {
     timezone: "Europe/Amsterdam",
     labelsHidden: false,
     snapInterval: 30,
+    visibleHours: 24,
     events: sampleEvents,
   },
   render: (args) => {
@@ -75,6 +77,7 @@ const meta: Meta = {
     el.setAttribute("days", String(args.days));
     el.setAttribute("variant", args.variant);
     el.setAttribute("snap-interval", String(args.snapInterval));
+    el.setAttribute("visible-hours", String(args.visibleHours));
     if (args.currentTime) {
       el.setAttribute("current-time", args.currentTime);
     }

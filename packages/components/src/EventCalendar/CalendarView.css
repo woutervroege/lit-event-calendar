@@ -1,7 +1,7 @@
 :host {
   display: block;
   width: 100%;
-  height: 100%;
+  height: calc(var(--_lc-host-height-factor, 1) * 100%);
   color-scheme: light dark;
   /* Public API: only these 4 vars are supported. */
   --_lc-current-day-color: var(--lc-current-day-color, #ff0000);

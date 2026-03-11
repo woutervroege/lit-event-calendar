@@ -42,6 +42,7 @@ export class CalendarView extends BaseElement {
   #locale?: string;
   #days!: number;
   #hours: number = 24;
+  #visibleHours = 24;
   #snapInterval: number = TimedEventInteractionController.snapInterval;
   declare events?: EventsMap;
   variant: "timed" | "all-day" = "timed";
@@ -96,6 +97,7 @@ export class CalendarView extends BaseElement {
       locale: { type: String },
       timezone: { type: String },
       snapInterval: { type: Number, attribute: "snap-interval" },
+      visibleHours: { type: Number, attribute: "visible-hours" },
       currentTime: {
         attribute: "current-time",
         converter: {
@@ -148,13 +150,6 @@ export class CalendarView extends BaseElement {
       this.#updateCalendarViewContext();
     }
     this.#scheduleSectionHeightSync();
-  }
-
-  protected willUpdate(changedProperties: PropertyValues<this>) {
-    super.willUpdate(changedProperties);
-    if (!changedProperties.has("events")) return;
-    // External state (confirm/cancel) has caught up; reset optimistic delete visuals.
-    this.#optimisticallyDeletingEventIds.clear();
   }
 
   get startDate(): Temporal.PlainDate {
@@ -215,6 +210,19 @@ export class CalendarView extends BaseElement {
 
   get snapInterval(): number {
     return this.#snapInterval;
+  }
+
+  get visibleHours(): number {
+    return this.#visibleHours;
+  }
+
+  set visibleHours(value: number) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) {
+      this.#visibleHours = 24;
+      return;
+    }
+    this.#visibleHours = Math.max(1, Math.min(24, Math.floor(n)));
   }
 
   set snapInterval(value: number) {
@@ -389,6 +397,7 @@ export class CalendarView extends BaseElement {
               <calendar-time-sidebar
                 .locale=${this.locale}
                 .hours=${this.hours}
+                .visibleHours=${this.visibleHours}
               ></calendar-time-sidebar>
             `
           : ""}
@@ -845,5 +854,36 @@ export class CalendarView extends BaseElement {
       currentTime: this.currentTime.toString(),
     };
     this.#calendarViewProvider.setValue(value);
+  }
+
+  protected firstUpdated(changedProperties: PropertyValues<this>) {
+    super.firstUpdated(changedProperties);
+    this.#syncTimedHostHeightFactor();
+  }
+
+  protected willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+    if (!changedProperties.has("events")) {
+      if (
+        changedProperties.has("variant") ||
+        changedProperties.has("visibleHours")
+      ) {
+        this.#syncTimedHostHeightFactor();
+      }
+      return;
+    }
+    // External state (confirm/cancel) has caught up; reset optimistic delete visuals.
+    this.#optimisticallyDeletingEventIds.clear();
+    if (
+      changedProperties.has("variant") ||
+      changedProperties.has("visibleHours")
+    ) {
+      this.#syncTimedHostHeightFactor();
+    }
+  }
+
+  #syncTimedHostHeightFactor() {
+    const factor = this.variant === "timed" ? 24 / this.visibleHours : 1;
+    this.style.setProperty("--_lc-host-height-factor", factor.toString());
   }
 }

@@ -34,6 +34,7 @@ export class CalendarWeekView extends BaseElement {
   timezone?: string;
   currentTime?: string;
   snapInterval = 15;
+  visibleHours = 12;
 
   static get properties() {
     return {
@@ -69,6 +70,7 @@ export class CalendarWeekView extends BaseElement {
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
       snapInterval: { type: Number, attribute: "snap-interval" },
+      visibleHours: { type: Number, attribute: "visible-hours" },
     } as const;
   }
 
@@ -119,12 +121,19 @@ export class CalendarWeekView extends BaseElement {
           min-height: 120px;
         }
 
-        .timed {
+        .timed-scroll {
           grid-column: 2;
           grid-row: 2;
-          height: 100%;
+          display: block;
+          height: calc(100% - var(--_lc-week-timed-top-offset, 8px));
           min-height: 0;
           margin-top: var(--_lc-week-timed-top-offset, 8px);
+          overflow-y: auto;
+        }
+
+        .timed {
+          display: block;
+          min-height: 100%;
         }
       `,
     ];
@@ -195,6 +204,7 @@ export class CalendarWeekView extends BaseElement {
           class="sidebar"
           .locale=${this.locale}
           .hours=${24}
+          .visibleHours=${this.visibleHours}
           .showAllDayLabel=${true}
         ></calendar-time-sidebar>
         <calendar-view
@@ -211,20 +221,23 @@ export class CalendarWeekView extends BaseElement {
           @event-modified=${this.#reemit}
           @event-deleted=${this.#reemit}
         ></calendar-view>
-        <calendar-view
-          class="timed"
-          start-date=${this.startDate.toString()}
-          .days=${this.daysPerWeek}
-          variant="timed"
-          .events=${this.#timedEvents}
-          .locale=${this.locale}
-          .timezone=${this.timezone}
-          .currentTime=${this.currentTime}
-          .snapInterval=${this.snapInterval}
-          .labelsHidden=${true}
-          @event-modified=${this.#reemit}
-          @event-deleted=${this.#reemit}
-        ></calendar-view>
+        <div class="timed-scroll" @scroll=${this.#handleTimedScroll}>
+          <calendar-view
+            class="timed"
+            start-date=${this.startDate.toString()}
+            .days=${this.daysPerWeek}
+            variant="timed"
+            .events=${this.#timedEvents}
+            .locale=${this.locale}
+            .timezone=${this.timezone}
+            .currentTime=${this.currentTime}
+            .snapInterval=${this.snapInterval}
+            .visibleHours=${this.visibleHours}
+            .labelsHidden=${true}
+            @event-modified=${this.#reemit}
+            @event-deleted=${this.#reemit}
+          ></calendar-view>
+        </div>
       </div>
     `;
   }
@@ -238,5 +251,17 @@ export class CalendarWeekView extends BaseElement {
         composed: true,
       })
     );
+  };
+
+  #handleTimedScroll = (event: Event) => {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLElement)) return;
+    const sidebar = this.renderRoot.querySelector("calendar-time-sidebar.sidebar");
+    if (!(sidebar instanceof HTMLElement)) return;
+    (
+      sidebar as unknown as {
+        setHourLabelsScrollTop?: (scrollTop: number) => void;
+      }
+    ).setHourLabelsScrollTop?.(target.scrollTop);
   };
 }

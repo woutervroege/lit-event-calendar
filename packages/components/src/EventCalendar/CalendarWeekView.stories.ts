@@ -30,6 +30,7 @@ const meta: Meta = {
     },
     currentTime: { control: "text", description: "Current time (ISO string)" },
     snapInterval: { control: { type: "number", min: 5, max: 60, step: 5 } },
+    visibleHours: { control: { type: "number", min: 1, max: 24, step: 1 } },
   },
   args: {
     weekNumber: 2,
@@ -40,6 +41,7 @@ const meta: Meta = {
     timezone: "Europe/Amsterdam",
     currentTime: "2025-01-07T13:00:00",
     snapInterval: 15,
+    visibleHours: 12,
     events: weekSplitEvents,
   },
   render: (args) => {
@@ -61,6 +63,7 @@ const meta: Meta = {
       el.setAttribute("current-time", args.currentTime);
     }
     el.setAttribute("snap-interval", String(args.snapInterval));
+    el.setAttribute("visible-hours", String(args.visibleHours));
     const entries = Array.isArray(args.events) ? args.events : weekSplitEvents;
     el.events = new Map(entries);
     return el;
