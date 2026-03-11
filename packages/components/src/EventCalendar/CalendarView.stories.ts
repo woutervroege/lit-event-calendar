@@ -1,172 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarView.js";
 import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
+import {
+  localeOptions,
+  sampleEvents,
+  timezoneOptions,
+  timezoneShiftEvents,
+  type StoryEvent,
+} from "./storyData.js";
 
-type StoryEvent = {
-  /**
-   * iCalendar UID. Repeating events share the same uid.
-   */
-  uid: string;
-  /**
-   * iCalendar RECURRENCE-ID for a specific occurrence in a recurring series.
-   */
-  recurrenceId?: string;
-  start: string;
-  end: string;
-  summary: string;
-  color: string;
-};
-
-type StoryEventEntry = [id: string, event: StoryEvent];
 type StoryCalendarViewElement = HTMLElement & { events: Map<string, StoryEvent> };
-
-const sampleEvents: StoryEventEntry[] = [
-  [
-    "event-flight-london-20250104",
-    {
-      uid: "flight-london@example.test",
-      start: "2025-01-04T08:30:00",
-      end: "2025-01-05T09:45:00",
-      summary: "Flight to London",
-      color: "#4564B5",
-    },
-  ],
-  [
-    "event-hello-world-20250103",
-    {
-      uid: "hello-world@example.test",
-      start: "2025-01-03T12:00:00",
-      end: "2025-01-07T18:00:00",
-      summary: "Hello World",
-      color: "#63e657",
-    },
-  ],
-  [
-    "event-team-meeting-20250106",
-    {
-      uid: "team-meeting@example.test",
-      start: "2025-01-06T10:00:00",
-      end: "2025-01-07T11:15:00",
-      summary: "Team Meeting",
-      color: "#ff0000",
-    },
-  ],
-  [
-    "event-amsterdam-zoned-20250104",
-    {
-      uid: "amsterdam-zoned@example.test",
-      start: "2025-01-04T12:00:00+01:00[Europe/Amsterdam]",
-      end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
-      summary: "Amsterdam Zoned Event",
-      color: "#f59e0b",
-    },
-  ],
-  [
-    "event-fiesta-20250106",
-    {
-      uid: "fiesta@example.test",
-      start: "2025-01-06T14:00:00",
-      end: "2025-01-06T15:00:00",
-      summary: "Fiesta",
-      color: "#084cb8",
-    },
-  ],
-  [
-    "event-drinks-20250108-1630",
-    {
-      uid: "drinks-weekly@example.test",
-      recurrenceId: "20250108T163000",
-      start: "2025-01-08T16:30:00",
-      end: "2025-01-08T17:30:00",
-      summary: "Drinks",
-      color: "#9f3cfa",
-    },
-  ],
-  [
-    "event-drinks-20250115-1630",
-    {
-      uid: "drinks-weekly@example.test",
-      recurrenceId: "20250115T163000",
-      start: "2025-01-15T16:30:00",
-      end: "2025-01-15T17:30:00",
-      summary: "Drinks",
-      color: "#9f3cfa",
-    },
-  ],
-  [
-    "event-more-drinks-20250108",
-    {
-      uid: "more-drinks@example.test",
-      start: "2025-01-08T19:00:00",
-      end: "2025-01-09T00:30:00",
-      summary: "More Drinks",
-      color: "#084cb8",
-    },
-  ],
-  [
-    "event-even-more-drinks-20250108",
-    {
-      uid: "even-more-drinks@example.test",
-      start: "2025-01-08T20:00:00",
-      end: "2025-01-09T01:00:00",
-      summary: "Even More Drinks",
-      color: "#ff0000",
-    },
-  ],
-  [
-    "event-meeting-john-20250110",
-    {
-      uid: "meeting-with-john@example.test",
-      start: "2025-01-08",
-      end: "2025-01-09",
-      summary: "Meeting with John",
-      color: "#E05ADD",
-    },
-  ],
-];
-
-const timezoneShiftEvents: StoryEventEntry[] = [
-  [
-    "event-amsterdam-noon-zoned",
-    {
-      uid: "amsterdam-noon-zoned@example.test",
-      start: "2025-01-06T12:00:00+01:00[Europe/Amsterdam]",
-      end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
-      summary: "Amsterdam Noon (zoned)",
-      color: "#f59e0b",
-    },
-  ],
-  [
-    "event-local-baseline-0900",
-    {
-      uid: "local-baseline@example.test",
-      start: "2025-01-06T09:00:00",
-      end: "2025-01-06T10:00:00",
-      summary: "Local baseline (plain)",
-      color: "#4564B5",
-    },
-  ],
-];
-
-const timezoneOptions =
-  typeof Intl.supportedValuesOf === "function"
-    ? Intl.supportedValuesOf("timeZone")
-    : ["UTC", "Europe/Amsterdam", "America/New_York", "Asia/Tokyo"];
-
-const localeOptions = [
-  "en-US",
-  "en-GB",
-  "nl-NL",
-  "de-DE",
-  "fr-FR",
-  "es-ES",
-  "it-IT",
-  "pt-BR",
-  "ja-JP",
-  "zh-CN",
-  "ar",
-  "he",
-];
 
 const calendarCssProps = {
   "lc-current-day-color": {
@@ -216,6 +59,7 @@ const meta: Meta = {
     variant: { control: "select", options: ["timed", "all-day"] },
     labelsHidden: { control: "boolean", description: "Hide day number labels" },
     snapInterval: { control: { type: "number", min: 5, max: 60, step: 5 } },
+    visibleHours: { control: { type: "number", min: 1, max: 24, step: 1 } },
   },
   args: {
     startDate: "2025-01-05",
@@ -224,6 +68,7 @@ const meta: Meta = {
     timezone: "Europe/Amsterdam",
     labelsHidden: false,
     snapInterval: 30,
+    visibleHours: 24,
     events: sampleEvents,
   },
   render: (args) => {
@@ -232,6 +77,7 @@ const meta: Meta = {
     el.setAttribute("days", String(args.days));
     el.setAttribute("variant", args.variant);
     el.setAttribute("snap-interval", String(args.snapInterval));
+    el.setAttribute("visible-hours", String(args.visibleHours));
     if (args.currentTime) {
       el.setAttribute("current-time", args.currentTime);
     }

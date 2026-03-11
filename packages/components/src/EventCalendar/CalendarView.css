@@ -1,7 +1,7 @@
 :host {
   display: block;
   width: 100%;
-  height: 100%;
+  height: calc(var(--_lc-host-height-factor, 1) * 100%);
   color-scheme: light dark;
   /* Public API: only these 4 vars are supported. */
   --_lc-current-day-color: var(--lc-current-day-color, #ff0000);
@@ -12,6 +12,7 @@
   /* Internal implementation tokens (`--_lc-*`). */
   --_lc-grid-line-width: 1px;
   --_lc-grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));
+  --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
   --_lc-grid-line-day-color: light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%));
   --_lc-grid-ghost-color: light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%));
   --_lc-all-day-day-number-space: 36px;
@@ -19,11 +20,24 @@
   --_lc-current-time-dot-size: 9px;
 }
 
+:host([variant="timed"]) {
+  --_lc-grid-line-color-horizontal: light-dark(rgb(15 23 42 / 8%), rgb(255 255 255 / 10%));
+}
+
 @supports (color: color-mix(in srgb, black, white)) {
   :host {
     --_lc-grid-line-color: color-mix(in srgb, var(--_lc-grid-base-color) 14%, transparent);
+    --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
     --_lc-grid-line-day-color: color-mix(in srgb, var(--_lc-grid-base-color) 72%, transparent);
     --_lc-grid-ghost-color: color-mix(in srgb, var(--_lc-grid-base-color) 10%, transparent);
+  }
+
+  :host([variant="timed"]) {
+    --_lc-grid-line-color-horizontal: color-mix(
+      in srgb,
+      var(--_lc-grid-base-color) 8%,
+      transparent
+    );
   }
 }
 
@@ -42,7 +56,7 @@ section {
     ),
     linear-gradient(
       to top,
-      var(--_lc-grid-line-color) 0 var(--_lc-grid-line-width),
+      var(--_lc-grid-line-color-horizontal) 0 var(--_lc-grid-line-width),
       transparent var(--_lc-grid-line-width) 100%
     ),
     linear-gradient(to right, var(--_lc-grid-line-color), var(--_lc-grid-line-color)),
