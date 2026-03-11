@@ -430,6 +430,15 @@ export class CalendarView extends BaseElement {
     return new Set(getLocaleWeekInfo(this.locale).weekend);
   }
 
+  get #isRtl(): boolean {
+    return getLocaleDirection(this.locale) === "rtl";
+  }
+
+  #toVisualColumnIndex(columnIndex: number, columnCount: number): number {
+    if (!this.#isRtl) return columnIndex;
+    return columnCount - columnIndex - 1;
+  }
+
   render() {
     const hoverStyle: Record<string, string> = {};
     const showTimedLabels = this.variant === "timed" && !this.labelsHidden;
@@ -442,7 +451,8 @@ export class CalendarView extends BaseElement {
           // For month view, calculate row and column
           const row = Math.floor(this.#dragHoverDayIndex / this.daysPerRow);
           const col = this.#dragHoverDayIndex % this.daysPerRow;
-          const left = (col / this.daysPerRow) * 100;
+          const visualCol = this.#toVisualColumnIndex(col, this.daysPerRow);
+          const left = (visualCol / this.daysPerRow) * 100;
           const width = (1 / this.daysPerRow) * 100;
           const top = (row / this.gridRows) * 100;
           const height = (1 / this.gridRows) * 100;
@@ -452,7 +462,8 @@ export class CalendarView extends BaseElement {
           hoverStyle["--_lc-hover-height"] = `${height}%`;
         } else {
           // For single-row view, highlight the entire column
-          const left = (this.#dragHoverDayIndex / this.#days) * 100;
+          const visualDayIndex = this.#toVisualColumnIndex(this.#dragHoverDayIndex, this.#days);
+          const left = (visualDayIndex / this.#days) * 100;
           const width = (1 / this.#days) * 100;
           hoverStyle["--_lc-hover-left"] = `${left}%`;
           hoverStyle["--_lc-hover-width"] = `${width}%`;
@@ -462,7 +473,8 @@ export class CalendarView extends BaseElement {
       } else if (this.#dragHoverTime !== null) {
         // Highlight the time slot
         const dayCount = this.#days;
-        const left = (this.#dragHoverDayIndex / dayCount) * 100;
+        const visualDayIndex = this.#toVisualColumnIndex(this.#dragHoverDayIndex, dayCount);
+        const left = (visualDayIndex / dayCount) * 100;
         const width = (1 / dayCount) * 100;
         const hour = this.#dragHoverTime.hour + this.#dragHoverTime.minute / 60;
         const top = (hour / 24) * 100;
@@ -489,6 +501,7 @@ export class CalendarView extends BaseElement {
           : ""}
         <section
           class="min-w-0 flex-1 relative flex-row h-full text-[0px] ${this.#isMonthView ? "month-view" : ""} ${compactMonthView ? "compact-month-view" : ""}"
+          dir=${getLocaleDirection(this.locale)}
           style=${styleMap({ ...this.sectionStyle, ...hoverStyle })}
           ?data-drag-hover=${this.#dragHoverDayIndex !== null}
         >
@@ -617,8 +630,9 @@ export class CalendarView extends BaseElement {
       .map((day, dayIndex) => {
         if (!weekendDays.has(day.dayOfWeek)) return null;
         const colIndex = this.#isMonthView ? dayIndex % cols : dayIndex;
+        const visualColIndex = this.#toVisualColumnIndex(colIndex, cols);
         const rowIndex = this.#isMonthView ? Math.floor(dayIndex / cols) : 0;
-        const left = (colIndex / cols) * 100;
+        const left = (visualColIndex / cols) * 100;
         const top = this.#isMonthView ? (rowIndex / this.gridRows) * 100 : 0;
         const width = 100 / cols;
         const height = this.#isMonthView ? 100 / this.gridRows : 100;
@@ -674,8 +688,9 @@ export class CalendarView extends BaseElement {
       .filter(([, hiddenCount]) => hiddenCount > 0)
       .map(([dayIndex, hiddenCount]) => {
         const colIndex = this.#isMonthView ? dayIndex % cols : dayIndex;
+        const visualColIndex = this.#toVisualColumnIndex(colIndex, cols);
         const rowIndex = this.#isMonthView ? Math.floor(dayIndex / cols) : 0;
-        const left = (colIndex / cols) * 100;
+        const left = (visualColIndex / cols) * 100;
         const top = rowIndex * rowHeightPx + indicatorOffsetWithinRowPx;
         const width = 100 / cols;
         const label = `+${hiddenCount} more`;
@@ -732,14 +747,13 @@ export class CalendarView extends BaseElement {
 
     const days = this.days;
     const currentDay = this.currentTime.toPlainDate();
-    const isRtl = getLocaleDirection(this.locale) === "rtl";
     const monthFormatter = new Intl.DateTimeFormat(this.locale, { month: "short" });
     const dayFormatter = new Intl.NumberFormat(this.locale);
     const fullDateFormatter = new Intl.DateTimeFormat(this.locale, { dateStyle: "full" });
     const colIndex = this.#isMonthView ? dayIndex % cols : dayIndex;
+    const visualColIndex = this.#toVisualColumnIndex(colIndex, cols);
     const rowIndex = this.#isMonthView ? Math.floor(dayIndex / cols) : 0;
-    const right = ((cols - colIndex - 1) / cols) * 100;
-    const left = (colIndex / cols) * 100;
+    const left = (visualColIndex / cols) * 100;
     const top = this.#isMonthView ? (rowIndex / this.gridRows) * 100 : 0;
     const compactMonthView = this.#isCompactMonthView;
     const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
@@ -754,8 +768,7 @@ export class CalendarView extends BaseElement {
       new Date(Date.UTC(day.year, day.month - 1, day.day))
     );
     const outsideVisibleMonth = this.#isOutsideVisibleMonth(day);
-    const compactColCenter = ((colIndex + 0.5) / cols) * 100;
-    const compactRtlColCenter = ((cols - colIndex - 0.5) / cols) * 100;
+    const compactColCenter = ((visualColIndex + 0.5) / cols) * 100;
 
     return html`
       <button
@@ -772,15 +785,9 @@ export class CalendarView extends BaseElement {
         aria-label=${fullDateLabel}
         aria-current=${isCurrentDay ? "date" : undefined}
         style=${styleMap({
-          [isRtl ? "right" : "left"]: compactMonthView
-            ? `${isRtl ? compactRtlColCenter : compactColCenter}%`
-            : `calc(${isRtl ? right : left}% + 6px)`,
+          left: compactMonthView ? `${compactColCenter}%` : `calc(${left}% + 6px)`,
           top: compactMonthView ? `calc(${top}% + 6px)` : `${top}%`,
-          transform: compactMonthView
-            ? isRtl
-              ? "translateX(50%)"
-              : "translateX(-50%)"
-            : "",
+          transform: compactMonthView ? "translateX(-50%)" : "",
         })}
         @dblclick=${(event: MouseEvent) => this.#handleDayLabelDoubleClick(day, dayIndex, event)}
         @pointerup=${(event: PointerEvent) => this.#handleDayLabelPointerUp(day, dayIndex, event)}
@@ -860,7 +867,8 @@ export class CalendarView extends BaseElement {
     if (hourFloat < 0 || hourFloat > this.hours) return "";
 
     const top = (hourFloat / this.hours) * 100;
-    const left = (currentDayIndex / this.#days) * 100;
+    const visualDayIndex = this.#toVisualColumnIndex(currentDayIndex, this.#days);
+    const left = (visualDayIndex / this.#days) * 100;
     const width = (1 / this.#days) * 100;
 
     return html`

@@ -16,8 +16,8 @@
         var(--_lc-indentation, 0px)
     )
   );
-  left: var(--_lc-left);
-  margin-left: calc(
+  inset-inline-start: var(--_lc-left);
+  margin-inline-start: calc(
     (100% / var(--_lc-days)) * var(--_lc-margin-left) + var(--_lc-indentation, 0px)
   );
   z-index: var(--_lc-z-index, 1);
