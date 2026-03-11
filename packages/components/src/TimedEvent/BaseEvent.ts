@@ -7,6 +7,7 @@ import { BaseElement } from "../BaseElement/BaseElement";
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController";
 import { calendarViewContext, type CalendarViewContextValue } from "../context/CalendarViewContext";
 import componentStyle from "./TimedEvent.css?inline";
+import { resolveLocale } from "../utils/Locale";
 
 export abstract class BaseEvent extends BaseElement {
   #start?: string;
@@ -63,6 +64,7 @@ export abstract class BaseEvent extends BaseElement {
 
   connectedCallback() {
     super.connectedCallback();
+    void this.#calendarViewConsumer;
     this.addEventListener(
       "interaction-drag-state",
       this.#handleInteractionDragState as EventListener
@@ -144,7 +146,7 @@ export abstract class BaseEvent extends BaseElement {
   }
 
   get locale(): string {
-    return this.#locale ?? this.#calendarView?.locale ?? navigator.language;
+    return resolveLocale(this.#locale ?? this.#calendarView?.locale);
   }
 
   set locale(locale: string | null | undefined) {

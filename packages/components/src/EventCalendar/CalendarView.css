@@ -15,6 +15,7 @@
   --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
   --_lc-grid-line-day-color: light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%));
   --_lc-grid-ghost-color: light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%));
+  --_lc-weekend-bg-color: light-dark(rgb(15 23 42 / 4%), rgb(255 255 255 / 6%));
   --_lc-all-day-day-number-space: 36px;
   --_lc-current-time-line-width: 2px;
   --_lc-current-time-dot-size: 9px;
@@ -30,6 +31,7 @@
     --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
     --_lc-grid-line-day-color: color-mix(in srgb, var(--_lc-grid-base-color) 72%, transparent);
     --_lc-grid-ghost-color: color-mix(in srgb, var(--_lc-grid-base-color) 10%, transparent);
+    --_lc-weekend-bg-color: color-mix(in srgb, var(--_lc-grid-base-color) 6%, transparent);
   }
 
   :host([variant="timed"]) {
@@ -123,6 +125,13 @@ section.month-view {
     right top,
     left bottom;
   background-repeat: repeat-x, repeat-y, no-repeat, no-repeat;
+}
+
+.weekend-cell {
+  position: absolute;
+  background: var(--_lc-weekend-bg-color);
+  pointer-events: none;
+  z-index: 0;
 }
 
 time {

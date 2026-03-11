@@ -5,6 +5,7 @@ import { ContextConsumer } from "@lit/context";
 import { BaseElement } from "../BaseElement/BaseElement";
 import { calendarViewContext, type CalendarViewContextValue } from "../context/CalendarViewContext";
 import componentStyle from "./EventCard.css?inline";
+import { resolveLocale } from "../utils/Locale";
 
 @customElement("event-card")
 export class EventCard extends BaseElement {
@@ -46,8 +47,13 @@ export class EventCard extends BaseElement {
     return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    void this.#calendarViewConsumer;
+  }
+
   get dir() {
-    const locale = this.locale || this.#calendarView?.locale || navigator.language;
+    const locale = resolveLocale(this.locale || this.#calendarView?.locale);
     const language = locale.toLowerCase().split("-")[0];
     const rtlLanguages = new Set(["ar", "fa", "he", "ur"]);
     return rtlLanguages.has(language) ? "rtl" : "ltr";

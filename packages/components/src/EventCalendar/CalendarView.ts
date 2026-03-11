@@ -15,6 +15,7 @@ import {
 } from "../context/CalendarViewContext.js";
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController.js";
 import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
+import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 
 type EventInput = {
   /**
@@ -184,7 +185,7 @@ export class CalendarView extends BaseElement {
   }
 
   get locale(): string {
-    return this.#locale || navigator.language;
+    return resolveLocale(this.#locale);
   }
 
   set locale(locale: string | undefined) {
@@ -345,6 +346,10 @@ export class CalendarView extends BaseElement {
     return base;
   }
 
+  get #weekendDays(): Set<number> {
+    return new Set(getLocaleWeekInfo(this.locale).weekend);
+  }
+
   render() {
     const hoverStyle: Record<string, string> = {};
     const showTimedLabels = this.variant === "timed" && !this.labelsHidden;
@@ -406,6 +411,7 @@ export class CalendarView extends BaseElement {
           style=${styleMap({ ...this.sectionStyle, ...hoverStyle })}
           ?data-drag-hover=${this.#dragHoverDayIndex !== null}
         >
+          ${this.#renderWeekendHighlights()}
           ${this.variant === "all-day" && !this.labelsHidden ? this.#renderDayNumbers() : ""}
           ${this.variant === "timed" ? this.#renderCurrentTimeIndicator() : ""}
 
@@ -452,6 +458,40 @@ export class CalendarView extends BaseElement {
         </section>
       </div>
     `;
+  }
+
+  #renderWeekendHighlights() {
+    const weekendDays = this.#weekendDays;
+    if (!weekendDays.size) return "";
+    const days = this.days;
+    if (!days.length) return "";
+    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    if (cols <= 0) return "";
+
+    return days
+      .map((day, dayIndex) => {
+        if (!weekendDays.has(day.dayOfWeek)) return null;
+        const colIndex = this.#isMonthView ? dayIndex % cols : dayIndex;
+        const rowIndex = this.#isMonthView ? Math.floor(dayIndex / cols) : 0;
+        const left = (colIndex / cols) * 100;
+        const top = this.#isMonthView ? (rowIndex / this.gridRows) * 100 : 0;
+        const width = 100 / cols;
+        const height = this.#isMonthView ? 100 / this.gridRows : 100;
+
+        return html`
+          <div
+            class="weekend-cell"
+            style=${styleMap({
+              left: `${left}%`,
+              top: `${top}%`,
+              width: `${width}%`,
+              height: `${height}%`,
+            })}
+            aria-hidden="true"
+          ></div>
+        `;
+      })
+      .filter((cell) => cell !== null);
   }
 
   #renderAllDayOverflowIndicators(layout: {

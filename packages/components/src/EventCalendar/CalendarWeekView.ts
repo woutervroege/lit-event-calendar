@@ -4,6 +4,7 @@ import { customElement } from "lit/decorators.js";
 import "./CalendarView.js";
 import "./CalendarTimeSidebar.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
+import { getLocaleWeekInfo } from "../utils/Locale.js";
 
 type EventInput = {
   /**
@@ -223,17 +224,8 @@ export class CalendarWeekView extends BaseElement {
   }
 
   #weekStartFromLocale(locale: string | undefined): WeekdayNumber {
-    const resolvedLocale = locale || navigator.language || "en-US";
-    try {
-      const localeInfo = new Intl.Locale(resolvedLocale) as Intl.Locale & {
-        getWeekInfo?: () => { firstDay?: number };
-        weekInfo?: { firstDay?: number };
-      };
-      const firstDay = localeInfo.getWeekInfo?.().firstDay ?? localeInfo.weekInfo?.firstDay;
-      if (isWeekdayNumber(firstDay)) return firstDay;
-    } catch {
-      // Conservative fallback: default to Monday when locale parsing is unavailable.
-    }
+    const firstDay = getLocaleWeekInfo(locale).firstDay;
+    if (isWeekdayNumber(firstDay)) return firstDay;
     return 1;
   }
 

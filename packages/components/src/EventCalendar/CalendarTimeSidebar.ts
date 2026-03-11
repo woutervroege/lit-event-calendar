@@ -2,6 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { css, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
+import { resolveLocale } from "../utils/Locale.js";
 
 @customElement("calendar-time-sidebar")
 export class CalendarTimeSidebar extends BaseElement {
@@ -87,7 +88,7 @@ export class CalendarTimeSidebar extends BaseElement {
   }
 
   get #resolvedLocale(): string {
-    return this.locale || navigator.language;
+    return resolveLocale(this.locale);
   }
 
   render() {
