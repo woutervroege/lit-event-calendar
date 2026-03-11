@@ -29,9 +29,9 @@
 }
 
 :host([axis="horizontal"][position="start"]) {
-  left: 0;
+  inset-inline-start: 0;
 }
 
 :host([axis="horizontal"][position="end"]) {
-  right: 0;
+  inset-inline-end: 0;
 }

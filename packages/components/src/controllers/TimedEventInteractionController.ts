@@ -3,6 +3,7 @@ import { Temporal } from "@js-temporal/polyfill";
 const SECONDS_IN_DAY = 24 * 60 * 60;
 const MAX_FRACTION = 0.999999;
 const MOVE_DRAG_ACTIVATION_DISTANCE_PX = 4;
+const INLINE_START_ANCHOR_INSET_PX = 1;
 
 type TimedEventHost = HTMLElement & {
   start: Temporal.PlainDateTime | string | null;
@@ -133,14 +134,19 @@ export class TimedEventInteractionController {
       }
       if (e.key === "ArrowLeft") {
         e.preventDefault();
-        this.#moveByHours(-24);
+        this.#moveByHours(this.#getHorizontalDayStepHours(-24));
       }
       if (e.key === "ArrowRight") {
         e.preventDefault();
-        this.#moveByHours(24);
+        this.#moveByHours(this.#getHorizontalDayStepHours(24));
       }
     }
   };
+
+  #getHorizontalDayStepHours(baseHours: number): number {
+    if (!this.#isRtlLayout()) return baseHours;
+    return -baseHours;
+  }
 
   #isDeleteKey(e: KeyboardEvent): boolean {
     return e.key === "Delete" || e.key === "Backspace";
@@ -683,18 +689,21 @@ export class TimedEventInteractionController {
   #computeDayIndex(fractionX: number, fractionY?: number): number {
     const dayCount = this.#getRenderedDayCount();
     if (dayCount <= 1) return 0;
+    const isRtl = this.#isRtlLayout();
     const daysPerRow = this.#getDaysPerRow();
     if (daysPerRow > 0 && daysPerRow < dayCount && fractionY !== undefined) {
       const totalRows = Math.ceil(dayCount / daysPerRow);
       const clampedX = Math.max(0, Math.min(MAX_FRACTION, fractionX));
       const clampedY = Math.max(0, Math.min(MAX_FRACTION, fractionY));
       const row = Math.floor(clampedY * totalRows);
-      const col = Math.floor(clampedX * daysPerRow);
+      const visualCol = Math.floor(clampedX * daysPerRow);
+      const col = isRtl ? daysPerRow - visualCol - 1 : visualCol;
       const index = row * daysPerRow + col;
       return Math.min(index, dayCount - 1);
     }
     const clampedFraction = Math.max(0, Math.min(MAX_FRACTION, fractionX));
-    return Math.floor(clampedFraction * dayCount);
+    const visualIndex = Math.floor(clampedFraction * dayCount);
+    return isRtl ? dayCount - visualIndex - 1 : visualIndex;
   }
 
   #getDaysPerRow(): number {
@@ -749,15 +758,17 @@ export class TimedEventInteractionController {
 
     if (daysPerRow > 0 && daysPerRow < dayCount) {
       const gridRows = (this.#host as { gridRows?: number }).gridRows ?? 1;
-      const colIndex = startDayIndex % daysPerRow;
+      const logicalColIndex = startDayIndex % daysPerRow;
+      const colIndex = this.#toVisualColumnIndex(logicalColIndex, daysPerRow);
       const rowIndex = Math.floor(startDayIndex / daysPerRow);
-      const left = sectionBounds.left + (colIndex / daysPerRow) * sectionBounds.width;
+      const left = this.#getColumnInlineStartX(sectionBounds, colIndex, daysPerRow);
       const top =
         sectionBounds.top + (rowIndex / gridRows) * sectionBounds.height + dayNumberOffsetY + stackOffsetY;
       return { left, top };
     }
 
-    const left = sectionBounds.left + (startDayIndex / dayCount) * sectionBounds.width;
+    const visualDayIndex = this.#toVisualColumnIndex(startDayIndex, dayCount);
+    const left = this.#getColumnInlineStartX(sectionBounds, visualDayIndex, dayCount);
     return { left, top: sectionBounds.top + dayNumberOffsetY + stackOffsetY };
   }
 
@@ -779,7 +790,8 @@ export class TimedEventInteractionController {
     startDayIndex: number,
     dayCount: number
   ): { left: number; top: number } {
-    const left = sectionBounds.left + (startDayIndex / dayCount) * sectionBounds.width;
+    const visualDayIndex = this.#toVisualColumnIndex(startDayIndex, dayCount);
+    const left = sectionBounds.left + ((visualDayIndex + 0.5) / dayCount) * sectionBounds.width;
     const savedStart = this.#savedStart;
     if (!savedStart) {
       return { left, top: sectionBounds.top };
@@ -789,6 +801,25 @@ export class TimedEventInteractionController {
     const fractionY = seconds / SECONDS_IN_DAY;
     const top = sectionBounds.top + fractionY * sectionBounds.height;
     return { left, top };
+  }
+
+  #toVisualColumnIndex(logicalIndex: number, columnCount: number): number {
+    if (!this.#isRtlLayout()) return logicalIndex;
+    return columnCount - logicalIndex - 1;
+  }
+
+  #isRtlLayout(): boolean {
+    return getComputedStyle(this.#host).direction === "rtl";
+  }
+
+  #getColumnInlineStartX(sectionBounds: DOMRect, visualColIndex: number, colCount: number): number {
+    const colWidth = sectionBounds.width / colCount;
+    const colLeft = sectionBounds.left + visualColIndex * colWidth;
+    if (this.#isRtlLayout()) {
+      // Keep the anchor inside the column so flooring maps to this same day.
+      return colLeft + colWidth - INLINE_START_ANCHOR_INSET_PX;
+    }
+    return colLeft + INLINE_START_ANCHOR_INSET_PX;
   }
 
   #snapSeconds(seconds: number): number {
