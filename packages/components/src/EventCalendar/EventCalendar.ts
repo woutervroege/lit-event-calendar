@@ -22,6 +22,10 @@ type EventInput = {
 type EventsMap = Map<string, EventInput>;
 type EventEntry = [id: string, event: EventInput];
 type ViewTransitionMode = "zoom-in" | "zoom-out";
+type ViewTransition = { finished: Promise<unknown> };
+type ViewTransitionDocument = Document & {
+  startViewTransition: (update: () => void | Promise<void>) => ViewTransition;
+};
 
 type WeekEventInput = Omit<EventInput, "start" | "end"> & {
   start: Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime;
@@ -64,9 +68,6 @@ export class EventCalendar extends BaseElement {
   #isSwitchingView = false;
   #queuedView: CalendarViewMode | null = null;
   #viewTransitionMode: ViewTransitionMode = "zoom-in";
-  #activeViewAnimation: Animation | null = null;
-  #viewSwitchOutDurationMs = 90;
-  #viewSwitchInDurationMs = 130;
 
   static get properties() {
     return {
@@ -212,6 +213,7 @@ export class EventCalendar extends BaseElement {
 
         .content {
           position: relative;
+          view-transition-name: lc-event-calendar-content;
           min-height: 0;
           height: 100%;
         }
@@ -219,6 +221,78 @@ export class EventCalendar extends BaseElement {
         .content > * {
           width: 100%;
           height: 100%;
+        }
+
+        :host::view-transition-group(lc-event-calendar-content) {
+          animation-duration: var(--_lc-view-transition-duration, 180ms);
+          animation-timing-function: var(
+            --_lc-view-transition-easing,
+            cubic-bezier(0.2, 0.65, 0.25, 1)
+          );
+        }
+
+        :host([data-view-transition-mode="zoom-in"])::view-transition-old(lc-event-calendar-content) {
+          animation-name: lc-view-transition-zoom-in-old;
+          transform-origin: center;
+        }
+
+        :host([data-view-transition-mode="zoom-in"])::view-transition-new(lc-event-calendar-content) {
+          animation-name: lc-view-transition-zoom-in-new;
+          transform-origin: center;
+        }
+
+        :host([data-view-transition-mode="zoom-out"])::view-transition-old(lc-event-calendar-content) {
+          animation-name: lc-view-transition-zoom-out-old;
+          transform-origin: center;
+        }
+
+        :host([data-view-transition-mode="zoom-out"])::view-transition-new(lc-event-calendar-content) {
+          animation-name: lc-view-transition-zoom-out-new;
+          transform-origin: center;
+        }
+
+        @keyframes lc-view-transition-zoom-in-old {
+          from {
+            opacity: 1;
+            transform: scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: scale(0.985);
+          }
+        }
+
+        @keyframes lc-view-transition-zoom-in-new {
+          from {
+            opacity: 0;
+            transform: scale(1.03);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        @keyframes lc-view-transition-zoom-out-old {
+          from {
+            opacity: 1;
+            transform: scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: scale(1.015);
+          }
+        }
+
+        @keyframes lc-view-transition-zoom-out-new {
+          from {
+            opacity: 0;
+            transform: scale(0.97);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
 
       `,
@@ -280,7 +354,6 @@ export class EventCalendar extends BaseElement {
   }
 
   disconnectedCallback() {
-    this.#cancelActiveViewAnimation();
     super.disconnectedCallback();
   }
 
@@ -417,20 +490,23 @@ export class EventCalendar extends BaseElement {
   async #performViewSwitch(nextView: CalendarViewMode) {
     const previousView = this.view;
     this.#viewTransitionMode = this.#resolveViewTransitionMode(previousView, nextView);
-    if (this.#shouldAnimateTransitions()) {
-      await this.#animateViewOut();
-    }
-    this.view = nextView;
-    this.dispatchEvent(
-      new CustomEvent("view-changed", {
-        detail: { view: nextView },
-        bubbles: true,
-        composed: true,
-      })
-    );
-    await this.updateComplete;
-    if (this.#shouldAnimateTransitions()) {
-      await this.#animateViewIn();
+    this.setAttribute("data-view-transition-mode", this.#viewTransitionMode);
+    const viewTransitionDocument = document as ViewTransitionDocument;
+    const transition = viewTransitionDocument.startViewTransition(async () => {
+      this.view = nextView;
+      this.dispatchEvent(
+        new CustomEvent("view-changed", {
+          detail: { view: nextView },
+          bubbles: true,
+          composed: true,
+        })
+      );
+      await this.updateComplete;
+    });
+    try {
+      await transition.finished;
+    } finally {
+      this.removeAttribute("data-view-transition-mode");
     }
   }
 
@@ -442,82 +518,6 @@ export class EventCalendar extends BaseElement {
     const nextGranularity = VIEW_GRANULARITY[nextView];
     if (nextGranularity < previousGranularity) return "zoom-in";
     return "zoom-out";
-  }
-
-  #shouldAnimateTransitions(): boolean {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-    return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  }
-
-  #contentElement(): HTMLElement | null {
-    const content = this.renderRoot.querySelector<HTMLElement>(".content");
-    return content ?? null;
-  }
-
-  #cancelActiveViewAnimation() {
-    this.#activeViewAnimation?.cancel();
-    this.#activeViewAnimation = null;
-  }
-
-  #animateContent(
-    keyframes: Keyframe[],
-    duration: number,
-    easing = "cubic-bezier(0.2, 0.65, 0.25, 1)"
-  ): Promise<void> {
-    const content = this.#contentElement();
-    if (!content || typeof content.animate !== "function") return Promise.resolve();
-    this.#cancelActiveViewAnimation();
-    const animation = content.animate(keyframes, {
-      duration,
-      easing,
-      fill: "both",
-    });
-    this.#activeViewAnimation = animation;
-    return animation.finished
-      .catch(() => undefined)
-      .then(() => {
-        if (this.#activeViewAnimation === animation) {
-          this.#activeViewAnimation = null;
-        }
-      });
-  }
-
-  #animateViewOut(): Promise<void> {
-    if (this.#viewTransitionMode === "zoom-in") {
-      return this.#animateContent(
-        [
-          { opacity: 1, transform: "scale(1)" },
-          { opacity: 0, transform: "scale(0.985)" },
-        ],
-        this.#viewSwitchOutDurationMs
-      );
-    }
-    return this.#animateContent(
-      [
-        { opacity: 1, transform: "scale(1)" },
-        { opacity: 0, transform: "scale(1.015)" },
-      ],
-      this.#viewSwitchOutDurationMs
-    );
-  }
-
-  #animateViewIn(): Promise<void> {
-    if (this.#viewTransitionMode === "zoom-in") {
-      return this.#animateContent(
-        [
-          { opacity: 0, transform: "scale(1.03)" },
-          { opacity: 1, transform: "scale(1)" },
-        ],
-        this.#viewSwitchInDurationMs
-      );
-    }
-    return this.#animateContent(
-      [
-        { opacity: 0, transform: "scale(0.97)" },
-        { opacity: 1, transform: "scale(1)" },
-      ],
-      this.#viewSwitchInDurationMs
-    );
   }
 
   #handleDayLabelDoublePointer = (event: Event) => {
