@@ -8,7 +8,6 @@
   --_lc-event-height: var(--lc-event-height, 32px);
   --_lc-days-per-row: var(--lc-days-per-row, 7);
   --_lc-grid-base-color: var(--lc-grid-base-color, light-dark(#111, #fff));
-  --_lc-compact-month-max-inline-size: var(--lc-compact-month-max-inline-size, 480px);
 
   /* Internal implementation tokens (`--_lc-*`). */
   --_lc-grid-line-width: 1px;
@@ -142,7 +141,7 @@ section.month-view.compact-month-view .day-label {
   margin-top: 0;
 }
 
-@container (max-width: 480px) {
+@container (max-width: 520px) {
   section.month-view {
     background-image: none;
     aspect-ratio: 1 / 1;

@@ -52,7 +52,6 @@ export class CalendarWeekdayHeader extends BaseElement {
           display: block;
           width: 100%;
           container-type: inline-size;
-          --_lc-compact-month-max-inline-size: var(--lc-compact-month-max-inline-size, 480px);
         }
 
         .weekday-header {
@@ -84,7 +83,7 @@ export class CalendarWeekdayHeader extends BaseElement {
           display: none;
         }
 
-        @container (max-width: 480px) {
+        @container (max-width: 520px) {
           .weekday {
             justify-content: center;
             text-align: center;

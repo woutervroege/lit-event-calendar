@@ -86,11 +86,6 @@ export class CalendarYearView extends BaseElement {
           grid-template-rows: auto 1fr;
         }
 
-        .month-card calendar-month-view {
-          /* Year grid month cards need compact all-day layout earlier than standalone month view. */
-          --lc-compact-month-max-inline-size: 552px;
-        }
-
         .month-title {
           margin: 0;
           padding-block: 0 14px;

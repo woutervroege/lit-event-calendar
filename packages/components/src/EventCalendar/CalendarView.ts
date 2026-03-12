@@ -34,6 +34,7 @@ type EventInput = {
 
 type EventEntry = [id: string, event: EventInput];
 type EventsMap = Map<string, EventInput>;
+const COMPACT_MONTH_MAX_INLINE_SIZE_PX = 520;
 
 @customElement("calendar-view")
 export class CalendarView extends BaseElement {
@@ -382,14 +383,6 @@ export class CalendarView extends BaseElement {
     return this.#isMonthView && this.#isCompactMonth;
   }
 
-  #getCompactMonthMaxInlineSizePx(): number {
-    const rawValue = getComputedStyle(this)
-      .getPropertyValue("--_lc-compact-month-max-inline-size")
-      .trim();
-    const parsedValue = parseFloat(rawValue);
-    return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : 480;
-  }
-
   #syncCompactMonthState(observedWidth?: number) {
     if (!this.#isMonthView) {
       if (!this.#isCompactMonth) return;
@@ -403,7 +396,7 @@ export class CalendarView extends BaseElement {
       (this.#lastObservedHostWidthPx ||
         this.getBoundingClientRect().width ||
         Number.POSITIVE_INFINITY);
-    const shouldBeCompact = width <= this.#getCompactMonthMaxInlineSizePx();
+    const shouldBeCompact = width <= COMPACT_MONTH_MAX_INLINE_SIZE_PX;
     if (shouldBeCompact === this.#isCompactMonth) return;
     this.#isCompactMonth = shouldBeCompact;
     this.requestUpdate();
