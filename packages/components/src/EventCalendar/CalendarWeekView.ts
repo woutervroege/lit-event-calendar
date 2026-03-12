@@ -32,6 +32,7 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
 
 @customElement("calendar-week-view")
 export class CalendarWeekView extends BaseElement {
+  #startDate?: string;
   weekNumber = Temporal.Now.plainDateISO().weekOfYear;
   year = Temporal.Now.plainDateISO().year;
   weekStart?: WeekdayNumber;
@@ -46,6 +47,7 @@ export class CalendarWeekView extends BaseElement {
 
   static get properties() {
     return {
+      startDate: { type: String, attribute: "start-date" },
       weekNumber: { type: Number, attribute: "week-number" },
       year: { type: Number },
       weekStart: {
@@ -191,6 +193,10 @@ export class CalendarWeekView extends BaseElement {
   }
 
   get startDate(): Temporal.PlainDate {
+    if (this.#startDate) {
+      return Temporal.PlainDate.from(this.#startDate);
+    }
+
     const firstOfYear = Temporal.PlainDate.from({
       year: this.year,
       month: 1,
@@ -200,6 +206,10 @@ export class CalendarWeekView extends BaseElement {
     const firstWeekStart = this.#startOfWeekFor(firstOfYear, weekStart);
     const normalizedWeek = Math.max(1, Number(this.weekNumber) || 1);
     return firstWeekStart.add({ days: (normalizedWeek - 1) * 7 });
+  }
+
+  set startDate(value: string | undefined) {
+    this.#startDate = value || undefined;
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
@@ -220,17 +230,27 @@ export class CalendarWeekView extends BaseElement {
   }
 
   #isAllDayEvent(event: EventInput): boolean {
-    return event.start instanceof Temporal.PlainDate || event.end instanceof Temporal.PlainDate;
+    return this.#isDateOnlyValue(event.start) || this.#isDateOnlyValue(event.end);
   }
 
   #isTimedEvent(event: EventInput): boolean {
     if (this.#isAllDayEvent(event)) return false;
     return (
+      (typeof event.start === "string" && event.start.includes("T")) ||
+      (typeof event.end === "string" && event.end.includes("T")) ||
       event.start instanceof Temporal.PlainDateTime ||
       event.start instanceof Temporal.ZonedDateTime ||
       event.end instanceof Temporal.PlainDateTime ||
       event.end instanceof Temporal.ZonedDateTime
     );
+  }
+
+  #isDateOnlyValue(value: EventInput["start"]): boolean {
+    if (value instanceof Temporal.PlainDate) return true;
+    if (value instanceof Temporal.PlainDateTime || value instanceof Temporal.ZonedDateTime) {
+      return false;
+    }
+    return !value.includes("T");
   }
 
   #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {
