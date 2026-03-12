@@ -1,7 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { css, html } from "lit";
 import { customElement } from "lit/decorators.js";
-import { cache } from "lit/directives/cache.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "./CalendarWeekView.js";
 import "./CalendarMonthView.js";
@@ -22,6 +21,7 @@ type EventInput = {
 
 type EventsMap = Map<string, EventInput>;
 type EventEntry = [id: string, event: EventInput];
+type ViewTransitionMode = "zoom-in" | "zoom-out";
 
 type WeekEventInput = Omit<EventInput, "start" | "end"> & {
   start: Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime;
@@ -38,6 +38,12 @@ const VIEW_OPTIONS: ReadonlyArray<{ mode: CalendarViewMode; label: string }> = [
   { mode: "month", label: "Month" },
   { mode: "year", label: "Year" },
 ];
+const VIEW_GRANULARITY: Record<CalendarViewMode, number> = {
+  day: 0,
+  week: 1,
+  month: 2,
+  year: 3,
+};
 
 @customElement("event-calendar")
 export class EventCalendar extends BaseElement {
@@ -55,6 +61,12 @@ export class EventCalendar extends BaseElement {
   snapInterval = 15;
   visibleHours = 12;
   rtl = false;
+  #isSwitchingView = false;
+  #queuedView: CalendarViewMode | null = null;
+  #viewTransitionMode: ViewTransitionMode = "zoom-in";
+  #activeViewAnimation: Animation | null = null;
+  #viewSwitchOutDurationMs = 90;
+  #viewSwitchInDurationMs = 130;
 
   static get properties() {
     return {
@@ -199,6 +211,7 @@ export class EventCalendar extends BaseElement {
         }
 
         .content {
+          position: relative;
           min-height: 0;
           height: 100%;
         }
@@ -207,6 +220,7 @@ export class EventCalendar extends BaseElement {
           width: 100%;
           height: 100%;
         }
+
       `,
     ];
   }
@@ -259,14 +273,19 @@ export class EventCalendar extends BaseElement {
           role="tabpanel"
           aria-labelledby=${this.#tabId(this.view)}
         >
-          ${cache(this.#renderCurrentView())}
+          ${this.#renderViewFor(this.view)}
         </section>
       </div>
     `;
   }
 
-  #renderCurrentView() {
-    if (this.view === "day") {
+  disconnectedCallback() {
+    this.#cancelActiveViewAnimation();
+    super.disconnectedCallback();
+  }
+
+  #renderViewFor(view: CalendarViewMode) {
+    if (view === "day") {
       return html`
         <calendar-week-view
           start-date=${this.#resolvedDayDate.toString()}
@@ -287,7 +306,7 @@ export class EventCalendar extends BaseElement {
       `;
     }
 
-    if (this.view === "week") {
+    if (view === "week") {
       return html`
         <calendar-week-view
           start-date=${this.#weekStartDate.toString()}
@@ -309,7 +328,7 @@ export class EventCalendar extends BaseElement {
       `;
     }
 
-    if (this.view === "year") {
+    if (view === "year") {
       return html`
         <calendar-year-view
           year=${this.year}
@@ -375,7 +394,32 @@ export class EventCalendar extends BaseElement {
   }
 
   #setView(nextView: CalendarViewMode) {
-    if (this.view === nextView) return;
+    if (this.view === nextView && this.#queuedView === null) return;
+    this.#queuedView = nextView;
+    if (this.#isSwitchingView) return;
+    void this.#flushQueuedViewSwitches();
+  }
+
+  async #flushQueuedViewSwitches() {
+    this.#isSwitchingView = true;
+    try {
+      while (this.#queuedView !== null) {
+        const targetView = this.#queuedView;
+        this.#queuedView = null;
+        if (targetView === this.view) continue;
+        await this.#performViewSwitch(targetView);
+      }
+    } finally {
+      this.#isSwitchingView = false;
+    }
+  }
+
+  async #performViewSwitch(nextView: CalendarViewMode) {
+    const previousView = this.view;
+    this.#viewTransitionMode = this.#resolveViewTransitionMode(previousView, nextView);
+    if (this.#shouldAnimateTransitions()) {
+      await this.#animateViewOut();
+    }
     this.view = nextView;
     this.dispatchEvent(
       new CustomEvent("view-changed", {
@@ -383,6 +427,96 @@ export class EventCalendar extends BaseElement {
         bubbles: true,
         composed: true,
       })
+    );
+    await this.updateComplete;
+    if (this.#shouldAnimateTransitions()) {
+      await this.#animateViewIn();
+    }
+  }
+
+  #resolveViewTransitionMode(
+    previousView: CalendarViewMode,
+    nextView: CalendarViewMode
+  ): ViewTransitionMode {
+    const previousGranularity = VIEW_GRANULARITY[previousView];
+    const nextGranularity = VIEW_GRANULARITY[nextView];
+    if (nextGranularity < previousGranularity) return "zoom-in";
+    return "zoom-out";
+  }
+
+  #shouldAnimateTransitions(): boolean {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+    return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  #contentElement(): HTMLElement | null {
+    const content = this.renderRoot.querySelector<HTMLElement>(".content");
+    return content ?? null;
+  }
+
+  #cancelActiveViewAnimation() {
+    this.#activeViewAnimation?.cancel();
+    this.#activeViewAnimation = null;
+  }
+
+  #animateContent(
+    keyframes: Keyframe[],
+    duration: number,
+    easing = "cubic-bezier(0.2, 0.65, 0.25, 1)"
+  ): Promise<void> {
+    const content = this.#contentElement();
+    if (!content || typeof content.animate !== "function") return Promise.resolve();
+    this.#cancelActiveViewAnimation();
+    const animation = content.animate(keyframes, {
+      duration,
+      easing,
+      fill: "both",
+    });
+    this.#activeViewAnimation = animation;
+    return animation.finished
+      .catch(() => undefined)
+      .then(() => {
+        if (this.#activeViewAnimation === animation) {
+          this.#activeViewAnimation = null;
+        }
+      });
+  }
+
+  #animateViewOut(): Promise<void> {
+    if (this.#viewTransitionMode === "zoom-in") {
+      return this.#animateContent(
+        [
+          { opacity: 1, transform: "scale(1)" },
+          { opacity: 0, transform: "scale(0.985)" },
+        ],
+        this.#viewSwitchOutDurationMs
+      );
+    }
+    return this.#animateContent(
+      [
+        { opacity: 1, transform: "scale(1)" },
+        { opacity: 0, transform: "scale(1.015)" },
+      ],
+      this.#viewSwitchOutDurationMs
+    );
+  }
+
+  #animateViewIn(): Promise<void> {
+    if (this.#viewTransitionMode === "zoom-in") {
+      return this.#animateContent(
+        [
+          { opacity: 0, transform: "scale(1.03)" },
+          { opacity: 1, transform: "scale(1)" },
+        ],
+        this.#viewSwitchInDurationMs
+      );
+    }
+    return this.#animateContent(
+      [
+        { opacity: 0, transform: "scale(0.97)" },
+        { opacity: 1, transform: "scale(1)" },
+      ],
+      this.#viewSwitchInDurationMs
     );
   }
 
