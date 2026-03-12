@@ -1,4 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
+import type { PropertyValues } from "lit";
 import { html } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
@@ -40,6 +41,30 @@ export class AllDayEvent extends BaseEvent {
       this.#handleInteractionDragHover as EventListener
     );
     super.disconnectedCallback();
+  }
+
+  override updated(changedProperties: PropertyValues) {
+    super.updated(changedProperties);
+    // When start/end change outside of a drag (e.g. keyboard move), refresh all siblings
+    // so stacking is recalculated. Pointer drag already does this in onDragEnd().
+    if (
+      (changedProperties.has("start") || changedProperties.has("end")) &&
+      !this.interactionController.isDragging
+    ) {
+      this.#refreshSiblingsStacking();
+    }
+  }
+
+  /** Clear lock and request re-render of all all-day siblings so stacking is recalculated. */
+  #refreshSiblingsStacking(): void {
+    this.#lockedStackIndex = null;
+    const parent = this.parentElement;
+    if (parent) {
+      const siblings = parent.querySelectorAll<AllDayEvent>("all-day-event");
+      siblings.forEach((event) => {
+        event.requestUpdate();
+      });
+    }
   }
 
   get endDate(): Temporal.PlainDate | null {
@@ -454,19 +479,7 @@ export class AllDayEvent extends BaseEvent {
   }
 
   protected override onDragEnd() {
-    // Clear any locked stack index so this event can be re-stacked normally.
-    this.#lockedStackIndex = null;
-
-    // Force a re-render of all all-day events in this section so stacking
-    // is recalculated consistently after a drag ends. This avoids cases where
-    // some events keep a stale vertical position until another drag occurs.
-    const parent = this.parentElement;
-    if (parent) {
-      const siblings = parent.querySelectorAll<AllDayEvent>("all-day-event");
-      siblings.forEach((event) => {
-        event.requestUpdate();
-      });
-    }
+    this.#refreshSiblingsStacking();
   }
 
   #getEventHeightPx(): number {

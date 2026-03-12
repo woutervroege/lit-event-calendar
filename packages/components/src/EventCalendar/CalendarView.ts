@@ -60,11 +60,10 @@ export class CalendarView extends BaseElement {
   #resizeObserver?: ResizeObserver;
   #resizeSyncRafId: number | null = null;
   #resizeDebounceTimerId: number | null = null;
-  #resizeDebounceDelayMs = 180;
+  #resizeDebounceDelayMs = 17;
   #lastObservedHostHeightPx = 0;
   #lastObservedHostWidthPx = 0;
   #isCompactMonth = false;
-  #lastMaxVisibleRowsByHeight: number | null = null;
   #lastDayLabelTap: { dayIndex: number; timestamp: number } | null = null;
   #lastDayLabelTapMaxDelayMs = 350;
   #cachedDaysKey = "";
@@ -302,11 +301,17 @@ export class CalendarView extends BaseElement {
     this.#resizeObserver = new ResizeObserver((entries) => {
       if (this.variant !== "all-day") return;
       const nextWidth = entries[0]?.contentRect.width;
-      if (Number.isFinite(nextWidth) && Math.abs(nextWidth - this.#lastObservedHostWidthPx) >= 0.5) {
+      if (
+        Number.isFinite(nextWidth) &&
+        Math.abs(nextWidth - this.#lastObservedHostWidthPx) >= 0.5
+      ) {
         this.#lastObservedHostWidthPx = nextWidth;
       }
       const nextHeight = entries[0]?.contentRect.height;
-      if (Number.isFinite(nextHeight) && Math.abs(nextHeight - this.#lastObservedHostHeightPx) >= 0.5) {
+      if (
+        Number.isFinite(nextHeight) &&
+        Math.abs(nextHeight - this.#lastObservedHostHeightPx) >= 0.5
+      ) {
         this.#lastObservedHostHeightPx = nextHeight;
       }
       this.#scheduleDebouncedResizeSync();
@@ -366,11 +371,7 @@ export class CalendarView extends BaseElement {
     const nextHeight = section.getBoundingClientRect().height;
     if (!Number.isFinite(nextHeight)) return;
     if (Math.abs(nextHeight - this.#sectionHeightPx) < 0.5) return;
-    const previousMaxVisibleRows = this.#lastMaxVisibleRowsByHeight;
     this.#sectionHeightPx = nextHeight;
-    const nextMaxVisibleRows = this.#getMaxRowsPerCellByHeight();
-    this.#lastMaxVisibleRowsByHeight = nextMaxVisibleRows;
-    if (previousMaxVisibleRows === nextMaxVisibleRows) return;
     if (!this.isUpdatePending) this.requestUpdate();
   }
 
@@ -485,15 +486,17 @@ export class CalendarView extends BaseElement {
 
     return html`
       <div class="calendar-layout flex h-full min-h-0 ${showTimedLabels ? "with-time-labels" : ""}">
-        ${showTimedLabels
-          ? html`
+        ${
+          showTimedLabels
+            ? html`
               <calendar-time-sidebar
                 .locale=${this.locale}
                 .hours=${this.hours}
                 .visibleHours=${this.visibleHours}
               ></calendar-time-sidebar>
             `
-          : ""}
+            : ""
+        }
         <section
           class="min-w-0 flex-1 relative flex-row h-full text-[0px] ${this.#isMonthView ? "month-view" : ""} ${compactMonthView ? "compact-month-view" : ""}"
           dir=${this.#isRtl ? "rtl" : "ltr"}
@@ -502,9 +505,11 @@ export class CalendarView extends BaseElement {
         >
           ${this.#renderWeekendHighlights()}
           ${this.variant === "timed" ? this.#renderCurrentTimeIndicator() : ""}
-          ${this.variant === "all-day" && !this.labelsHidden
-            ? this.#renderAllDayInterleavedByDate(allDayOverflow)
-            : this.#renderEventEntries(allDayOverflow)}
+          ${
+            this.variant === "all-day" && !this.labelsHidden
+              ? this.#renderAllDayInterleavedByDate(allDayOverflow)
+              : this.#renderEventEntries(allDayOverflow)
+          }
           ${this.variant === "all-day" ? this.#renderAllDayOverflowIndicators(allDayOverflow) : ""}
         </section>
       </div>
@@ -512,7 +517,9 @@ export class CalendarView extends BaseElement {
   }
 
   #renderEventEntries(allDayOverflow: { maxVisibleRows: number }): TemplateResult[] {
-    return this.#sortedEvents.map(([id, event]) => this.#renderEventEntry(id, event, allDayOverflow));
+    return this.#sortedEvents.map(([id, event]) =>
+      this.#renderEventEntry(id, event, allDayOverflow)
+    );
   }
 
   #renderEventEntry(
@@ -602,7 +609,8 @@ export class CalendarView extends BaseElement {
     const eventEnd = this.#toPlainDateTime(event.end).subtract({ nanoseconds: 1 }).toPlainDate();
 
     if (Temporal.PlainDate.compare(eventEnd, renderedDays[0]) < 0) return null;
-    if (Temporal.PlainDate.compare(eventStart, renderedDays[renderedDays.length - 1]) > 0) return null;
+    if (Temporal.PlainDate.compare(eventStart, renderedDays[renderedDays.length - 1]) > 0)
+      return null;
 
     for (const day of renderedDays) {
       if (Temporal.PlainDate.compare(day, eventStart) < 0) continue;
@@ -753,9 +761,10 @@ export class CalendarView extends BaseElement {
     const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
     const startsNewMonth =
       previousDay === null || previousDay.month !== day.month || previousDay.year !== day.year;
-    const monthPrefix = startsNewMonth && !compactMonthView
-      ? `${monthFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)))} `
-      : "";
+    const monthPrefix =
+      startsNewMonth && !compactMonthView
+        ? `${monthFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)))} `
+        : "";
     const label = `${monthPrefix}${dayFormatter.format(day.day)}`;
     const isCurrentDay = Temporal.PlainDate.compare(day, currentDay) === 0;
     const fullDateLabel = fullDateFormatter.format(
@@ -780,11 +789,7 @@ export class CalendarView extends BaseElement {
         type="button"
         class="day-label absolute p-1 text-sm z-0 font-medium rounded-full flex justify-center items-center cursor-pointer border-0 bg-transparent text-inherit leading-none ${
           compactMonthView ? "" : "mt-2"
-        } ${
-          monthPrefix ? "min-w-6 px-2" : "w-6"
-        } h-6 ${
-          isCurrentDay ? "current-day" : ""
-        } ${
+        } ${monthPrefix ? "min-w-6 px-2" : "w-6"} h-6 ${isCurrentDay ? "current-day" : ""} ${
           outsideVisibleMonth ? "outside-month-day-label" : ""
         }"
         aria-label=${fullDateLabel}
@@ -995,8 +1000,35 @@ export class CalendarView extends BaseElement {
       };
     }
 
-    const initialHidden = this.#computeHiddenAllDayCountsByDay(maxRowsByHeight);
-    return { maxVisibleRows: maxRowsByHeight, hiddenCountsByDay: initialHidden };
+    const maxVisibleRows = maxRowsByHeight;
+    const hiddenCountsByDay = this.#computeHiddenAllDayCountsByDay(maxVisibleRows);
+    if (!hiddenCountsByDay.size) {
+      return { maxVisibleRows, hiddenCountsByDay };
+    }
+
+    // Reserve vertical room for the "+X more" line when overflow is present.
+    const availableHeight = this.#getAllDayAvailableHeightPx();
+    const eventHeight = this.#getAllDayEventHeightPx();
+    const overflowIndicatorHeight = this.#getAllDayOverflowIndicatorHeightPx();
+    const overflowIndicatorSpacing = this.#getAllDayOverflowIndicatorSpacingPx();
+    if (!Number.isFinite(availableHeight) || eventHeight <= 0) {
+      return { maxVisibleRows, hiddenCountsByDay };
+    }
+
+    const maxRowsWithIndicator = Math.max(
+      0,
+      Math.floor((availableHeight - overflowIndicatorHeight - overflowIndicatorSpacing) / eventHeight)
+    );
+    if (maxRowsWithIndicator >= maxVisibleRows) {
+      return { maxVisibleRows, hiddenCountsByDay };
+    }
+
+    const hiddenCountsWithIndicator = this.#computeHiddenAllDayCountsByDay(maxRowsWithIndicator);
+    if (this.#wouldInflateSingleHiddenCount(hiddenCountsByDay, hiddenCountsWithIndicator)) {
+      return { maxVisibleRows, hiddenCountsByDay };
+    }
+
+    return { maxVisibleRows: maxRowsWithIndicator, hiddenCountsByDay: hiddenCountsWithIndicator };
   }
 
   #getMaxRowsPerCellByHeight(): number {
@@ -1031,8 +1063,13 @@ export class CalendarView extends BaseElement {
   }
 
   #getAllDayOverflowIndicatorHeightPx(): number {
-    // Matches text-xs + leading-tight with single-line label.
-    return 16;
+    // Matches text-xs + leading-tight + pt-1 on the overflow label.
+    return 20;
+  }
+
+  #getAllDayOverflowIndicatorSpacingPx(): number {
+    // Keep a small visual gap between the last visible event row and "+X more".
+    return 4;
   }
 
   #readSectionCssNumber(propertyName: string, fallback: number): number {
@@ -1041,6 +1078,18 @@ export class CalendarView extends BaseElement {
     const rawValue = getComputedStyle(styleTarget).getPropertyValue(propertyName).trim();
     const parsedValue = parseFloat(rawValue);
     return Number.isFinite(parsedValue) ? parsedValue : fallback;
+  }
+
+  #wouldInflateSingleHiddenCount(
+    baseHiddenCountsByDay: Map<number, number>,
+    reservedHiddenCountsByDay: Map<number, number>
+  ): boolean {
+    for (const [dayIndex, baseHiddenCount] of baseHiddenCountsByDay.entries()) {
+      if (baseHiddenCount !== 1) continue;
+      const reservedHiddenCount = reservedHiddenCountsByDay.get(dayIndex) ?? 0;
+      if (reservedHiddenCount > baseHiddenCount) return true;
+    }
+    return false;
   }
 
   #computeHiddenAllDayCountsByDay(maxVisibleRows: number): Map<number, number> {
@@ -1151,27 +1200,18 @@ export class CalendarView extends BaseElement {
 
   protected willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
-    if (
-      changedProperties.has("days") ||
-      changedProperties.has("variant")
-    ) {
+    if (changedProperties.has("days") || changedProperties.has("variant")) {
       this.#syncCompactMonthState();
     }
     if (!changedProperties.has("events")) {
-      if (
-        changedProperties.has("variant") ||
-        changedProperties.has("visibleHours")
-      ) {
+      if (changedProperties.has("variant") || changedProperties.has("visibleHours")) {
         this.#syncTimedHostHeightFactor();
       }
       return;
     }
     // External state (confirm/cancel) has caught up; reset optimistic delete visuals.
     this.#optimisticallyDeletingEventIds.clear();
-    if (
-      changedProperties.has("variant") ||
-      changedProperties.has("visibleHours")
-    ) {
+    if (changedProperties.has("variant") || changedProperties.has("visibleHours")) {
       this.#syncTimedHostHeightFactor();
     }
   }
