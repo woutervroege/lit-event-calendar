@@ -30,65 +30,6 @@
   color: var(--lc-higlight-color, currentColor);
 }
 
-.tabs {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--_lc-tabbar-background, light-dark(rgb(15 23 42 / 8%), rgb(255 255 255 / 12%)));
-  justify-self: center;
-}
-
-.nav-button {
-  border: 0;
-  border-radius: 999px;
-  background: var(--_lc-tabbar-background, light-dark(rgb(15 23 42 / 8%), rgb(255 255 255 / 12%)));
-  color: inherit;
-  font: inherit;
-  font-size: 13px;
-  line-height: 1;
-  font-weight: 500;
-  cursor: pointer;
-  height: 34px;
-  min-width: 34px;
-  padding: 0 10px;
-  transition: background-color 120ms ease;
-}
-
-.nav-button:hover {
-  background: var(--_lc-tab-hover-background, light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 18%)));
-}
-
-.nav-controls {
-  display: inline-flex;
-  align-items: center;
-  justify-self: end;
-  gap: 6px;
-}
-
-.tab {
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 13px;
-  line-height: 1;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 8px 12px;
-  transition: background-color 120ms ease, color 120ms ease;
-}
-
-.tab:hover {
-  background: var(--_lc-tab-hover-background, light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 18%)));
-}
-
-.tab[aria-selected="true"] {
-  background: var(--_lc-tab-active-background, light-dark(rgb(15 23 42 / 16%), rgb(255 255 255 / 24%)));
-  font-weight: 600;
-}
-
 .content {
   position: relative;
   view-transition-name: lc-event-calendar-content;

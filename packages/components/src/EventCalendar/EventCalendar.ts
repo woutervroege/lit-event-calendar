@@ -5,6 +5,8 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import "./CalendarWeekView.js";
 import "./CalendarMonthView.js";
 import "./CalendarYearView.js";
+import "./CalendarViewTabs.js";
+import "./CalendarNavControls.js";
 import { getLocaleWeekInfo } from "../utils/Locale.js";
 import componentStyle from "./EventCalendar.css?inline";
 
@@ -37,12 +39,6 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
   return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
 }
 
-const VIEW_OPTIONS: ReadonlyArray<{ mode: CalendarViewMode; label: string }> = [
-  { mode: "day", label: "Day" },
-  { mode: "week", label: "Week" },
-  { mode: "month", label: "Month" },
-  { mode: "year", label: "Year" },
-];
 const VIEW_GRANULARITY: Record<CalendarViewMode, number> = {
   day: 0,
   week: 1,
@@ -126,42 +122,9 @@ export class EventCalendar extends BaseElement {
       <div class="event-calendar">
         <header class="header">
           <p class="range-label">${this.#headerRangeLabel}</p>
-          <div class="tabs" role="tablist" aria-label="Calendar view">
-            ${VIEW_OPTIONS.map(
-              ({ mode, label }) => html`
-                <button
-                  id=${this.#tabId(mode)}
-                  type="button"
-                  class="tab"
-                  role="tab"
-                  aria-selected=${this.view === mode ? "true" : "false"}
-                  aria-controls=${this.#panelId(mode)}
-                  @click=${() => this.#setView(mode)}
-                >
-                  ${label}
-                </button>
-              `
-            )}
-          </div>
-          <div class="nav-controls">
-            <button
-              type="button"
-              class="nav-button"
-              aria-label="Previous range"
-              @click=${() => this.#goPrevious()}
-            >
-              &lt;
-            </button>
-            <button type="button" class="nav-button" @click=${() => this.#goToToday()}>Today</button>
-            <button
-              type="button"
-              class="nav-button"
-              aria-label="Next range"
-              @click=${() => this.#goNext()}
-            >
-              &gt;
-            </button>
-          </div>
+          <calendar-view-tabs .view=${this.view} @view-selected=${this.#handleViewSelected}>
+          </calendar-view-tabs>
+          <calendar-nav-controls @navigate=${this.#handleNavigation}></calendar-nav-controls>
         </header>
         <section
           id=${this.#panelId(this.view)}
@@ -351,6 +314,29 @@ export class EventCalendar extends BaseElement {
     const selectedDate = Temporal.PlainDate.from(detail.date);
     this.#setAnchorDate(selectedDate);
     this.#setView("day");
+  };
+
+  #handleViewSelected = (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const detail = event.detail as { view?: CalendarViewMode } | undefined;
+    if (!detail?.view) return;
+    this.#setView(detail.view);
+  };
+
+  #handleNavigation = (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const detail = event.detail as { direction?: "previous" | "today" | "next" } | undefined;
+    if (detail?.direction === "previous") {
+      this.#goPrevious();
+      return;
+    }
+    if (detail?.direction === "today") {
+      this.#goToToday();
+      return;
+    }
+    if (detail?.direction === "next") {
+      this.#goNext();
+    }
   };
 
   #goPrevious() {

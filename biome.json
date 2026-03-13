@@ -20,7 +20,14 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "suspicious": {
+        "noUnknownAtRules": {
+          "options": {
+            "ignore": ["plugin"]
+          }
+        }
+      }
     }
   },
   "javascript": {
@@ -30,6 +37,11 @@
       "trailingCommas": "es5",
       "semicolons": "always",
       "arrowParentheses": "always"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   },
   "overrides": [

@@ -1,0 +1,27 @@
+:host {
+  display: inline-flex;
+  justify-self: end;
+}
+
+.nav-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.nav-btn {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: var(--font-weight-medium);
+}
+
+.nav-icon {
+  width: 1rem;
+  height: 1rem;
+  display: block;
+}
