@@ -28,6 +28,7 @@
     "@tailwindcss/vite": "^4.1.14",
     "@vitest/browser-playwright": "^4.0.18",
     "@vitest/coverage-v8": "^4.0.18",
+    "daisyui": "^5.5.19",
     "playwright": "^1.58.2",
     "storybook": "^10.2.13",
     "tailwindcss": "^4.1.14",

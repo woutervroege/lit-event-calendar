@@ -1,11 +1,12 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { css, html } from "lit";
+import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
-import "./CalendarView.js";
-import "./CalendarTimeSidebar.js";
-import "./CalendarWeekdayHeader.js";
+import "../CalendarView/CalendarView.js";
+import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
+import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import { getLocaleDirection, getLocaleWeekInfo } from "../utils/Locale.js";
+import componentStyle from "./CalendarWeekView.css?inline";
 
 type EventInput = {
   /**
@@ -32,6 +33,7 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
 
 @customElement("calendar-week-view")
 export class CalendarWeekView extends BaseElement {
+  #startDate?: string;
   weekNumber = Temporal.Now.plainDateISO().weekOfYear;
   year = Temporal.Now.plainDateISO().year;
   weekStart?: WeekdayNumber;
@@ -46,6 +48,7 @@ export class CalendarWeekView extends BaseElement {
 
   static get properties() {
     return {
+      startDate: { type: String, attribute: "start-date" },
       weekNumber: { type: Number, attribute: "week-number" },
       year: { type: Number },
       weekStart: {
@@ -91,106 +94,14 @@ export class CalendarWeekView extends BaseElement {
   }
 
   static get styles() {
-    return [
-      ...BaseElement.styles,
-      css`
-        :host {
-          display: block;
-          width: 100%;
-          height: 100%;
-          min-height: 0;
-        }
-
-        .week-layout {
-          display: grid;
-          grid-template-columns: var(--_lc-time-sidebar-width, 56px) 1fr;
-          grid-template-rows: var(--_lc-weekday-header-height, 26px) var(--_lc-all-day-row-height, 120px) 1fr;
-          column-gap: var(--_lc-time-label-gap, 6px);
-          row-gap: 0;
-          position: relative;
-          width: 100%;
-          height: 100%;
-          min-height: 0;
-        }
-
-        .week-layout::after {
-          content: "";
-          position: absolute;
-          left: 0;
-          right: 0;
-          top: calc(
-            var(--_lc-weekday-header-height, 26px) + var(--_lc-all-day-row-height, 120px)
-          );
-          border-top: var(--_lc-week-section-divider-width, 3px) solid
-            var(--_lc-week-section-divider-color, light-dark(rgb(15 23 42 / 22%), rgb(255 255 255 / 28%)));
-          pointer-events: none;
-          z-index: 1;
-        }
-
-        .weekday-sidebar-spacer {
-          grid-column: 1;
-          grid-row: 1;
-        }
-
-        .weekday-header {
-          grid-column: 2;
-          grid-row: 1;
-        }
-
-        .all-day-sidebar-label {
-          grid-column: 1;
-          grid-row: 2;
-          display: flex;
-          justify-content: flex-end;
-          align-items: flex-start;
-          padding-top: 8px;
-          padding-right: 4px;
-          font-size: 12px;
-          line-height: 1;
-          font-weight: 500;
-          white-space: nowrap;
-          color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
-          pointer-events: none;
-        }
-
-        .all-day {
-          grid-column: 2;
-          grid-row: 2;
-          height: 100%;
-          min-height: 120px;
-        }
-
-        .timed-scroll {
-          grid-column: 1 / 3;
-          grid-row: 3;
-          display: block;
-          height: calc(100% - var(--_lc-week-timed-top-offset, 8px));
-          min-height: 0;
-          margin-top: var(--_lc-week-timed-top-offset, 8px);
-          overflow-y: auto;
-        }
-
-        .timed-content {
-          display: grid;
-          grid-template-columns: var(--_lc-time-sidebar-width, 56px) 1fr;
-          column-gap: var(--_lc-time-label-gap, 6px);
-          min-height: 100%;
-          height: calc(var(--_lc-week-timed-height-factor, 1) * 100%);
-        }
-
-        .timed-sidebar {
-          min-height: 100%;
-        }
-
-        .timed {
-          display: block;
-          min-height: 100%;
-        }
-      `,
-    ];
+    return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
 
   get startDate(): Temporal.PlainDate {
+    if (this.#startDate) {
+      return Temporal.PlainDate.from(this.#startDate);
+    }
+
     const firstOfYear = Temporal.PlainDate.from({
       year: this.year,
       month: 1,
@@ -200,6 +111,10 @@ export class CalendarWeekView extends BaseElement {
     const firstWeekStart = this.#startOfWeekFor(firstOfYear, weekStart);
     const normalizedWeek = Math.max(1, Number(this.weekNumber) || 1);
     return firstWeekStart.add({ days: (normalizedWeek - 1) * 7 });
+  }
+
+  set startDate(value: string | undefined) {
+    this.#startDate = value || undefined;
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
@@ -220,17 +135,27 @@ export class CalendarWeekView extends BaseElement {
   }
 
   #isAllDayEvent(event: EventInput): boolean {
-    return event.start instanceof Temporal.PlainDate || event.end instanceof Temporal.PlainDate;
+    return this.#isDateOnlyValue(event.start) || this.#isDateOnlyValue(event.end);
   }
 
   #isTimedEvent(event: EventInput): boolean {
     if (this.#isAllDayEvent(event)) return false;
     return (
+      (typeof event.start === "string" && event.start.includes("T")) ||
+      (typeof event.end === "string" && event.end.includes("T")) ||
       event.start instanceof Temporal.PlainDateTime ||
       event.start instanceof Temporal.ZonedDateTime ||
       event.end instanceof Temporal.PlainDateTime ||
       event.end instanceof Temporal.ZonedDateTime
     );
+  }
+
+  #isDateOnlyValue(value: EventInput["start"]): boolean {
+    if (value instanceof Temporal.PlainDate) return true;
+    if (value instanceof Temporal.PlainDateTime || value instanceof Temporal.ZonedDateTime) {
+      return false;
+    }
+    return !value.includes("T");
   }
 
   #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {

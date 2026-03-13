@@ -1,9 +1,14 @@
 @import "tailwindcss";
-
-* {
-  box-sizing: border-box;
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
 }
 
-:host {
-  display: block;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  :host {
+    display: block;
+  }
 }

@@ -1,7 +1,8 @@
-import { css, html } from "lit";
+import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
+import componentStyle from "./CalendarWeekdayHeader.css?inline";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -45,61 +46,7 @@ export class CalendarWeekdayHeader extends BaseElement {
   }
 
   static get styles() {
-    return [
-      ...BaseElement.styles,
-      css`
-        :host {
-          display: block;
-          width: 100%;
-          container-type: inline-size;
-        }
-
-        .weekday-header {
-          display: grid;
-          align-items: center;
-          gap: 0;
-          min-height: var(--_lc-weekday-header-height, 26px);
-          padding: 0 2px 4px;
-          color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
-          font-size: var(--_lc-weekday-header-font-size, 14px);
-          line-height: 1;
-          font-weight: 500;
-        }
-
-        .weekday {
-          display: inline-flex;
-          align-items: center;
-          justify-content: flex-start;
-          text-align: start;
-          padding-inline: 6px;
-          white-space: nowrap;
-        }
-
-        .weekday.weekend {
-          opacity: 0.62;
-        }
-
-        .weekday-narrow {
-          display: none;
-        }
-
-        @container (max-width: 520px) {
-          .weekday {
-            justify-content: center;
-            text-align: center;
-            padding-inline: 0;
-          }
-
-          .weekday-short {
-            display: none;
-          }
-
-          .weekday-narrow {
-            display: inline;
-          }
-        }
-      `,
-    ];
+    return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
 
   get #resolvedLocale(): string {

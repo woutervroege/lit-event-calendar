@@ -1,10 +1,11 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { css, html } from "lit";
+import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
-import "./CalendarView.js";
-import "./CalendarWeekdayHeader.js";
+import "../CalendarView/CalendarView.js";
+import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import { getLocaleWeekInfo } from "../utils/Locale.js";
+import componentStyle from "./CalendarMonthView.css?inline";
 
 type EventInput = {
   /**
@@ -69,29 +70,7 @@ export class CalendarMonthView extends BaseElement {
   }
 
   static get styles() {
-    return [
-      ...BaseElement.styles,
-      css`
-        :host {
-          display: block;
-          width: 100%;
-          height: 100%;
-          min-height: 0;
-        }
-
-        .month-layout {
-          display: grid;
-          grid-template-rows: auto 1fr;
-          width: 100%;
-          height: 100%;
-          min-height: 0;
-        }
-
-        .month-grid {
-          min-height: 0;
-        }
-      `,
-    ];
+    return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
 
   get startDate(): Temporal.PlainDate {

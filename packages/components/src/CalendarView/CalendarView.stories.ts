@@ -7,8 +7,8 @@ import {
   timezoneOptions,
   timezoneShiftEvents,
   type StoryEvent,
-} from "./storyData.js";
-import { calendarCssProps } from "./calendarCssProps.js";
+} from "../storyData.js";
+import { calendarCssProps } from "../calendarCssProps.js";
 
 type StoryCalendarViewElement = HTMLElement & { events: Map<string, StoryEvent> };
 

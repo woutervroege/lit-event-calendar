@@ -8,7 +8,7 @@ import "../TimedEvent/TimedEvent.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import componentStyle from "./CalendarView.css?inline";
 import "../TimedEvent/AllDayEvent.js";
-import "./CalendarTimeSidebar.js";
+import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
 import {
   type CalendarViewContextValue,
   calendarViewContext,
@@ -805,7 +805,7 @@ export class CalendarView extends BaseElement {
   }
 
   #handleDayLabelDoubleClick(day: Temporal.PlainDate, dayIndex: number, event: MouseEvent) {
-    this.#emitDayLabelDoublePointerEvent(day, dayIndex, "double-click", "mouse", event);
+    this.#emitDaySelectionRequestedEvent(day, dayIndex, "double-click", "mouse", event);
   }
 
   #handleDayLabelPointerUp(day: Temporal.PlainDate, dayIndex: number, event: PointerEvent) {
@@ -819,7 +819,7 @@ export class CalendarView extends BaseElement {
 
     if (isDoubleTap) {
       this.#lastDayLabelTap = null;
-      this.#emitDayLabelDoublePointerEvent(day, dayIndex, "double-tap", event.pointerType, event);
+      this.#emitDaySelectionRequestedEvent(day, dayIndex, "double-tap", event.pointerType, event);
       return;
     }
 
@@ -829,10 +829,10 @@ export class CalendarView extends BaseElement {
   #handleDayLabelKeyDown(day: Temporal.PlainDate, dayIndex: number, event: KeyboardEvent) {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
-    this.#emitDayLabelDoublePointerEvent(day, dayIndex, "keyboard", "keyboard", event);
+    this.#emitDaySelectionRequestedEvent(day, dayIndex, "keyboard", "keyboard", event);
   }
 
-  #emitDayLabelDoublePointerEvent(
+  #emitDaySelectionRequestedEvent(
     day: Temporal.PlainDate,
     dayIndex: number,
     trigger: "double-click" | "double-tap" | "keyboard",
@@ -840,7 +840,7 @@ export class CalendarView extends BaseElement {
     sourceEvent: Event
   ) {
     this.dispatchEvent(
-      new CustomEvent("day-label-double-pointer", {
+      new CustomEvent("day-selection-requested", {
         detail: {
           date: day.toString(),
           dayIndex,

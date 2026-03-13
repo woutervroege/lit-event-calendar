@@ -1,9 +1,10 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { css, html } from "lit";
+import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
-import "./CalendarMonthView.js";
+import "../CalendarMonthView/CalendarMonthView.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
+import componentStyle from "./CalendarYearView.css?inline";
 
 type EventInput = {
   uid?: string;
@@ -60,72 +61,7 @@ export class CalendarYearView extends BaseElement {
   }
 
   static get styles() {
-    return [
-      ...BaseElement.styles,
-      css`
-        :host {
-          display: block;
-          width: 100%;
-          height: 100%;
-          min-height: 0;
-          container-type: inline-size;
-        }
-
-        .year-grid {
-          display: grid;
-          grid-template-columns: repeat(var(--_lc-year-grid-effective-columns, 4), minmax(0, 1fr));
-          gap: var(--_lc-year-grid-gap, 40px);
-          width: 100%;
-          height: 100%;
-          min-height: 0;
-        }
-
-        .month-card {
-          min-width: 0;
-          display: grid;
-          grid-template-rows: auto 1fr;
-        }
-
-        .month-title {
-          margin: 0;
-          padding-block: 0 14px;
-          padding-inline: 2px;
-          font-size: 17px;
-          font-weight: 600;
-          line-height: 1.2;
-          color: var(--lc-higlight-color, #ff0000);
-          text-align: start;
-        }
-
-        @container (max-width: 1520px) {
-          .year-grid {
-            --_lc-year-grid-effective-columns: 3;
-          }
-        }
-
-        @container (max-width: 1040px) {
-          .year-grid {
-            --_lc-year-grid-effective-columns: 2;
-          }
-
-          .month-card calendar-month-view {
-            aspect-ratio: 1 / 1;
-            height: auto;
-          }
-        }
-
-        @container (max-width: 520px) {
-          .year-grid {
-            --_lc-year-grid-effective-columns: 1;
-          }
-
-          .month-card calendar-month-view {
-            aspect-ratio: 1 / 1;
-            height: auto;
-          }
-        }
-      `,
-    ];
+    return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
 
   get #resolvedLocale(): string {

@@ -1,8 +1,9 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { css, html } from "lit";
+import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import { resolveLocale } from "../utils/Locale.js";
+import componentStyle from "./CalendarTimeSidebar.css?inline";
 
 @customElement("calendar-time-sidebar")
 export class CalendarTimeSidebar extends BaseElement {
@@ -21,70 +22,7 @@ export class CalendarTimeSidebar extends BaseElement {
   }
 
   static get styles() {
-    return [
-      ...BaseElement.styles,
-      css`
-        :host {
-          display: block;
-          width: var(--_lc-time-sidebar-width, auto);
-          min-height: 0;
-          color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
-        }
-
-        .container {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          height: 100%;
-          min-height: 0;
-        }
-
-        .all-day-label {
-          display: flex;
-          flex: 0 0 var(--_lc-all-day-row-height, 120px);
-          justify-content: flex-end;
-          align-items: flex-start;
-          padding-top: 8px;
-          padding-right: 4px;
-          font-size: 12px;
-          line-height: 1;
-          font-weight: 500;
-          white-space: nowrap;
-          pointer-events: none;
-        }
-
-        .hour-labels {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          pointer-events: none;
-        }
-
-        :host(:not([show-all-day-label])) .hour-labels {
-          margin-top: -8px;
-        }
-
-        :host([show-all-day-label]) .hour-labels {
-          margin-top: var(--_lc-week-timed-top-offset, 8px);
-        }
-
-        .hour-label-row {
-          flex: 1;
-          display: flex;
-          justify-content: flex-end;
-          align-items: flex-start;
-        }
-
-        .hour-label {
-          display: block;
-          font-size: 12px;
-          line-height: 1;
-          font-weight: 500;
-          white-space: nowrap;
-          text-align: end;
-        }
-      `,
-    ];
+    return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
 
   get #resolvedLocale(): string {
