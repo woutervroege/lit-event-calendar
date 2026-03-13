@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarViewGroup.js";
-import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 import { calendarCssProps } from "../calendarCssProps.js";
 import { localeOptions, type StoryEvent, sampleEvents, timezoneOptions } from "../storyData.js";
+import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 
-type StoryEventCalendarElement = HTMLElement & { events: Map<string, StoryEvent> };
+type StoryCalendarViewGroupElement = HTMLElement & { events: Map<string, StoryEvent> };
 
 function preserveDateOnlyShape(
   nextValue: { toString(): string; toPlainDate(): { toString(): string } } | null | undefined,
@@ -71,7 +71,7 @@ const meta: Meta = {
     events: sampleEvents,
   },
   render: (args) => {
-    const el = document.createElement("calendar-view-group") as StoryEventCalendarElement;
+    const el = document.createElement("calendar-view-group") as StoryCalendarViewGroupElement;
     el.style.display = "block";
     el.style.width = "100%";
     el.style.height = "100%";

@@ -30,7 +30,7 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
 }
 
 @customElement("calendar-view-group")
-export class EventCalendar extends BaseElement {
+export class CalendarViewGroup extends BaseElement {
   #view: CalendarViewMode = "month";
   #startDate?: string;
   weekStart?: WeekdayNumber;
