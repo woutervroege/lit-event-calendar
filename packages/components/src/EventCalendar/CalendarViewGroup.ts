@@ -7,7 +7,7 @@ import "./CalendarWeekView.js";
 import "./CalendarMonthView.js";
 import "./CalendarYearView.js";
 import { getLocaleWeekInfo } from "../utils/Locale.js";
-import componentStyle from "./EventCalendar.css?inline";
+import componentStyle from "./CalendarViewGroup.css?inline";
 
 export type CalendarViewMode = "day" | "week" | "month" | "year";
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -29,7 +29,7 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
   return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
 }
 
-@customElement("event-calendar")
+@customElement("calendar-view-group")
 export class EventCalendar extends BaseElement {
   #view: CalendarViewMode = "month";
   #startDate?: string;
@@ -82,7 +82,7 @@ export class EventCalendar extends BaseElement {
 
   render() {
     return html`
-      <div class="event-calendar">
+      <div class="calendar-view-group">
         <section class="content" role="tabpanel">
           ${cache(this.#renderViewFor(this.view))}
         </section>

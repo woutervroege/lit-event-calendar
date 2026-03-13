@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "./EventCalendar.js";
+import "./CalendarViewGroup.js";
 import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 import { calendarCssProps } from "./calendarCssProps.js";
 import { localeOptions, type StoryEvent, sampleEvents, timezoneOptions } from "./storyData.js";
@@ -18,8 +18,8 @@ function preserveDateOnlyShape(
 }
 
 const meta: Meta = {
-  title: "CalendarView/EventCalendar",
-  component: "event-calendar",
+  title: "CalendarView/CalendarViewGroup",
+  component: "calendar-view-group",
   tags: ["autodocs"],
   parameters: {
     cssprops: calendarCssProps,
@@ -71,7 +71,7 @@ const meta: Meta = {
     events: sampleEvents,
   },
   render: (args) => {
-    const el = document.createElement("event-calendar") as StoryEventCalendarElement;
+    const el = document.createElement("calendar-view-group") as StoryEventCalendarElement;
     el.style.display = "block";
     el.style.width = "100%";
     el.style.height = "100%";

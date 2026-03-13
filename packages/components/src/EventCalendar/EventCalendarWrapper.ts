@@ -2,11 +2,15 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import "./EventCalendar.js";
+import "./CalendarViewGroup.js";
 import "./CalendarViewTabs.js";
 import "./CalendarNavControls.js";
+import type {
+  CalendarNavigationDirection,
+  CalendarViewMode,
+  EventCalendar,
+} from "./CalendarViewGroup.js";
 import componentStyle from "./EventCalendarWrapper.css?inline";
-import type { CalendarNavigationDirection, CalendarViewMode, EventCalendar } from "./EventCalendar.js";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -90,7 +94,7 @@ export class EventCalendarWrapper extends BaseElement {
           </calendar-view-tabs>
           <calendar-nav-controls @navigate=${this.#handleNavigation}></calendar-nav-controls>
         </header>
-        <event-calendar
+        <calendar-view-group
           class="calendar"
           .view=${this.view}
           .startDate=${this.startDate}
@@ -107,7 +111,7 @@ export class EventCalendarWrapper extends BaseElement {
           @start-date-changed=${this.#syncStateFromCalendar}
           @event-modified=${this.#reemit}
           @event-deleted=${this.#reemit}
-        ></event-calendar>
+        ></calendar-view-group>
       </div>
     `;
   }
