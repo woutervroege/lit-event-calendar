@@ -11,6 +11,10 @@
   min-height: var(--_lc-weekday-header-height, 26px);
   padding: 0 2px 4px;
   color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
+  --_lc-weekend-day-color: var(
+    --lc-weekend-day-label-color,
+    light-dark(rgb(15 23 42 / 64%), rgb(255 255 255 / 66%))
+  );
   font-size: var(--_lc-weekday-header-font-size, 14px);
   line-height: 1;
   font-weight: 500;
@@ -26,7 +30,7 @@
 }
 
 .weekday.weekend {
-  opacity: 0.62;
+  color: var(--_lc-weekend-day-color);
 }
 
 .weekday-narrow {
