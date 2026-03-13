@@ -10,7 +10,7 @@ import type {
   CalendarViewMode,
   EventCalendar,
 } from "./CalendarViewGroup.js";
-import componentStyle from "./EventCalendarWrapper.css?inline";
+import componentStyle from "./EventCalendar.css?inline";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -34,8 +34,8 @@ type EventInput = {
 type EventEntry = [id: string, event: EventInput];
 type EventsMap = Map<string, EventInput>;
 
-@customElement("event-calendar-wrapper")
-export class EventCalendarWrapper extends BaseElement {
+@customElement("event-calendar")
+export class EventCalendar extends BaseElement {
   view: CalendarViewMode = "month";
   startDate = Temporal.Now.plainDateISO().toString();
   weekStart?: WeekdayNumber;
@@ -88,7 +88,7 @@ export class EventCalendarWrapper extends BaseElement {
 
   render() {
     return html`
-      <div class="event-calendar-wrapper">
+      <div class="event-calendar">
         <header class="header">
           <calendar-view-tabs .view=${this.view} @view-selected=${this.#handleViewSelected}>
           </calendar-view-tabs>

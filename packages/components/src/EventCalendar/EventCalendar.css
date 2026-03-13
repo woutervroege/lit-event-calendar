@@ -5,7 +5,7 @@
   min-height: 0;
 }
 
-.event-calendar-wrapper {
+.event-calendar {
   display: grid;
   grid-template-rows: auto 1fr;
   width: 100%;
