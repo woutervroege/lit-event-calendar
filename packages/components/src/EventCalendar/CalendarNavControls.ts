@@ -13,10 +13,10 @@ export class CalendarNavControls extends BaseElement {
 
   render() {
     return html`
-      <div class="nav-controls" data-theme="light">
+      <div class="nav-controls">
         <button
           type="button"
-          class="btn btn-square nav-btn"
+          class="btn nav-btn nav-icon-btn"
           aria-label="Previous range"
           @click=${() => this.#navigate("previous")}
         >
@@ -36,7 +36,7 @@ export class CalendarNavControls extends BaseElement {
         </button>
         <button
           type="button"
-          class="btn btn-square nav-btn"
+          class="btn nav-btn nav-icon-btn"
           aria-label="Next range"
           @click=${() => this.#navigate("next")}
         >

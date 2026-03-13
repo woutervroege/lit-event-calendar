@@ -38,7 +38,7 @@ export class CalendarViewTabs extends BaseElement {
 
   render() {
     return html`
-      <div class="tabs tabs-box" data-theme="light" role="tablist" aria-label="Calendar view">
+      <div class="tabs tabs-box" role="tablist" aria-label="Calendar view">
         ${VIEW_OPTIONS.map(
           ({ mode, label }) => html`
             <input

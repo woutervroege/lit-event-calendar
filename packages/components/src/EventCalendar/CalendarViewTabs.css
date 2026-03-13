@@ -2,3 +2,26 @@
   display: inline-flex;
   justify-self: center;
 }
+
+.tabs {
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 10%));
+}
+
+.tabs .tab {
+  min-height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tabs .tab:hover {
+  background: light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%));
+}
+
+.tabs .tab[aria-selected="true"] {
+  background: light-dark(rgb(15 23 42 / 18%), rgb(255 255 255 / 16%));
+}
