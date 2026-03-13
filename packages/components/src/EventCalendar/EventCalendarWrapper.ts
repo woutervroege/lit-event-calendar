@@ -103,8 +103,8 @@ export class EventCalendarWrapper extends BaseElement {
           .snapInterval=${this.snapInterval}
           .visibleHours=${this.visibleHours}
           .rtl=${this.rtl}
-          @calendar-state-changed=${this.#handleCalendarStateChanged}
-          @view-changed=${this.#reemit}
+          @view-changed=${this.#syncStateFromCalendar}
+          @start-date-changed=${this.#syncStateFromCalendar}
           @event-modified=${this.#reemit}
           @event-deleted=${this.#reemit}
         ></event-calendar>
@@ -140,18 +140,12 @@ export class EventCalendarWrapper extends BaseElement {
     this.#calendarElement?.goForward();
   };
 
-  #handleCalendarStateChanged = (event: Event) => {
-    if (!(event instanceof CustomEvent)) return;
-    const detail = event.detail as
-      | {
-          view: CalendarViewMode;
-          startDate?: string;
-        }
-      | undefined;
-    if (!detail) return;
+  #syncStateFromCalendar = () => {
+    const calendarElement = this.#calendarElement;
+    if (!calendarElement) return;
 
-    this.view = detail.view;
-    this.startDate = detail.startDate ?? this.startDate;
+    this.view = calendarElement.view;
+    this.startDate = calendarElement.startDate?.toString() ?? this.startDate;
   };
 
   #reemit = (event: Event) => {

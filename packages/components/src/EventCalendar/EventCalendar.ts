@@ -1,7 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
-import type { PropertyValues } from "lit";
 import { cache } from "lit/directives/cache.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "./CalendarWeekView.js";
@@ -49,8 +48,13 @@ export class EventCalendar extends BaseElement {
       view: {
         type: String,
         reflect: true,
+        dispatchChangeEvent: { bubbles: true, composed: true },
       },
-      startDate: { type: String, attribute: "start-date" },
+      startDate: {
+        type: String,
+        attribute: "start-date",
+        dispatchChangeEvent: { bubbles: true, composed: true },
+      },
       weekStart: { type: Number, attribute: "week-start", reflect: true },
       daysPerWeek: {
         type: Number,
@@ -84,34 +88,6 @@ export class EventCalendar extends BaseElement {
         </section>
       </div>
     `;
-  }
-
-  updated(changedProperties: PropertyValues<this>) {
-    super.updated(changedProperties);
-    if (changedProperties.has("view")) {
-      this.dispatchEvent(
-        new CustomEvent("view-changed", {
-          detail: { view: this.view },
-          bubbles: true,
-          composed: true,
-        })
-      );
-    }
-    if (
-      changedProperties.has("view") ||
-      changedProperties.has("startDate")
-    ) {
-      this.dispatchEvent(
-        new CustomEvent("calendar-state-changed", {
-          detail: {
-            view: this.view,
-            startDate: this.#startDate ?? this.#resolvedStartDate.toString(),
-          },
-          bubbles: true,
-          composed: true,
-        })
-      );
-    }
   }
 
   disconnectedCallback() {
@@ -220,41 +196,20 @@ export class EventCalendar extends BaseElement {
   }
 
   #renderViewFor(view: CalendarViewMode) {
-    if (view === "day") {
+    if (view === "day" || view === "week") {
+      const startDate = view === "day" ? this.#resolvedStartDate : this.#weekStartDate;
+      const daysPerWeek = view === "day" ? 1 : this.daysPerWeek;
       return html`
         <calendar-week-view
-          start-date=${this.#resolvedStartDate.toString()}
-          year=${this.year}
+          .startDate=${startDate}
           .weekStart=${this.weekStart}
-          days-per-week="1"
+          .daysPerWeek=${daysPerWeek}
           .events=${this.#weekEvents}
           .locale=${this.locale}
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
-          snap-interval=${this.snapInterval}
-          visible-hours=${this.visibleHours}
-          .rtl=${this.rtl}
-          @day-label-double-pointer=${this.#handleDayLabelDoublePointer}
-          @event-modified=${this.#reemit}
-          @event-deleted=${this.#reemit}
-        ></calendar-week-view>
-      `;
-    }
-
-    if (view === "week") {
-      return html`
-        <calendar-week-view
-          start-date=${this.#weekStartDate.toString()}
-          .weekNumber=${this.weekNumber}
-          year=${this.year}
-          .weekStart=${this.weekStart}
-          days-per-week=${this.daysPerWeek}
-          .events=${this.#weekEvents}
-          .locale=${this.locale}
-          .timezone=${this.timezone}
-          .currentTime=${this.#resolvedCurrentTime}
-          snap-interval=${this.snapInterval}
-          visible-hours=${this.visibleHours}
+          .snapInterval=${this.snapInterval}
+          .visibleHours=${this.visibleHours}
           .rtl=${this.rtl}
           @day-label-double-pointer=${this.#handleDayLabelDoublePointer}
           @event-modified=${this.#reemit}
@@ -266,7 +221,7 @@ export class EventCalendar extends BaseElement {
     if (view === "year") {
       return html`
         <calendar-year-view
-          year=${this.year}
+          .year=${this.year}
           .weekStart=${this.weekStart}
           .events=${this.events}
           .locale=${this.locale}
@@ -281,8 +236,8 @@ export class EventCalendar extends BaseElement {
 
     return html`
       <calendar-month-view
-        month=${this.month}
-        year=${this.year}
+        .month=${this.month}
+        .year=${this.year}
         .weekStart=${this.weekStart}
         .events=${this.events}
         .locale=${this.locale}
