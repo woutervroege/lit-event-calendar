@@ -5,8 +5,8 @@ import {
   timezoneOptions,
   weekSplitEvents,
   type WeekStoryEvent,
-} from "./storyData.js";
-import { calendarCssProps } from "./calendarCssProps.js";
+} from "../storyData.js";
+import { calendarCssProps } from "../calendarCssProps.js";
 
 type StoryCalendarWeekViewElement = HTMLElement & { events: Map<string, WeekStoryEvent> };
 

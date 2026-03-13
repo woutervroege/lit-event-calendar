@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarViewGroup.js";
 import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
-import { calendarCssProps } from "./calendarCssProps.js";
-import { localeOptions, type StoryEvent, sampleEvents, timezoneOptions } from "./storyData.js";
+import { calendarCssProps } from "../calendarCssProps.js";
+import { localeOptions, type StoryEvent, sampleEvents, timezoneOptions } from "../storyData.js";
 
 type StoryEventCalendarElement = HTMLElement & { events: Map<string, StoryEvent> };
 

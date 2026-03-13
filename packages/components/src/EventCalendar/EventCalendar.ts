@@ -2,14 +2,14 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import "./CalendarViewGroup.js";
-import "./CalendarViewTabs.js";
-import "./CalendarNavControls.js";
+import "../CalendarViewGroup/CalendarViewGroup.js";
+import "../CalendarViewTabs/CalendarViewTabs.js";
+import "../CalendarNavControls/CalendarNavControls.js";
 import type {
   CalendarNavigationDirection,
   CalendarViewMode,
-  EventCalendar,
-} from "./CalendarViewGroup.js";
+  EventCalendar as CalendarViewGroupElement,
+} from "../CalendarViewGroup/CalendarViewGroup.js";
 import componentStyle from "./EventCalendar.css?inline";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -116,7 +116,7 @@ export class EventCalendar extends BaseElement {
     `;
   }
 
-  get #calendarElement(): EventCalendar | null {
+  get #calendarElement(): CalendarViewGroupElement | null {
     return this.renderRoot.querySelector("event-calendar");
   }
 

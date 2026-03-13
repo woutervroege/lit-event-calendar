@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarYearView.js";
-import { localeOptions, type StoryEvent, sampleEvents, timezoneOptions } from "./storyData.js";
-import { calendarCssProps } from "./calendarCssProps.js";
+import { localeOptions, type StoryEvent, sampleEvents, timezoneOptions } from "../storyData.js";
+import { calendarCssProps } from "../calendarCssProps.js";
 
 type StoryCalendarYearViewElement = HTMLElement & { events: Map<string, StoryEvent> };
 

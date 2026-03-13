@@ -1,8 +1,8 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
-import "./CalendarView.js";
-import "./CalendarWeekdayHeader.js";
+import "../CalendarView/CalendarView.js";
+import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import { getLocaleWeekInfo } from "../utils/Locale.js";
 import componentStyle from "./CalendarMonthView.css?inline";

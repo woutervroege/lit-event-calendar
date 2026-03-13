@@ -8,7 +8,7 @@ import "../TimedEvent/TimedEvent.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import componentStyle from "./CalendarView.css?inline";
 import "../TimedEvent/AllDayEvent.js";
-import "./CalendarTimeSidebar.js";
+import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
 import {
   type CalendarViewContextValue,
   calendarViewContext,

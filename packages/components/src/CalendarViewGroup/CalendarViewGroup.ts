@@ -3,9 +3,9 @@ import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { cache } from "lit/directives/cache.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import "./CalendarWeekView.js";
-import "./CalendarMonthView.js";
-import "./CalendarYearView.js";
+import "../CalendarWeekView/CalendarWeekView.js";
+import "../CalendarMonthView/CalendarMonthView.js";
+import "../CalendarYearView/CalendarYearView.js";
 import { getLocaleWeekInfo } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 
