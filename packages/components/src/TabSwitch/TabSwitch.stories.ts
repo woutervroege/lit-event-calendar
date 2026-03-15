@@ -26,7 +26,7 @@ const meta: Meta = {
     el.options = args.options ?? defaultOptions;
     el.value = args.value ?? defaultOptions[0];
     el.name = args.name ?? "";
-    el.setAttribute("aria-label", "View");
+    el.setAttribute("group-label", "View");
     return el;
   },
 };
