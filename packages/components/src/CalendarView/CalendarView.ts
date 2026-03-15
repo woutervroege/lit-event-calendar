@@ -77,12 +77,62 @@ export class CalendarView extends BaseElement {
   }
 
   get #eventsForVariant(): EventEntry[] {
-    const events = this.#eventsAsEntries;
+    const events = this.#viewportEvents;
     if (this.variant === "all-day") {
       return events;
     }
 
     return events.filter(([, event]) => !this.#isAllDayEvent(event));
+  }
+
+  /**
+   * Single source of truth for events that can appear in this rendered view range.
+   * Includes events that started before the visible range but still overlap it.
+   */
+  get #viewportEvents(): EventEntry[] {
+    const viewport = this.#renderedViewportRange;
+    if (!viewport) return [];
+    return this.#eventsAsEntries.filter(([, event]) => this.#eventOverlapsViewport(event, viewport));
+  }
+
+  get #renderedViewportRange():
+    | { start: Temporal.PlainDateTime; endExclusive: Temporal.PlainDateTime }
+    | null {
+    const renderedDays = this.days;
+    if (!renderedDays.length) return null;
+
+    const start = renderedDays[0].toPlainDateTime({
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+      microsecond: 0,
+      nanosecond: 0,
+    });
+    const lastRenderedDay = renderedDays[renderedDays.length - 1];
+    const endExclusive = lastRenderedDay.add({ days: 1 }).toPlainDateTime({
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+      microsecond: 0,
+      nanosecond: 0,
+    });
+    return { start, endExclusive };
+  }
+
+  #eventOverlapsViewport(
+    event: EventInput,
+    viewport: { start: Temporal.PlainDateTime; endExclusive: Temporal.PlainDateTime }
+  ): boolean {
+    const eventStart = this.#toPlainDateTime(event.start);
+    const eventEnd = this.#toPlainDateTime(event.end);
+
+    if (Temporal.PlainDateTime.compare(eventEnd, eventStart) <= 0) return false;
+    return (
+      Temporal.PlainDateTime.compare(eventStart, viewport.endExclusive) < 0 &&
+      Temporal.PlainDateTime.compare(eventEnd, viewport.start) > 0
+    );
   }
 
   static get properties() {
