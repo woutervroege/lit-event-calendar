@@ -22,6 +22,7 @@
 
 .weekday {
   display: inline-flex;
+  container-type: inline-size;
   align-items: center;
   justify-content: flex-start;
   text-align: start;
@@ -29,19 +30,29 @@
   white-space: nowrap;
 }
 
+.weekday-label {
+  text-align: inherit;
+}
+
 .weekday.weekend {
   color: var(--_lc-weekend-day-color);
+}
+
+.weekday-short {
+  display: inline;
+}
+
+.weekday-long {
+  display: none;
 }
 
 .weekday-narrow {
   display: none;
 }
 
-@container (max-width: 520px) {
-  .weekday {
-    justify-content: center;
+@container (max-width: 64px) {
+  .weekday-label {
     text-align: center;
-    padding-inline: 0;
   }
 
   .weekday-short {
@@ -50,5 +61,16 @@
 
   .weekday-narrow {
     display: inline;
+  }
+}
+
+@container (min-width: 160px) {
+  .weekday-long {
+    display: inline;
+  }
+
+  .weekday-short,
+  .weekday-narrow {
+    display: none;
   }
 }

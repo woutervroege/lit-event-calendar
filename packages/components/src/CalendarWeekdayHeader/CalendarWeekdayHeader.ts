@@ -77,7 +77,7 @@ export class CalendarWeekdayHeader extends BaseElement {
     return new Date(Date.UTC(2024, 0, 1 + (weekday - 1)));
   }
 
-  #formatWeekday(weekday: WeekdayNumber, width: "short" | "narrow"): string {
+  #formatWeekday(weekday: WeekdayNumber, width: "long" | "short" | "narrow"): string {
     return new Intl.DateTimeFormat(this.#resolvedLocale, { weekday: width }).format(
       this.#weekdayDate(weekday)
     );
@@ -96,8 +96,11 @@ export class CalendarWeekdayHeader extends BaseElement {
         ${this.#weekdayNumbers.map(
           (weekday) => html`
             <div class="weekday ${weekendDays.has(weekday) ? "weekend" : ""}">
-              <span class="weekday-short">${this.#formatWeekday(weekday, "short")}</span>
-              <span class="weekday-narrow">${this.#formatWeekday(weekday, "narrow")}</span>
+              <span class="weekday-label">
+                <span class="weekday-long">${this.#formatWeekday(weekday, "long")}</span>
+                <span class="weekday-short">${this.#formatWeekday(weekday, "short")}</span>
+                <span class="weekday-narrow">${this.#formatWeekday(weekday, "narrow")}</span>
+              </span>
             </div>
           `
         )}
