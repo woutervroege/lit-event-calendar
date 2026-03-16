@@ -115,6 +115,7 @@ export class CalendarMonthView extends BaseElement {
           .timezone=${this.timezone}
           .currentTime=${this.currentTime}
           .labelsHidden=${false}
+          @day-selection-requested=${this.#reemit}
           @event-modified=${this.#reemit}
           @event-deleted=${this.#reemit}
         ></calendar-view>

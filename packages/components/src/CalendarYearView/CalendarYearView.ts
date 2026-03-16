@@ -101,6 +101,9 @@ export class CalendarYearView extends BaseElement {
                 .locale=${this.locale}
                 .timezone=${this.timezone}
                 .currentTime=${this.currentTime}
+                @day-selection-requested=${this.#reemit}
+                @event-modified=${this.#reemit}
+                @event-deleted=${this.#reemit}
               ></calendar-month-view>
             </section>
           `
@@ -108,4 +111,14 @@ export class CalendarYearView extends BaseElement {
       </div>
     `;
   }
+
+  #reemit = (event: Event) => {
+    this.dispatchEvent(
+      new CustomEvent(event.type, {
+        detail: (event as CustomEvent).detail,
+        bubbles: true,
+        composed: true,
+      })
+    );
+  };
 }

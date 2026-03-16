@@ -127,19 +127,64 @@ export class CalendarUi extends BaseElement {
 
   render() {
     const buttonClasses = `${sharedButtonVisualClasses} ${sharedButtonActiveBackgroundClasses} ${sharedButtonActiveTextClasses} ${sharedButtonHoverTintClasses} ${sharedButtonFocusRingClasses} disabled:opacity-55 disabled:cursor-not-allowed disabled:hover:bg-[light-dark(rgb(15_23_42_/_18%),rgb(255_255_255_/_16%))] cursor-pointer`;
+    const iconButtonClasses = `${buttonClasses} px-3 text-sm`;
+    const todayButtonClasses = `${buttonClasses} text-sm`;
     return html`
-      <div style="display:flex;flex-direction:column;gap:0.75rem;min-height:0;height:100%;">
+      <div style="display:flex;flex-direction:column;gap:1.75rem;min-height:0;height:100%;">
         <header
-          class="rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))] bg-[light-dark(rgb(255_255_255_/_72%),rgb(15_23_42_/_35%))] p-2"
+          class="rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))] py-2"
           style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;column-gap:0.75rem;"
         >
+          <div style="display:flex;justify-self:start;gap:0.5rem;">
+            <button
+              type="button"
+              class=${iconButtonClasses}
+              aria-label="Previous range"
+              @click=${() => this.#navigate("previous")}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                aria-hidden="true"
+                style="width:1.1rem;height:1.1rem;display:block;"
+              >
+                <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </button>
+            <button
+              type="button"
+              class=${todayButtonClasses}
+              @click=${() => this.#navigate("today")}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              class=${iconButtonClasses}
+              aria-label="Next range"
+              @click=${() => this.#navigate("next")}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                aria-hidden="true"
+                style="width:1.1rem;height:1.1rem;display:block;"
+              >
+                <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </button>
+          </div>
           <p
-            class="m-0 px-2 text-sm font-semibold text-[light-dark(rgb(15_23_42_/_92%),rgb(255_255_255_/_95%))]"
+            class="m-0 text-center text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))]"
             aria-live="polite"
           >
             ${this.#rangeLabel}
           </p>
-          <div style="justify-self:center;">
+          <div style="justify-self:end;">
             <tab-switch
               .options=${["Day", "Week", "Month", "Year"]}
               .value=${TAB_LABELS[this.view]}
@@ -147,35 +192,6 @@ export class CalendarUi extends BaseElement {
               group-label="Calendar view"
               @value-changed=${this.#handleViewTabChanged}
             ></tab-switch>
-          </div>
-          <div style="display:flex;justify-self:end;gap:0.5rem;">
-            <button
-              type="button"
-              class=${buttonClasses}
-              aria-label="Previous range"
-              @click=${() => this.#navigate("previous")}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-                <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"></path>
-              </svg>
-            </button>
-            <button
-              type="button"
-              class=${buttonClasses}
-              @click=${() => this.#navigate("today")}
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              class=${buttonClasses}
-              aria-label="Next range"
-              @click=${() => this.#navigate("next")}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-                <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
-              </svg>
-            </button>
           </div>
         </header>
         <calendar-view-group
@@ -193,6 +209,7 @@ export class CalendarUi extends BaseElement {
           .rtl=${this.rtl}
           @view-changed=${this.#syncFromViewGroup}
           @start-date-changed=${this.#syncFromViewGroup}
+          @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-modified=${this.#reemit}
           @event-deleted=${this.#reemit}
         ></calendar-view-group>
@@ -223,6 +240,14 @@ export class CalendarUi extends BaseElement {
     if (!target) return;
     this.view = target.view;
     this.startDate = target.startDate;
+  };
+
+  #handleDaySelectionRequested = (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const detail = event.detail as { date?: string } | undefined;
+    if (!detail?.date) return;
+    this.startDate = detail.date;
+    this.view = "day";
   };
 
   #reemit = (event: Event) => {
