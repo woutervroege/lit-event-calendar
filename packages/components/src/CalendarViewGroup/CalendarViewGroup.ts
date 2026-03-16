@@ -6,7 +6,7 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import "../CalendarYearView/CalendarYearView.js";
-import { getLocaleWeekInfo } from "../utils/Locale.js";
+import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 
 export type CalendarViewMode = "day" | "week" | "month" | "year";
@@ -131,6 +131,34 @@ export class CalendarViewGroup extends BaseElement {
 
   get today(): string {
     return this.#now.toPlainDate().toString();
+  }
+
+  get rangeLabel(): string {
+    const locale = resolveLocale(this.locale);
+    const anchor = this.#resolvedStartDate;
+
+    if (this.view === "year") {
+      return new Intl.DateTimeFormat(locale, { year: "numeric" }).format(
+        new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day))
+      );
+    }
+
+    if (this.view === "month") {
+      return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(
+        new Date(Date.UTC(anchor.year, anchor.month - 1, 1))
+      );
+    }
+
+    if (this.view === "day") {
+      return new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(
+        new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day))
+      );
+    }
+
+    const start = this.#weekStartDate;
+    const rangeLengthDays = Math.max(1, Math.min(7, Math.floor(Number(this.daysPerWeek) || 7)));
+    const end = start.add({ days: rangeLengthDays - 1 });
+    return this.#weekRangeLabel(start, end, locale);
   }
 
   get startDate(): Temporal.PlainDate | undefined {
@@ -340,6 +368,28 @@ export class CalendarViewGroup extends BaseElement {
   #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {
     const weekdayOffset = (date.dayOfWeek - weekStart + 7) % 7;
     return date.subtract({ days: weekdayOffset });
+  }
+
+  #weekRangeLabel(start: Temporal.PlainDate, end: Temporal.PlainDate, locale: string): string {
+    const startDate = new Date(Date.UTC(start.year, start.month - 1, start.day));
+    const endDate = new Date(Date.UTC(end.year, end.month - 1, end.day));
+
+    if (start.year === end.year && start.month === end.month) {
+      const month = new Intl.DateTimeFormat(locale, { month: "short" }).format(startDate);
+      return `${month} ${start.day}-${end.day}, ${start.year}`;
+    }
+
+    if (start.year === end.year) {
+      const startPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
+        startDate
+      );
+      const endPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(endDate);
+      return `${startPart} - ${endPart}, ${start.year}`;
+    }
+
+    const startPart = new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(startDate);
+    const endPart = new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(endDate);
+    return `${startPart} - ${endPart}`;
   }
 
   #weekNumberFromStartDate(date: Temporal.PlainDate): number {

@@ -4,7 +4,10 @@ import { customElement } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
-import type { CalendarViewGroup, CalendarViewMode } from "../CalendarViewGroup/CalendarViewGroup.js";
+import type {
+  CalendarViewGroup,
+  CalendarViewMode,
+} from "../CalendarViewGroup/CalendarViewGroup.js";
 import "../TabSwitch/TabSwitch.js";
 import {
   sharedButtonActiveBackgroundClasses,
@@ -13,10 +16,8 @@ import {
   sharedButtonHoverTintClasses,
   sharedButtonVisualClasses,
 } from "../shared/buttonStyles.js";
-import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-type CalendarNavigationDirection = "previous" | "today" | "next";
 type EventInput = {
   uid?: string;
   recurrenceId?: string;
@@ -44,8 +45,9 @@ const TAB_TO_VIEW: Record<string, CalendarViewMode> = {
 export class EventCalendar extends BaseElement {
   #view: CalendarViewMode = "month";
   #startDate?: string;
-  weekStart?: WeekdayNumber;
   #daysPerWeek = 7;
+  #rangeLabelText = "";
+  weekStart?: WeekdayNumber;
   declare events?: EventsMap;
   locale?: string;
   timezone?: string;
@@ -89,8 +91,10 @@ export class EventCalendar extends BaseElement {
 
   set view(value: CalendarViewMode | string | null | undefined) {
     const nextValue =
-      value === "day" || value === "week" || value === "month" || value === "year" ? value : "month";
-    if (nextValue === this.#view) return;
+      value === "day" || value === "week" || value === "month" || value === "year"
+        ? value
+        : "month";
+    if (this.#view === nextValue) return;
     this.#view = nextValue;
     this.requestUpdate();
   }
@@ -107,7 +111,7 @@ export class EventCalendar extends BaseElement {
         : value instanceof Temporal.PlainDate
           ? value.toString()
           : Temporal.PlainDate.from(value).toString();
-    if (nextValue === this.#startDate) return;
+    if (this.#startDate === nextValue) return;
     this.#startDate = nextValue;
     this.requestUpdate();
   }
@@ -120,9 +124,34 @@ export class EventCalendar extends BaseElement {
     const rawValue = typeof value === "string" ? Number(value) : value;
     const numeric = Number(rawValue);
     const nextValue = Number.isFinite(numeric) ? Math.max(1, Math.min(7, Math.floor(numeric))) : 7;
-    if (nextValue === this.#daysPerWeek) return;
+    if (this.#daysPerWeek === nextValue) return;
     this.#daysPerWeek = nextValue;
     this.requestUpdate();
+  }
+
+  get #calendarViewGroup(): CalendarViewGroup | null {
+    return this.renderRoot.querySelector("calendar-view-group");
+  }
+
+  goBack() {
+    const viewGroup = this.#calendarViewGroup;
+    if (!viewGroup) return;
+    viewGroup.goBack();
+    this.#syncFromViewGroupElement(viewGroup);
+  }
+
+  goForward() {
+    const viewGroup = this.#calendarViewGroup;
+    if (!viewGroup) return;
+    viewGroup.goForward();
+    this.#syncFromViewGroupElement(viewGroup);
+  }
+
+  goToday() {
+    const viewGroup = this.#calendarViewGroup;
+    if (!viewGroup) return;
+    viewGroup.goToday();
+    this.#syncFromViewGroupElement(viewGroup);
   }
 
   render() {
@@ -140,7 +169,7 @@ export class EventCalendar extends BaseElement {
               type="button"
               class=${iconButtonClasses}
               aria-label="Previous range"
-              @click=${() => this.#navigate("previous")}
+              @click=${() => this.goBack()}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -156,7 +185,7 @@ export class EventCalendar extends BaseElement {
             <button
               type="button"
               class=${todayButtonClasses}
-              @click=${() => this.#navigate("today")}
+              @click=${() => this.goToday()}
             >
               Today
             </button>
@@ -164,7 +193,7 @@ export class EventCalendar extends BaseElement {
               type="button"
               class=${iconButtonClasses}
               aria-label="Next range"
-              @click=${() => this.#navigate("next")}
+              @click=${() => this.goForward()}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -182,7 +211,7 @@ export class EventCalendar extends BaseElement {
             class="m-0 text-center text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))]"
             aria-live="polite"
           >
-            ${this.#rangeLabel}
+            ${this.#rangeLabelText}
           </p>
           <div style="justify-self:end;">
             <tab-switch
@@ -209,7 +238,7 @@ export class EventCalendar extends BaseElement {
           .rtl=${this.rtl}
           @view-changed=${this.#syncFromViewGroup}
           @start-date-changed=${this.#syncFromViewGroup}
-          @day-selection-requested=${this.#handleDaySelectionRequested}
+          @day-selection-requested=${this.#syncFromViewGroup}
           @event-modified=${this.#reemit}
           @event-deleted=${this.#reemit}
         ></calendar-view-group>
@@ -221,34 +250,27 @@ export class EventCalendar extends BaseElement {
     const target = event.currentTarget as { value?: string } | null;
     const nextView = target?.value ? TAB_TO_VIEW[target.value] : undefined;
     if (!nextView || nextView === this.view) return;
-    this.view = nextView;
-    this.requestUpdate();
-  };
 
-  #navigate(direction: CalendarNavigationDirection) {
-    if (direction === "today") {
-      const now = this.#now;
-      this.currentTime = now.toString();
-      this.startDate = now.toPlainDate();
-      return;
-    }
-    this.startDate = this.#targetDateByView(direction === "next" ? 1 : -1);
-  }
+    this.view = nextView;
+    const viewGroup = this.#calendarViewGroup;
+    if (!viewGroup) return;
+    viewGroup.view = nextView;
+    this.#syncFromViewGroupElement(viewGroup);
+  };
 
   #syncFromViewGroup = (event: Event) => {
     const target = event.target as CalendarViewGroup | null;
     if (!target) return;
-    this.view = target.view;
-    this.startDate = target.startDate;
+    this.#syncFromViewGroupElement(target);
   };
 
-  #handleDaySelectionRequested = (event: Event) => {
-    if (!(event instanceof CustomEvent)) return;
-    const detail = event.detail as { date?: string } | undefined;
-    if (!detail?.date) return;
-    this.startDate = detail.date;
-    this.view = "day";
-  };
+  #syncFromViewGroupElement(target: CalendarViewGroup) {
+    this.view = target.view;
+    this.startDate = target.startDate;
+    this.currentTime = target.currentTime;
+    this.daysPerWeek = target.daysPerWeek;
+    this.#rangeLabelText = target.rangeLabel;
+  }
 
   #reemit = (event: Event) => {
     event.stopPropagation();
@@ -261,96 +283,14 @@ export class EventCalendar extends BaseElement {
     );
   };
 
-  get #rangeLabel(): string {
-    const locale = resolveLocale(this.locale);
-    const anchor = this.#resolvedStartDate;
-    if (this.view === "year") {
-      return new Intl.DateTimeFormat(locale, { year: "numeric" }).format(
-        new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day))
-      );
+  override updated(changedProperties: Map<PropertyKey, unknown>): void {
+    super.updated(changedProperties);
+    const viewGroup = this.#calendarViewGroup;
+    if (!viewGroup) return;
+    const nextRangeLabel = viewGroup.rangeLabel;
+    if (nextRangeLabel !== this.#rangeLabelText) {
+      this.#rangeLabelText = nextRangeLabel;
+      this.requestUpdate();
     }
-    if (this.view === "month") {
-      return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(
-        new Date(Date.UTC(anchor.year, anchor.month - 1, 1))
-      );
-    }
-    if (this.view === "day") {
-      return new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(
-        new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day))
-      );
-    }
-    return this.#weekRangeLabel(anchor, locale);
-  }
-
-  #weekRangeLabel(anchorDate: Temporal.PlainDate, locale: string): string {
-    const start = this.#startOfWeekFor(anchorDate, this.#resolvedWeekStart);
-    const end = start.add({ days: Math.max(1, this.daysPerWeek) - 1 });
-    const startDate = new Date(Date.UTC(start.year, start.month - 1, start.day));
-    const endDate = new Date(Date.UTC(end.year, end.month - 1, end.day));
-    if (start.year === end.year && start.month === end.month) {
-      const month = new Intl.DateTimeFormat(locale, { month: "short" }).format(startDate);
-      return `${month} ${start.day}-${end.day}, ${start.year}`;
-    }
-    if (start.year === end.year) {
-      const startPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
-        startDate
-      );
-      const endPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
-        endDate
-      );
-      return `${startPart} - ${endPart}, ${start.year}`;
-    }
-    const startPart = new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(startDate);
-    const endPart = new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(endDate);
-    return `${startPart} - ${endPart}`;
-  }
-
-  #targetDateByView(step: number): Temporal.PlainDate {
-    const anchorDate = this.#resolvedStartDate;
-    if (this.view === "day") {
-      return anchorDate.add({ days: step });
-    }
-    if (this.view === "year") {
-      return anchorDate.add({ years: step });
-    }
-    if (this.view === "month") {
-      return Temporal.PlainDate.from({
-        year: anchorDate.year,
-        month: anchorDate.month,
-        day: 1,
-      }).add({ months: step });
-    }
-    const weekStart = this.#startOfWeekFor(anchorDate, this.#resolvedWeekStart);
-    return weekStart.add({ days: Math.max(1, this.daysPerWeek) * step });
-  }
-
-  #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {
-    const weekdayOffset = (date.dayOfWeek - weekStart + 7) % 7;
-    return date.subtract({ days: weekdayOffset });
-  }
-
-  get #resolvedWeekStart(): WeekdayNumber {
-    const localeFirstDay = getLocaleWeekInfo(this.locale).firstDay;
-    const value = this.weekStart ?? localeFirstDay ?? 1;
-    if (value >= 1 && value <= 7) return value as WeekdayNumber;
-    return 1;
-  }
-
-  get #resolvedStartDate(): Temporal.PlainDate {
-    if (this.#startDate) {
-      return Temporal.PlainDate.from(this.#startDate);
-    }
-    return Temporal.PlainDate.from(this.#resolvedCurrentTime);
-  }
-
-  get #now(): Temporal.PlainDateTime {
-    if (this.timezone) {
-      return Temporal.Now.zonedDateTimeISO(this.timezone).toPlainDateTime();
-    }
-    return Temporal.Now.plainDateTimeISO();
-  }
-
-  get #resolvedCurrentTime(): string {
-    return this.currentTime ?? this.#now.toString();
   }
 }
