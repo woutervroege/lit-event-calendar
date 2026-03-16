@@ -3,6 +3,11 @@ import { customElement, property } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import {
+  getPlainCharacterHotkey,
+  isEditableEventTarget,
+  normalizeHotkey,
+} from "../shared/hotkey.js";
+import {
   sharedButtonActiveBackgroundClasses,
   sharedButtonActiveTextClasses,
   sharedButtonDisabledClasses,
@@ -15,6 +20,7 @@ import {
 export type DropdownOption = {
   label: string;
   value: string;
+  hotkey?: string;
   disabled?: boolean;
 };
 
@@ -47,6 +53,9 @@ export class Dropdown extends BaseElement {
   @property({ type: String })
   placeholder = "Select an option";
 
+  @property({ type: String })
+  hotkey = "";
+
   @property({ type: Boolean, reflect: true })
   disabled = false;
 
@@ -70,7 +79,7 @@ export class Dropdown extends BaseElement {
           -webkit-appearance: none !important;
           -moz-appearance: none !important;
           background-image: none !important;
-          text-align: left;
+          text-align: start;
           padding-inline-start: 0.75rem;
           padding-inline-end: 3rem;
         }
@@ -81,7 +90,7 @@ export class Dropdown extends BaseElement {
 
         .lc-dropdown-chevron {
           position: absolute;
-          right: 1rem;
+          inset-inline-end: 1rem;
           top: 50%;
           z-index: 10;
           display: block;
@@ -93,9 +102,20 @@ export class Dropdown extends BaseElement {
     ];
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener("keydown", this.#handleGlobalKeydown);
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener("keydown", this.#handleGlobalKeydown);
+    super.disconnectedCallback();
+  }
+
   render() {
     const normalizedOptions = this.options.map((option) => this.#normalizeOption(option));
     const hasSelection = normalizedOptions.some((option) => option.value === this.value);
+    const ownHotkey = normalizeHotkey(this.hotkey);
 
     const selectClasses = `lc-dropdown-select ${sharedButtonVisualClasses} ${sharedButtonActiveBackgroundClasses} ${sharedButtonHoverTintClasses} ${sharedFocusRingColorClasses} ${sharedButtonFocusRingClasses} ${sharedButtonDisabledClasses} block w-full ${
       hasSelection
@@ -110,6 +130,7 @@ export class Dropdown extends BaseElement {
           name=${ifDefined(this.name || undefined)}
           class=${selectClasses}
           aria-label=${this.ariaLabel}
+          aria-keyshortcuts=${ownHotkey || nothing}
           ?disabled=${this.disabled}
           .value=${this.value}
           @change=${this.#handleChange}
@@ -138,10 +159,42 @@ export class Dropdown extends BaseElement {
     this.value = target.value;
   };
 
+  #handleGlobalKeydown = (event: KeyboardEvent) => {
+    if (event.defaultPrevented) return;
+    if (this.disabled || isEditableEventTarget(event.target)) return;
+    const pressedHotkey = getPlainCharacterHotkey(event);
+    if (!pressedHotkey) return;
+
+    const normalizedOptions = this.options.map((option) => this.#normalizeOption(option));
+    const matchedOption = normalizedOptions.find(
+      (option) => !option.disabled && normalizeHotkey(option.hotkey) === pressedHotkey
+    );
+    if (matchedOption) {
+      if (matchedOption.value !== this.value) {
+        this.value = matchedOption.value;
+      }
+      this.#focusSelect();
+      event.preventDefault();
+      return;
+    }
+
+    const ownHotkey = normalizeHotkey(this.hotkey);
+    if (!ownHotkey || pressedHotkey !== ownHotkey) return;
+    this.#focusSelect();
+    event.preventDefault();
+  };
+
+  #focusSelect() {
+    const select = this.renderRoot.querySelector<HTMLSelectElement>("select");
+    if (!select) return;
+    select.focus();
+  }
+
   #normalizeOption(option: DropdownOption | string): DropdownOption {
     if (typeof option === "string") {
       return { label: option, value: option };
     }
+
     return option;
   }
 }

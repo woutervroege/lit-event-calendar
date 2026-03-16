@@ -21,7 +21,6 @@ export type TabSwitchOption = {
   label: string;
   value: string;
   hotkey?: string;
-  shortKey?: string;
 };
 
 @customElement("tab-switch")
@@ -159,8 +158,6 @@ export class TabSwitch extends BaseElement {
     if (typeof option === "string") {
       return { label: option, value: option };
     }
-
-    const hotkey = option.hotkey ?? option.shortKey;
-    return hotkey ? { ...option, hotkey } : option;
+    return option;
   }
 }

@@ -35,9 +35,6 @@ export class Button extends BaseElement {
   @property({ type: String })
   hotkey = "";
 
-  @property({ type: String, attribute: "short-key" })
-  shortKey = "";
-
   @property({
     type: String,
     converter: {
@@ -64,7 +61,7 @@ export class Button extends BaseElement {
   render() {
     const visualClasses = this.compact ? sharedButtonCompactVisualClasses : sharedButtonVisualClasses;
     const buttonClasses = `${visualClasses} ${sharedButtonActiveBackgroundClasses} ${sharedButtonActiveTextClasses} ${sharedButtonHoverTintClasses} ${sharedFocusRingColorClasses} ${sharedButtonFocusRingClasses} ${sharedButtonDisabledClasses}`;
-    const hotkey = normalizeHotkey(this.hotkey || this.shortKey);
+    const hotkey = normalizeHotkey(this.hotkey);
     const hotkeyDisplay = hotkey?.toUpperCase();
     return html`
       <button
@@ -92,7 +89,7 @@ export class Button extends BaseElement {
     if (event.defaultPrevented) return;
     if (this.disabled || isEditableEventTarget(event.target)) return;
     const pressedHotkey = getPlainCharacterHotkey(event);
-    const ownHotkey = normalizeHotkey(this.hotkey || this.shortKey);
+    const ownHotkey = normalizeHotkey(this.hotkey);
     if (!pressedHotkey || !ownHotkey || pressedHotkey !== ownHotkey) return;
 
     const button = this.renderRoot.querySelector("button");
