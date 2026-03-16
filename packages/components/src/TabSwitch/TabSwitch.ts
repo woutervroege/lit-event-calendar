@@ -27,12 +27,22 @@ export type TabSwitchOption = {
 @customElement("tab-switch")
 export class TabSwitch extends BaseElement {
   #groupName = `tab-switch-${++tabSwitchInstanceId}`;
+  #value = "";
 
   @property({ type: Array })
   options: Array<TabSwitchOption | string> = [];
 
-  @property({ type: String })
-  value = "";
+  get value(): string {
+    return this.#value;
+  }
+
+  set value(value: string) {
+    const nextValue = value ?? "";
+    if (this.#value === nextValue) return;
+    const oldValue = this.#value;
+    this.#value = nextValue;
+    this.requestUpdate("value", oldValue);
+  }
 
   @property({ type: String })
   name = "";
@@ -129,12 +139,19 @@ export class TabSwitch extends BaseElement {
     if (isEditableEventTarget(event.target)) return;
     const hotkey = getPlainCharacterHotkey(event);
     if (!hotkey) return;
-    const matchedOption = this.options
-      .map((option) => this.#normalizeOption(option))
-      .find((option) => normalizeHotkey(option.hotkey) === hotkey);
-    if (!matchedOption || matchedOption.value === this.value) return;
+    const normalizedOptions = this.options.map((option) => this.#normalizeOption(option));
+    const matchedIndex = normalizedOptions.findIndex(
+      (option) => normalizeHotkey(option.hotkey) === hotkey
+    );
+    if (matchedIndex < 0) return;
+    const matchedOption = normalizedOptions[matchedIndex];
+    if (matchedOption.value === this.value) return;
 
-    this.value = matchedOption.value;
+    // Trigger the same path as a user click so checked state and events stay in sync.
+    const inputs = this.renderRoot.querySelectorAll<HTMLInputElement>("input[type='radio']");
+    const matchedInput = inputs.item(matchedIndex);
+    if (!matchedInput) return;
+    matchedInput.click();
     event.preventDefault();
   };
 
