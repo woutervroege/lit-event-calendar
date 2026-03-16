@@ -23,12 +23,45 @@ type EventInput = {
 };
 type EventsMap = Map<string, EventInput>;
 
-const VIEW_OPTIONS: TabSwitchOption[] = [
-  { label: "Day", value: "day", hotkey: "d" },
-  { label: "Week", value: "week", hotkey: "w" },
-  { label: "Month", value: "month", hotkey: "m" },
-  { label: "Year", value: "year", hotkey: "y" },
+type ViewUnit = Extract<CalendarViewMode, "day" | "week" | "month" | "year">;
+
+const VIEW_OPTIONS_BASE: Array<{ value: ViewUnit; hotkey: string }> = [
+  { value: "day", hotkey: "d" },
+  { value: "week", hotkey: "w" },
+  { value: "month", hotkey: "m" },
+  { value: "year", hotkey: "y" },
 ];
+
+function capitalizeLabel(value: string, locale = globalThis.navigator?.language ?? "en"): string {
+  return value.replace(/^\p{L}/u, (character) => character.toLocaleUpperCase(locale));
+}
+
+function getUnitLabel(unit: ViewUnit, locale = globalThis.navigator?.language ?? "en"): string {
+  try {
+    const displayNames = new Intl.DisplayNames(locale, { type: "dateTimeField" });
+    const label = displayNames.of(unit) ?? unit;
+    return capitalizeLabel(label, locale);
+  } catch {
+    return capitalizeLabel(unit, locale);
+  }
+}
+
+function getViewOptions(locale?: string): TabSwitchOption[] {
+  return VIEW_OPTIONS_BASE.map(({ value, hotkey }) => ({
+    label: getUnitLabel(value, locale),
+    value,
+    hotkey,
+  }));
+}
+
+function getTodayLabel(locale = globalThis.navigator?.language ?? "en"): string {
+  try {
+    const relativeTimeFormat = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    return capitalizeLabel(relativeTimeFormat.format(0, "day"), locale);
+  } catch {
+    return "Today";
+  }
+}
 
 @customElement("event-calendar")
 export class EventCalendar extends BaseElement {
@@ -163,7 +196,7 @@ export class EventCalendar extends BaseElement {
               </svg>
             </lc-button>
             <lc-button hotkey="t" @click=${() => this.goToday()}>
-              Today
+              ${getTodayLabel(this.locale)}
             </lc-button>
             <lc-button compact label="Next range" @click=${() => this.goForward()}>
               <svg
@@ -186,7 +219,7 @@ export class EventCalendar extends BaseElement {
           </p>
           <div class="justify-self-end">
             <tab-switch
-              .options=${VIEW_OPTIONS}
+              .options=${getViewOptions(this.locale)}
               .value=${this.view}
               name="event-calendar-view-tabs"
               group-label="Calendar view"
