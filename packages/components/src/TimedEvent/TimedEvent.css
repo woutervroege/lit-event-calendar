@@ -14,6 +14,8 @@
 /* Pass default so event-card can use it when no segment is hovered */
 :host .interaction-surface {
   --_lc-event-card-bg-default: var(--_lc-event-bg);
+  --_lc-event-focus-ring-width: 0px;
+  --_lc-event-focus-ring-color: transparent;
 }
 
 /* Hover state for all segments when any segment is hovered. */
@@ -30,4 +32,31 @@
 :host .interaction-surface:focus,
 :host .interaction-surface:focus-visible {
   --_lc-event-card-bg-active: var(--_lc-event-bg-focus, var(--_lc-event-bg-hover));
+}
+
+/* Keyboard-only focus ring, rendered by event-card segments. */
+:host .interaction-surface:focus-visible {
+  --_lc-event-focus-ring-width: 3px;
+  --_lc-event-focus-ring-color: var(
+    --_lc-event-focus-ring,
+    var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+  );
+}
+
+/* Primary keyboard ring: target segment internals via event-card CSS vars. */
+:host .interaction-surface:focus-visible event-card {
+  --_lc-event-focus-ring-width: 3px;
+  --_lc-event-focus-ring-color: var(
+    --_lc-event-focus-ring,
+    var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+  );
+}
+
+/* Fallback propagation for browsers with partial :focus-visible behavior in nested trees. */
+:host(:has(.interaction-surface:focus-visible)) {
+  --_lc-event-focus-ring-width: 3px;
+  --_lc-event-focus-ring-color: var(
+    --_lc-event-focus-ring,
+    var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+  );
 }
