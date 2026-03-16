@@ -170,6 +170,10 @@ time {
   color: var(--_lc-grid-line-day-color);
 }
 
+.day-label:hover:not(:focus-visible):not(.current-day) {
+  background-color: var(--_lc-grid-ghost-color);
+}
+
 .day-label:focus-visible {
   background-color: var(--_lc-grid-ghost-color);
   outline: 2px solid var(--_lc-focus-outline-color);

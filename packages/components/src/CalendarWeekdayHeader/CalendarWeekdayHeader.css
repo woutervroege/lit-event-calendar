@@ -52,6 +52,9 @@
 
 @container (max-width: 64px) {
   .weekday-label {
+    display: inline-flex;
+    width: 100%;
+    justify-content: center;
     text-align: center;
   }
 

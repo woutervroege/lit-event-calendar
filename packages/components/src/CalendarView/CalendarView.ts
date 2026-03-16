@@ -65,8 +65,6 @@ export class CalendarView extends BaseElement {
   #lastObservedHostHeightPx = 0;
   #lastObservedHostWidthPx = 0;
   #isCompactMonth = false;
-  #lastDayLabelTap: { dayIndex: number; timestamp: number } | null = null;
-  #lastDayLabelTapMaxDelayMs = 350;
   #cachedDaysKey = "";
   #cachedDays: Temporal.PlainDate[] = [];
   #cachedEventEntriesSource?: EventsMap;
@@ -846,8 +844,7 @@ export class CalendarView extends BaseElement {
         aria-label=${fullDateLabel}
         aria-current=${isCurrentDay ? "date" : undefined}
         style=${styleMap(startOffsetStyle)}
-        @dblclick=${(event: MouseEvent) => this.#handleDayLabelDoubleClick(day, dayIndex, event)}
-        @pointerup=${(event: PointerEvent) => this.#handleDayLabelPointerUp(day, dayIndex, event)}
+        @click=${(event: MouseEvent) => this.#handleDayLabelClick(day, dayIndex, event)}
         @keydown=${(event: KeyboardEvent) => this.#handleDayLabelKeyDown(day, dayIndex, event)}
       >
         <time datetime=${day.toString()}>${label}</time>
@@ -855,26 +852,8 @@ export class CalendarView extends BaseElement {
     `;
   }
 
-  #handleDayLabelDoubleClick(day: Temporal.PlainDate, dayIndex: number, event: MouseEvent) {
-    this.#emitDaySelectionRequestedEvent(day, dayIndex, "double-click", "mouse", event);
-  }
-
-  #handleDayLabelPointerUp(day: Temporal.PlainDate, dayIndex: number, event: PointerEvent) {
-    if (event.pointerType === "mouse") return;
-    const now = event.timeStamp;
-    const previous = this.#lastDayLabelTap;
-    const isDoubleTap =
-      previous !== null &&
-      previous.dayIndex === dayIndex &&
-      now - previous.timestamp <= this.#lastDayLabelTapMaxDelayMs;
-
-    if (isDoubleTap) {
-      this.#lastDayLabelTap = null;
-      this.#emitDaySelectionRequestedEvent(day, dayIndex, "double-tap", event.pointerType, event);
-      return;
-    }
-
-    this.#lastDayLabelTap = { dayIndex, timestamp: now };
+  #handleDayLabelClick(day: Temporal.PlainDate, dayIndex: number, event: MouseEvent) {
+    this.#emitDaySelectionRequestedEvent(day, dayIndex, "click", "mouse", event);
   }
 
   #handleDayLabelKeyDown(day: Temporal.PlainDate, dayIndex: number, event: KeyboardEvent) {
@@ -886,7 +865,7 @@ export class CalendarView extends BaseElement {
   #emitDaySelectionRequestedEvent(
     day: Temporal.PlainDate,
     dayIndex: number,
-    trigger: "double-click" | "double-tap" | "keyboard",
+    trigger: "click" | "keyboard",
     pointerType: string,
     sourceEvent: Event
   ) {
