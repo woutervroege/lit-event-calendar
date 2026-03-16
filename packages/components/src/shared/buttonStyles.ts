@@ -1,5 +1,5 @@
 const sharedButtonBaseClasses =
-  "inline-flex h-9 items-center rounded text-sm leading-5 text-[light-dark(rgb(15_23_42_/_72%),rgb(255_255_255_/_72%))] transition-colors duration-200";
+  "inline-flex h-9 items-center rounded-md text-sm leading-5 text-[light-dark(rgb(15_23_42_/_72%),rgb(255_255_255_/_72%))] transition-colors duration-200";
 
 export const sharedButtonVisualClasses = `${sharedButtonBaseClasses} px-6`;
 
