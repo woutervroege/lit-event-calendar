@@ -10,6 +10,7 @@ import type {
   CalendarViewMode,
 } from "../CalendarViewGroup/CalendarViewGroup.js";
 import "../TabSwitch/TabSwitch.js";
+import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 type EventInput = {
@@ -22,18 +23,12 @@ type EventInput = {
 };
 type EventsMap = Map<string, EventInput>;
 
-const TAB_LABELS: Record<CalendarViewMode, string> = {
-  day: "Day",
-  week: "Week",
-  month: "Month",
-  year: "Year",
-};
-const TAB_TO_VIEW: Record<string, CalendarViewMode> = {
-  Day: "day",
-  Week: "week",
-  Month: "month",
-  Year: "year",
-};
+const VIEW_OPTIONS: TabSwitchOption[] = [
+  { label: "Day", value: "day", hotkey: "d" },
+  { label: "Week", value: "week", hotkey: "w" },
+  { label: "Month", value: "month", hotkey: "m" },
+  { label: "Year", value: "year", hotkey: "y" },
+];
 
 @customElement("event-calendar")
 export class EventCalendar extends BaseElement {
@@ -167,7 +162,7 @@ export class EventCalendar extends BaseElement {
                 <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"></path>
               </svg>
             </lc-button>
-            <lc-button @click=${() => this.goToday()}>
+            <lc-button hotkey="t" @click=${() => this.goToday()}>
               Today
             </lc-button>
             <lc-button compact label="Next range" @click=${() => this.goForward()}>
@@ -191,8 +186,8 @@ export class EventCalendar extends BaseElement {
           </p>
           <div class="justify-self-end">
             <tab-switch
-              .options=${["Day", "Week", "Month", "Year"]}
-              .value=${TAB_LABELS[this.view]}
+              .options=${VIEW_OPTIONS}
+              .value=${this.view}
               name="event-calendar-view-tabs"
               group-label="Calendar view"
               @value-changed=${this.#handleViewTabChanged}
@@ -224,7 +219,7 @@ export class EventCalendar extends BaseElement {
 
   #handleViewTabChanged = (event: Event) => {
     const target = event.currentTarget as { value?: string } | null;
-    const nextView = target?.value ? TAB_TO_VIEW[target.value] : undefined;
+    const nextView = target?.value as CalendarViewMode | undefined;
     if (!nextView || nextView === this.view) return;
 
     this.view = nextView;

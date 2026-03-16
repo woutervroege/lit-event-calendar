@@ -10,12 +10,14 @@ const meta: Meta = {
     compact: { control: "boolean" },
     type: { control: "text" },
     label: { control: "text" },
+    hotkey: { control: "text" },
   },
   args: {
     disabled: false,
     compact: false,
     type: "button",
     label: "",
+    hotkey: "",
   },
   render: (args) => {
     const el = document.createElement("lc-button") as HTMLElement & {
@@ -23,12 +25,14 @@ const meta: Meta = {
       compact: boolean;
       type: "button" | "submit" | "reset";
       label: string;
+      hotkey: string;
     };
 
     el.disabled = args.disabled ?? false;
     el.compact = args.compact ?? false;
     el.type = args.type ?? "button";
     el.label = args.label ?? "";
+    el.hotkey = args.hotkey ?? "";
     el.textContent = "Action";
     return el;
   },
@@ -43,5 +47,12 @@ export const Default: Story = {};
 export const Disabled: Story = {
   args: {
     disabled: true,
+  },
+};
+
+export const WithHotkey: Story = {
+  args: {
+    label: "Action",
+    hotkey: "a",
   },
 };

@@ -1,7 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./TabSwitch.js";
+import type { TabSwitchOption } from "./TabSwitch.js";
 
-const defaultOptions: string[] = ["Day", "Week", "Month", "Year"];
+const defaultOptions: TabSwitchOption[] = [
+  { label: "Day", value: "day", hotkey: "d" },
+  { label: "Week", value: "week", hotkey: "w" },
+  { label: "Month", value: "month", hotkey: "m" },
+  { label: "Year", value: "year", hotkey: "y" },
+];
 
 const meta: Meta = {
   title: "Shared/TabSwitch",
@@ -18,13 +24,13 @@ const meta: Meta = {
   },
   render: (args) => {
     const el = document.createElement("tab-switch") as HTMLElement & {
-      options: string[];
+      options: TabSwitchOption[];
       value: string;
       name: string;
     };
 
     el.options = args.options ?? defaultOptions;
-    el.value = args.value ?? defaultOptions[0];
+    el.value = args.value ?? defaultOptions[0].value;
     el.name = args.name ?? "";
     el.setAttribute("group-label", "View");
     return el;
