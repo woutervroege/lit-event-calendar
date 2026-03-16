@@ -50,6 +50,7 @@
     --_lc-event-focus-ring,
     var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
   );
+  z-index: 11;
 }
 
 /* Fallback propagation for browsers with partial :focus-visible behavior in nested trees. */
