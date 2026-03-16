@@ -78,6 +78,7 @@
   column-gap: var(--_lc-time-label-gap, 6px);
   min-height: 100%;
   height: calc(var(--_lc-week-timed-height-factor, 1) * 100%);
+  padding-top: 10px;
 }
 
 .timed-sidebar {
