@@ -179,11 +179,13 @@ export class EventCalendar extends BaseElement {
 
   render() {
     return html`
-      <div class="flex h-full min-h-0 flex-col gap-7">
+      <div class="flex h-full min-h-0 flex-col gap-7 [container-type:inline-size]">
         <header
-          class="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))] py-2 [container-type:inline-size]"
+          class="flex items-center justify-between gap-x-3 rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))] py-2"
         >
-          <div class="flex justify-self-start gap-2">
+          <div
+            class="flex gap-2 [@container(max-width:54rem)]:fixed [@container(max-width:54rem)]:bottom-4 [@container(max-width:54rem)]:left-4 [@container(max-width:54rem)]:z-20"
+          >
             <lc-button compact label="Previous range" @click=${() => this.goBack()}>
               <svg
                 viewBox="0 0 24 24"
@@ -213,12 +215,12 @@ export class EventCalendar extends BaseElement {
             </lc-button>
           </div>
           <p
-            class="m-0 text-center text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))]"
+            class="m-0 flex-1 text-center text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:flex-none [@container(max-width:54rem)]:text-left"
             aria-live="polite"
           >
             ${this.#rangeLabelText}
           </p>
-          <div class="inline-flex justify-self-end">
+          <div class="inline-flex">
             <div class="[@container(max-width:54rem)]:hidden">
               <tab-switch
                 .options=${getViewOptions(this.locale)}
@@ -229,7 +231,8 @@ export class EventCalendar extends BaseElement {
               ></tab-switch>
             </div>
             <div class="hidden [@container(max-width:54rem)]:block">
-              <lc-dropdown
+
+            <lc-dropdown
                 .options=${getViewOptions(this.locale)}
                 .value=${this.view}
                 name="event-calendar-view-dropdown"
@@ -254,7 +257,7 @@ export class EventCalendar extends BaseElement {
           </div>
         </header>
         <calendar-view-group
-          class="min-h-0 flex-[1_1_auto]"
+          class="min-h-0 flex-[1_1_auto] [@container(max-width:54rem)]:pb-24"
           .view=${this.view}
           start-date=${ifDefined(this.#startDate)}
           .weekStart=${this.weekStart}
