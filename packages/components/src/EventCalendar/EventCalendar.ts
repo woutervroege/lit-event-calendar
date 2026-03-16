@@ -184,7 +184,7 @@ export class EventCalendar extends BaseElement {
           class="flex items-center justify-between gap-x-3 rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))] py-2"
         >
           <div
-            class="flex gap-2 [@container(max-width:54rem)]:fixed [@container(max-width:54rem)]:bottom-4 [@container(max-width:54rem)]:left-4 [@container(max-width:54rem)]:z-20"
+            class="flex flex-1 gap-2 [@container(max-width:54rem)]:fixed [@container(max-width:54rem)]:bottom-4 [@container(max-width:54rem)]:left-4 [@container(max-width:54rem)]:z-20"
           >
             <lc-button compact label="Previous range" @click=${() => this.goBack()}>
               <svg
@@ -215,12 +215,12 @@ export class EventCalendar extends BaseElement {
             </lc-button>
           </div>
           <p
-            class="m-0 flex-1 text-center text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:flex-none [@container(max-width:54rem)]:text-left"
+            class="m-0 px-2 text-center text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-left"
             aria-live="polite"
           >
             ${this.#rangeLabelText}
           </p>
-          <div class="inline-flex">
+          <div class="flex flex-1 justify-end">
             <div class="[@container(max-width:54rem)]:hidden">
               <tab-switch
                 .options=${getViewOptions(this.locale)}
