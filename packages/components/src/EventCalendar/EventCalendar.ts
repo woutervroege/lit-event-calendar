@@ -150,12 +150,11 @@ export class EventCalendar extends BaseElement {
 
   render() {
     return html`
-      <div style="display:flex;flex-direction:column;gap:1.75rem;min-height:0;height:100%;">
+      <div class="flex h-full min-h-0 flex-col gap-7">
         <header
-          class="rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))] py-2"
-          style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;column-gap:0.75rem;"
+          class="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))] py-2"
         >
-          <div style="display:flex;justify-self:start;gap:0.5rem;">
+          <div class="flex justify-self-start gap-2">
             <lc-button compact label="Previous range" @click=${() => this.goBack()}>
               <svg
                 viewBox="0 0 24 24"
@@ -163,7 +162,7 @@ export class EventCalendar extends BaseElement {
                 stroke="currentColor"
                 stroke-width="2.5"
                 aria-hidden="true"
-                style="width:1.1rem;height:1.1rem;display:block;"
+                class="block h-[1.1rem] w-[1.1rem]"
               >
                 <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"></path>
               </svg>
@@ -178,7 +177,7 @@ export class EventCalendar extends BaseElement {
                 stroke="currentColor"
                 stroke-width="2.5"
                 aria-hidden="true"
-                style="width:1.1rem;height:1.1rem;display:block;"
+                class="block h-[1.1rem] w-[1.1rem]"
               >
                 <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
               </svg>
@@ -190,7 +189,7 @@ export class EventCalendar extends BaseElement {
           >
             ${this.#rangeLabelText}
           </p>
-          <div style="justify-self:end;">
+          <div class="justify-self-end">
             <tab-switch
               .options=${["Day", "Week", "Month", "Year"]}
               .value=${TAB_LABELS[this.view]}
@@ -201,7 +200,7 @@ export class EventCalendar extends BaseElement {
           </div>
         </header>
         <calendar-view-group
-          style="min-height:0;flex:1 1 auto;"
+          class="min-h-0 flex-[1_1_auto]"
           .view=${this.view}
           start-date=${ifDefined(this.#startDate)}
           .weekStart=${this.weekStart}
