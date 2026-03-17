@@ -73,6 +73,10 @@ export abstract class BaseEvent extends BaseElement {
       "interaction-drag-offset",
       this.#handleInteractionDragOffset as EventListener
     );
+    this.addEventListener(
+      "interaction-touch-active",
+      this.#handleInteractionTouchActive as EventListener
+    );
   }
 
   disconnectedCallback() {
@@ -84,6 +88,10 @@ export abstract class BaseEvent extends BaseElement {
     this.removeEventListener(
       "interaction-drag-offset",
       this.#handleInteractionDragOffset as EventListener
+    );
+    this.removeEventListener(
+      "interaction-touch-active",
+      this.#handleInteractionTouchActive as EventListener
     );
     super.disconnectedCallback();
   }
@@ -249,8 +257,15 @@ export abstract class BaseEvent extends BaseElement {
   #handleInteractionDragState = (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const isDragging = Boolean(event.detail?.isDragging);
+    const pointerType =
+      typeof event.detail?.pointerType === "string" ? (event.detail.pointerType as string) : undefined;
     if (isDragging) {
       this.setAttribute("data-dragging", "");
+      if (pointerType === "touch") {
+        this.setAttribute("data-dragging-touch", "");
+      } else {
+        this.removeAttribute("data-dragging-touch");
+      }
       this.onDragStart();
     } else {
       if (this.#justDroppedTimeout) clearTimeout(this.#justDroppedTimeout);
@@ -260,6 +275,7 @@ export abstract class BaseEvent extends BaseElement {
         this.#justDroppedTimeout = null;
       }, 150);
       this.removeAttribute("data-dragging");
+      this.removeAttribute("data-dragging-touch");
       this.dragOffsetX = 0;
       this.dragOffsetY = 0;
       this.onDragEnd();
@@ -272,6 +288,17 @@ export abstract class BaseEvent extends BaseElement {
     const { offsetX, offsetY } = event.detail || {};
     this.dragOffsetX = offsetX ?? 0;
     this.dragOffsetY = offsetY ?? 0;
+    this.requestUpdate();
+  };
+
+  #handleInteractionTouchActive = (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const active = Boolean(event.detail?.active);
+    if (active) {
+      this.setAttribute("data-touch-interacting", "");
+    } else {
+      this.removeAttribute("data-touch-interacting");
+    }
     this.requestUpdate();
   };
 
