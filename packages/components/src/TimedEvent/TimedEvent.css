@@ -23,9 +23,11 @@
   --_lc-event-card-bg-active: var(--_lc-event-bg-hover);
 }
 
-/* Pressed state between hover and focus brightness. */
-:host .interaction-surface:has(event-card:active):not(:focus):not(:focus-visible) {
-  --_lc-event-card-bg-active: var(--_lc-event-bg-active, var(--_lc-event-bg-hover));
+/* Pressed state between hover and focus brightness (desktop/fine pointers only). */
+@media (hover: hover) and (pointer: fine) {
+  :host .interaction-surface:has(event-card:active):not(:focus):not(:focus-visible) {
+    --_lc-event-card-bg-active: var(--_lc-event-bg-active, var(--_lc-event-bg-hover));
+  }
 }
 
 /* Apply the same visual focus state for keyboard and pointer focus. */
@@ -39,7 +41,16 @@
   --_lc-event-focus-ring-width: 3px;
   --_lc-event-focus-ring-color: var(
     --_lc-event-focus-ring,
-    var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+    light-dark(
+      var(
+        --_lc-event-focus-ring-light,
+        var(
+          --_lc-event-text-color,
+          var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+        )
+      ),
+      var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+    )
   );
 }
 
@@ -48,7 +59,16 @@
   --_lc-event-focus-ring-width: 3px;
   --_lc-event-focus-ring-color: var(
     --_lc-event-focus-ring,
-    var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+    light-dark(
+      var(
+        --_lc-event-focus-ring-light,
+        var(
+          --_lc-event-text-color,
+          var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+        )
+      ),
+      var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+    )
   );
   z-index: 11;
 }
@@ -58,6 +78,84 @@
   --_lc-event-focus-ring-width: 3px;
   --_lc-event-focus-ring-color: var(
     --_lc-event-focus-ring,
-    var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+    light-dark(
+      var(
+        --_lc-event-focus-ring-light,
+        var(
+          --_lc-event-text-color,
+          var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+        )
+      ),
+      var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+    )
+  );
+}
+
+/* Show the same ring while active touch drag/resize is in progress. */
+:host([data-dragging-touch]) .interaction-surface {
+  --_lc-event-focus-ring-width: 3px;
+  --_lc-event-focus-ring-color: var(
+    --_lc-event-focus-ring,
+    light-dark(
+      var(
+        --_lc-event-focus-ring-light,
+        var(
+          --_lc-event-text-color,
+          var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+        )
+      ),
+      var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+    )
+  );
+}
+
+:host([data-dragging-touch]) .interaction-surface event-card {
+  --_lc-event-focus-ring-width: 3px;
+  --_lc-event-focus-ring-color: var(
+    --_lc-event-focus-ring,
+    light-dark(
+      var(
+        --_lc-event-focus-ring-light,
+        var(
+          --_lc-event-text-color,
+          var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+        )
+      ),
+      var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+    )
+  );
+}
+
+:host([data-touch-interacting]) .interaction-surface {
+  --_lc-event-focus-ring-width: 3px;
+  --_lc-event-focus-ring-color: var(
+    --_lc-event-focus-ring,
+    light-dark(
+      var(
+        --_lc-event-focus-ring-light,
+        var(
+          --_lc-event-text-color,
+          var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+        )
+      ),
+      var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+    )
+  );
+}
+
+:host([data-touch-interacting]) .interaction-surface event-card {
+  --_lc-event-focus-ring-width: 3px;
+  --_lc-event-focus-ring-color: var(
+    --_lc-event-focus-ring,
+    light-dark(
+      var(
+        --_lc-event-focus-ring-light,
+        var(
+          --_lc-event-text-color,
+          var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+        )
+      ),
+      var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
+    )
   );
 }

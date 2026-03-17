@@ -3,6 +3,10 @@
   width: 100%;
   height: calc(var(--_lc-host-height-factor, 1) * 100%);
   color-scheme: light dark;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
   /* Public API: only these 5 vars are supported. */
   --_lc-current-day-color: var(--lc-higlight-color, #ff0000);
   --_lc-current-day-text-color: var(--lc-current-day-text-color, #000000);
@@ -101,7 +105,6 @@ section[data-drag-hover]::before {
   /* Ensure hover target sits above non-dragged events,
      but still below the actively dragged event (z-index 10). */
   z-index: 9;
-  box-shadow: inset 0 0 0 2px var(--_lc-focus-ring-color);
 }
 
 /* Month view: multi-row grid (e.g. 7 columns × N weeks) */

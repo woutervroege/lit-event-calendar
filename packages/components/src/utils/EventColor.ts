@@ -12,6 +12,7 @@ export function getEventColorStyles(color: string): Record<string, string> {
   const borderColor = rgbToHex(shadeColor(rgb, 0.15));
   const shadowColor = rgbToHex(shadeColor(rgb, 0.35));
   const textColor = rgbToHex(shadeColor(rgb, 0.75));
+  const focusRingLightColor = rgbToHex(shadeColor(rgb, 0.2));
 
   return {
     "--_lc-event-bg": backgroundColor,
@@ -20,6 +21,7 @@ export function getEventColorStyles(color: string): Record<string, string> {
     "--_lc-event-bg-active": backgroundColorActive,
     "--_lc-event-bg-focus": backgroundColorFocus,
     "--_lc-event-text-color": textColor,
+    "--_lc-event-focus-ring-light": focusRingLightColor,
     "--_lc-event-accent-color": color,
     "--_lc-event-shadow": `0 1px 3px 0 ${shadowColor}`,
   };
