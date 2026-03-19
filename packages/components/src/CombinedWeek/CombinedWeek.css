@@ -11,7 +11,7 @@
   height: 100%;
   min-height: 0;
   overflow: auto;
-  scroll-snap-type: both mandatory;
+  scroll-snap-type: both proximity;
   scroll-padding-inline-start: calc(
     var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px)) +
     var(--_lc-combined-gap, var(--_lc-time-label-gap, 6px)) +
