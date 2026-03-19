@@ -104,7 +104,7 @@ export class TabSwitch extends BaseElement {
                 name=${groupName}
                 class=${inputClasses}
                 value=${option.value}
-                ?checked=${isChecked}
+                .checked=${isChecked}
                 aria-keyshortcuts=${hotkey || nothing}
                 @change=${(e: Event) => this.#handleChange(e)}
               />
