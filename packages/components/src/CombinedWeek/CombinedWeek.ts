@@ -163,25 +163,19 @@ export class CombinedWeek extends BaseElement {
   }
 
   render() {
+    const clampedVisibleHours = Math.max(1, Math.min(24, Math.floor(Number(this.visibleHours) || 12)));
+    const timedHeightFactor = 24 / clampedVisibleHours;
     const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
-    const snapColumns = this.daysPerWeek + 1;
+    const snapPoints = this.daysPerWeek + 1;
+    const snapRows = 24;
 
     return html`
       <div
         class="scroll-root"
         dir=${direction}
-        style=${`--_lc-combined-days: ${this.daysPerWeek};`}
+        style=${`--_lc-combined-days: ${this.daysPerWeek}; --_lc-combined-timed-height-factor: ${timedHeightFactor};`}
       >
         <div class="grid-canvas">
-          <div class="snap-overlay" aria-hidden="true">
-            <div
-              class="snap-grid"
-              style=${`--_lc-combined-snap-columns: ${snapColumns};`}
-            >
-              ${Array.from({ length: snapColumns * 25 }, () => html`<span class="snap-cell"></span>`)}
-            </div>
-          </div>
-
           <header class="combined-header">
             <aside class="header-sidebar" aria-hidden="true">All-day</aside>
             <section class="header-main">
@@ -210,6 +204,14 @@ export class CombinedWeek extends BaseElement {
           </header>
 
           <main class="combined-main">
+            <div class="snap-overlay" aria-hidden="true">
+              <div
+                class="snap-grid"
+                style=${`--_lc-combined-snap-days: ${this.daysPerWeek}; --_lc-combined-snap-rows: ${snapRows};`}
+              >
+                ${Array.from({ length: snapPoints * snapRows }, () => html`<span class="snap-cell"></span>`)}
+              </div>
+            </div>
             <calendar-view
               class="timed-view"
               ?layout-passthrough=${true}

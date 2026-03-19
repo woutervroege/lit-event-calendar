@@ -43,11 +43,15 @@
   align-self: start;
   min-height: calc(var(--_lc-host-height-factor, 1) * 100%);
   background: var(--_lc-app-header-bg-color, light-dark(#fff, rgb(15 23 42)));
+  padding-top: var(--_lc-pass-through-timed-top-offset, 10px);
+  box-sizing: border-box;
 }
 
 :host([layout-passthrough][variant="timed"]) section {
   min-height: calc(var(--_lc-host-height-factor, 1) * 100%);
   height: calc(var(--_lc-host-height-factor, 1) * 100%);
+  padding-top: var(--_lc-pass-through-timed-top-offset, 10px);
+  box-sizing: border-box;
 }
 
 :host([variant="timed"]) {
