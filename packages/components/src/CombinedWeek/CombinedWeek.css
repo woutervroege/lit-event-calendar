@@ -43,6 +43,7 @@
   --_lc-combined-sidebar-width: var(--_lc-time-sidebar-width, 72px);
   --_lc-combined-gap: 0px;
   --_lc-combined-sidebar-inline-padding: 4px;
+  --_lc-combined-all-day-label-top-offset: 26px;
   --_lc-combined-header-height: calc(
     var(--_lc-weekday-header-height, 26px) +
     var(--_lc-all-day-row-height, 120px)
@@ -128,9 +129,10 @@
 .header-sidebar {
   min-height: var(--_lc-combined-header-height);
   display: flex;
-  align-items: end;
+  align-items: flex-start;
   justify-content: flex-end;
-  padding-block: 8px;
+  padding-top: var(--_lc-combined-all-day-label-top-offset);
+  padding-bottom: 0;
   padding-inline: var(--_lc-combined-sidebar-inline-padding);
   font-size: 12px;
   line-height: 1;
