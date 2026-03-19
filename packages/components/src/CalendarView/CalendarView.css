@@ -41,9 +41,13 @@
   top: 0;
   z-index: var(--_lc-pass-through-sidebar-z, 2);
   align-self: start;
-  margin-top: var(--_lc-pass-through-timed-top-offset, 10px);
+  height: calc(
+    (var(--_lc-host-height-factor, 1) * 100%) -
+    var(--_lc-pass-through-timed-top-offset, 10px)
+  );
   min-height: calc(
-    (var(--_lc-host-height-factor, 1) * 100%) - var(--_lc-pass-through-timed-top-offset, 10px)
+    (var(--_lc-host-height-factor, 1) * 100%) -
+    var(--_lc-pass-through-timed-top-offset, 10px)
   );
   background-color: var(
     --_lc-pass-through-sticky-bg,
@@ -55,11 +59,17 @@
 :host([layout-passthrough][variant="timed"]) section {
   margin-top: var(--_lc-pass-through-timed-top-offset, 10px);
   min-height: calc(
-    (var(--_lc-host-height-factor, 1) * 100%) - var(--_lc-pass-through-timed-top-offset, 10px)
+    (var(--_lc-host-height-factor, 1) * 100%) -
+    var(--_lc-pass-through-timed-top-offset, 10px)
   );
   height: calc(
-    (var(--_lc-host-height-factor, 1) * 100%) - var(--_lc-pass-through-timed-top-offset, 10px)
+    (var(--_lc-host-height-factor, 1) * 100%) -
+    var(--_lc-pass-through-timed-top-offset, 10px)
   );
+}
+
+:host([layout-passthrough][variant="timed"]) .hour-labels {
+  margin-top: 0;
 }
 
 :host([variant="timed"]) {
@@ -249,6 +259,7 @@ time.current-day,
   width: var(--_lc-time-sidebar-width, auto);
   min-height: 0;
   color: var(--_lc-grid-line-day-color);
+  margin-top: -2px;
 }
 
 .hour-labels {

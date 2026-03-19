@@ -209,6 +209,7 @@
   --_lc-pass-through-sidebar-z: 120;
   --_lc-pass-through-sidebar-inline-padding: var(--_lc-combined-sidebar-inline-padding);
   --_lc-pass-through-sticky-bg: var(--_lc-combined-surface-bg);
+  --_lc-pass-through-timed-top-offset: 4px;
 }
 
 @container (max-width: 1100px) {
