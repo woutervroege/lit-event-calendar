@@ -84,6 +84,29 @@
 
 .timed-sidebar {
   min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-top: -8px;
+  color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
+  pointer-events: none;
+}
+
+.timed-sidebar-label-row {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.timed-sidebar-label-row::after {
+  content: attr(data-hour-label);
+  padding-right: 4px;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
 }
 
 .timed {

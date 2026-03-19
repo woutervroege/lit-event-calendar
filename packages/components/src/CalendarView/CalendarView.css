@@ -27,6 +27,29 @@
   --_lc-current-time-dot-size: 9px;
 }
 
+:host([layout-passthrough]) {
+  display: contents;
+}
+
+:host([layout-passthrough]) .calendar-layout {
+  display: contents;
+}
+
+:host([layout-passthrough][variant="timed"]) .time-sidebar {
+  position: sticky;
+  inset-inline-start: 0;
+  top: 0;
+  z-index: var(--_lc-pass-through-sidebar-z, 2);
+  align-self: start;
+  min-height: calc(var(--_lc-host-height-factor, 1) * 100%);
+  background: var(--_lc-app-header-bg-color, light-dark(#fff, rgb(15 23 42)));
+}
+
+:host([layout-passthrough][variant="timed"]) section {
+  min-height: calc(var(--_lc-host-height-factor, 1) * 100%);
+  height: calc(var(--_lc-host-height-factor, 1) * 100%);
+}
+
 :host([variant="timed"]) {
   --_lc-grid-line-color-horizontal: light-dark(rgb(15 23 42 / 8%), rgb(255 255 255 / 10%));
 }
@@ -198,12 +221,39 @@ time.current-day,
 
 .hour-label {
   color: var(--_lc-grid-line-day-color);
+  display: block;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: var(--_lc-time-sidebar-width, auto);
+  min-height: 0;
+  color: var(--_lc-grid-line-day-color);
 }
 
 .hour-labels {
+  display: flex;
+  flex: 1;
   flex-direction: column;
   margin-top: -8px;
+  pointer-events: none;
 }
+
+.hour-label-row {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
 .calendar-layout.with-time-labels {
   gap: var(--_lc-time-label-gap, 6px);
 }
