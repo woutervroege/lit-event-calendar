@@ -58,9 +58,18 @@ export class Button extends BaseElement {
             box-shadow:
               0 10px 28px rgb(15 23 42 / 20%),
               0 1px 0 rgb(255 255 255 / 58%) inset;
-            --_lc-button-bg: light-dark(rgb(255 255 255 / 78%), rgb(15 23 42 / 52%));
-            --_lc-button-hover-bg: light-dark(rgb(255 255 255 / 88%), rgb(15 23 42 / 62%));
-            --_lc-button-border-color: light-dark(rgb(15 23 42 / 18%), rgb(255 255 255 / 24%));
+            --_lc-button-bg: var(
+              --lc-button-raised-bg,
+              light-dark(rgb(255 255 255 / 78%), rgb(15 23 42 / 52%))
+            );
+            --_lc-button-hover-bg: var(
+              --lc-button-raised-hover-bg,
+              light-dark(rgb(255 255 255 / 88%), rgb(15 23 42 / 62%))
+            );
+            --_lc-button-border-color: var(
+              --lc-button-raised-border-color,
+              light-dark(rgb(15 23 42 / 18%), rgb(255 255 255 / 24%))
+            );
           }
 
           @media (prefers-color-scheme: dark) {

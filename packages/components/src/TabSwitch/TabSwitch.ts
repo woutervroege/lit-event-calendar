@@ -93,7 +93,7 @@ export class TabSwitch extends BaseElement {
           const inputId = `${groupName}-${option.value}-${index}`;
           const isChecked = option.value === this.value;
           const checkedClasses = isChecked
-            ? "bg-[light-dark(rgb(255_255_255_/_94%),rgb(255_255_255_/_24%))] hover:bg-[light-dark(rgb(255_255_255_/_98%),rgb(255_255_255_/_30%))] text-[light-dark(rgb(15_23_42_/_92%),rgb(255_255_255_/_95%))] shadow-[0_1px_2px_light-dark(rgb(15_23_42_/_16%),rgb(0_0_0_/_32%))]"
+            ? "bg-[var(--_lc-button-checked-bg,var(--lc-button-checked-bg,var(--_lc-button-checked-bg-default)))] hover:bg-[var(--_lc-button-checked-hover-bg,var(--lc-button-checked-hover-bg,var(--_lc-button-checked-hover-bg-default)))] text-[light-dark(rgb(15_23_42_/_92%),rgb(255_255_255_/_95%))] shadow-[0_1px_2px_light-dark(rgb(15_23_42_/_16%),rgb(0_0_0_/_32%))]"
             : "";
           const hotkey = option.hotkey?.trim();
           return html`
