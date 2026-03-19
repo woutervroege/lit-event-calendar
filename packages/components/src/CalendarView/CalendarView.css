@@ -45,7 +45,10 @@
   min-height: calc(
     (var(--_lc-host-height-factor, 1) * 100%) - var(--_lc-pass-through-timed-top-offset, 10px)
   );
-  background: var(--_lc-app-header-bg-color, light-dark(#fff, rgb(15 23 42)));
+  background-color: var(
+    --_lc-pass-through-sticky-bg,
+    var(--_lc-app-header-bg-color, light-dark(#fff, #222))
+  );
   padding-inline: var(--_lc-pass-through-sidebar-inline-padding, 4px);
 }
 

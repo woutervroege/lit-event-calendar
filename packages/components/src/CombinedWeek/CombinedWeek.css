@@ -4,6 +4,8 @@
   height: 100%;
   min-height: 0;
   container-type: inline-size;
+  --_lc-combined-surface-bg: var(--_lc-app-header-bg-color, light-dark(#fff, #222));
+  background-color: var(--_lc-combined-surface-bg);
 }
 
 .scroll-root {
@@ -26,6 +28,7 @@
     var(--_lc-combined-snap-block-nudge, 0px)
   );
   overscroll-behavior: contain;
+  background-color: var(--_lc-combined-surface-bg);
 }
 
 .grid-canvas {
@@ -62,6 +65,7 @@
   height: 100%;
   display: grid;
   grid-template-rows: auto 1fr;
+  background-color: var(--_lc-combined-surface-bg);
 }
 
 .snap-overlay {
@@ -102,7 +106,7 @@
   position: sticky;
   top: 0;
   z-index: 12;
-  background: var(--_lc-app-header-bg-color, light-dark(#fff, rgb(15 23 42)));
+  background-color: var(--_lc-combined-surface-bg);
 }
 
 .header-sidebar {
@@ -110,7 +114,7 @@
   left: 0;
   z-index: 13;
   color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
-  background: var(--_lc-app-header-bg-color, light-dark(#fff, rgb(15 23 42)));
+  background-color: var(--_lc-combined-surface-bg);
 }
 
 .header-sidebar {
@@ -150,8 +154,9 @@
 }
 
 .timed-view {
-  --_lc-pass-through-sidebar-z: 14;
+  --_lc-pass-through-sidebar-z: 120;
   --_lc-pass-through-sidebar-inline-padding: var(--_lc-combined-sidebar-inline-padding);
+  --_lc-pass-through-sticky-bg: var(--_lc-combined-surface-bg);
 }
 
 @container (max-width: 1100px) {
