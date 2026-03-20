@@ -2,10 +2,10 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import "../CalendarView/CalendarView.js";
-import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import { getLocaleDirection, getLocaleWeekInfo } from "../utils/Locale.js";
+import { getHourlyTimeLabels } from "../utils/TimeFormatting.js";
 import componentStyle from "./CalendarWeekView.css?inline";
 
 type EventInput = {
@@ -173,6 +173,10 @@ export class CalendarWeekView extends BaseElement {
     const clampedVisibleHours = Math.max(1, Math.min(24, Math.floor(Number(this.visibleHours) || 12)));
     const timedHeightFactor = 24 / clampedVisibleHours;
     const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
+    const timedSidebarLabels = getHourlyTimeLabels(this.locale, 24);
+    const timedSidebarRows = timedSidebarLabels.map(
+      (label) => html`<div class="timed-sidebar-label-row" data-hour-label=${label} aria-hidden="true"></div>`
+    );
 
     return html`
       <div class="week-layout" dir=${direction} style=${`--_lc-week-days: ${this.daysPerWeek};`}>
@@ -201,11 +205,7 @@ export class CalendarWeekView extends BaseElement {
         ></calendar-view>
         <div class="timed-scroll">
           <div class="timed-content" style=${`--_lc-week-timed-height-factor: ${timedHeightFactor};`}>
-            <calendar-time-sidebar
-              class="timed-sidebar"
-              .locale=${this.locale}
-              .hours=${24}
-            ></calendar-time-sidebar>
+            <div class="timed-sidebar" aria-hidden="true">${timedSidebarRows}</div>
             <calendar-view
               class="timed"
               start-date=${this.startDate.toString()}

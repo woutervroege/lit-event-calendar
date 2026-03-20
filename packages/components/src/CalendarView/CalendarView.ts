@@ -8,7 +8,6 @@ import "../TimedEvent/TimedEvent.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import componentStyle from "./CalendarView.css?inline";
 import "../TimedEvent/AllDayEvent.js";
-import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
 import { sharedFocusRingColorClasses } from "../shared/buttonStyles.js";
 import {
   type CalendarViewContextValue,
@@ -17,6 +16,7 @@ import {
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController.js";
 import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
+import { getHourlyTimeLabels } from "../utils/TimeFormatting.js";
 
 type EventInput = {
   /**
@@ -50,6 +50,7 @@ export class CalendarView extends BaseElement {
   declare events?: EventsMap;
   variant: "timed" | "all-day" = "timed";
   labelsHidden = false;
+  layoutPassthrough = false;
   rtl = false;
   #dragHoverDayIndex: number | null = null;
   #dragHoverTime: Temporal.PlainTime | null = null;
@@ -156,6 +157,7 @@ export class CalendarView extends BaseElement {
         },
       },
       labelsHidden: { type: Boolean, attribute: "labels-hidden", reflect: true },
+      layoutPassthrough: { type: Boolean, attribute: "layout-passthrough", reflect: true },
       rtl: { type: Boolean, reflect: true },
       locale: { type: String },
       timezone: { type: String },
@@ -487,6 +489,14 @@ export class CalendarView extends BaseElement {
   render() {
     const hoverStyle: Record<string, string> = {};
     const showTimedLabels = this.variant === "timed" && !this.labelsHidden;
+    const timedSidebarLabels = getHourlyTimeLabels(this.locale, this.hours);
+    const timedSidebarRows = timedSidebarLabels.map((label, hour) => {
+      return html`
+        <div class="hour-label-row">
+          <time class="hour-label" datetime=${`${hour.toString().padStart(2, "0")}:00`}>${label}</time>
+        </div>
+      `;
+    });
     const compactMonthView = this.#isCompactMonthView;
 
     if (this.#dragHoverDayIndex !== null) {
@@ -538,11 +548,9 @@ export class CalendarView extends BaseElement {
         ${
           showTimedLabels
             ? html`
-              <calendar-time-sidebar
-                .locale=${this.locale}
-                .hours=${this.hours}
-                .visibleHours=${this.visibleHours}
-              ></calendar-time-sidebar>
+              <div class="time-sidebar">
+                <div class="hour-labels">${timedSidebarRows}</div>
+              </div>
             `
             : ""
         }

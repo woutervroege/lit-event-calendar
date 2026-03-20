@@ -12,7 +12,7 @@
   --_lc-current-day-text-color: var(--lc-current-day-text-color, #000000);
   --_lc-event-height: var(--lc-event-height, 32px);
   --_lc-days-per-row: var(--lc-days-per-row, 7);
-  --_lc-grid-base-color: var(--lc-grid-base-color, light-dark(#111, #fff));
+  --_lc-grid-base-color: var(--lc-grid-base-color, light-dark(#222, #fff));
 
   /* Internal implementation tokens (`--_lc-*`). */
   --_lc-grid-line-width: 1px;
@@ -25,6 +25,48 @@
   --_lc-all-day-day-number-space: 36px;
   --_lc-current-time-line-width: 2px;
   --_lc-current-time-dot-size: 9px;
+}
+
+:host([layout-passthrough]) {
+  display: contents;
+}
+
+:host([layout-passthrough]) .calendar-layout {
+  display: contents;
+}
+
+:host([layout-passthrough][variant="timed"]) .time-sidebar {
+  position: sticky;
+  inset-inline-start: 0;
+  top: 0;
+  z-index: var(--_lc-pass-through-sidebar-z, 2);
+  align-self: start;
+  height: calc(
+    (var(--_lc-host-height-factor, 1) * 100%) -
+    var(--_lc-pass-through-timed-top-offset, 10px)
+  );
+  min-height: calc(
+    (var(--_lc-host-height-factor, 1) * 100%) -
+    var(--_lc-pass-through-timed-top-offset, 10px)
+  );
+  background-color: var(--_lc-pass-through-sticky-bg, var(--_lc-surface-bg));
+  padding-inline: var(--_lc-pass-through-sidebar-inline-padding, 4px);
+}
+
+:host([layout-passthrough][variant="timed"]) section {
+  margin-top: var(--_lc-pass-through-timed-top-offset, 10px);
+  min-height: calc(
+    (var(--_lc-host-height-factor, 1) * 100%) -
+    var(--_lc-pass-through-timed-top-offset, 10px)
+  );
+  height: calc(
+    (var(--_lc-host-height-factor, 1) * 100%) -
+    var(--_lc-pass-through-timed-top-offset, 10px)
+  );
+}
+
+:host([layout-passthrough][variant="timed"]) .hour-labels {
+  margin-top: 0;
 }
 
 :host([variant="timed"]) {
@@ -198,12 +240,40 @@ time.current-day,
 
 .hour-label {
   color: var(--_lc-grid-line-day-color);
+  display: block;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: var(--_lc-time-sidebar-width, auto);
+  min-height: 0;
+  color: var(--_lc-grid-line-day-color);
+  margin-top: -2px;
 }
 
 .hour-labels {
+  display: flex;
+  flex: 1;
   flex-direction: column;
   margin-top: -8px;
+  pointer-events: none;
 }
+
+.hour-label-row {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
 .calendar-layout.with-time-labels {
   gap: var(--_lc-time-label-gap, 6px);
 }

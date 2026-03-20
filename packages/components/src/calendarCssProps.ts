@@ -21,9 +21,14 @@ export const calendarCssProps = {
     description: "Column count for all-day/month grid layout.",
   },
   "lc-grid-base-color": {
-    value: "light-dark(#111, #fff)",
+    value: "light-dark(#222, #fff)",
     category: "Theme",
     description:
       "Base grid color; line/day-number/dropzone colors are derived internally with tints.",
+  },
+  "lg-background-color": {
+    value: "light-dark(#fff, #222)",
+    category: "Theme",
+    description: "Base background color used by sticky calendar surfaces.",
   },
 } as const;
