@@ -7,7 +7,9 @@
 
   :host {
     display: block;
-    --lg-background-color: light-dark(#fff, #222);
-    --_lc-surface-bg: var(--_lc-app-header-bg-color, var(--lg-background-color));
+    --_lc-surface-bg: var(
+      --_lc-app-header-bg-color,
+      var(--lg-background-color, light-dark(#fff, #222))
+    );
   }
 }

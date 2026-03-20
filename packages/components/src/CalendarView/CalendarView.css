@@ -12,7 +12,7 @@
   --_lc-current-day-text-color: var(--lc-current-day-text-color, #000000);
   --_lc-event-height: var(--lc-event-height, 32px);
   --_lc-days-per-row: var(--lc-days-per-row, 7);
-  --_lc-grid-base-color: var(--lc-grid-base-color, light-dark(#111, #fff));
+  --_lc-grid-base-color: var(--lc-grid-base-color, light-dark(#222, #fff));
 
   /* Internal implementation tokens (`--_lc-*`). */
   --_lc-grid-line-width: 1px;
@@ -49,10 +49,7 @@
     (var(--_lc-host-height-factor, 1) * 100%) -
     var(--_lc-pass-through-timed-top-offset, 10px)
   );
-  background-color: var(
-    --_lc-pass-through-sticky-bg,
-    var(--_lc-surface-bg)
-  );
+  background-color: var(--_lc-pass-through-sticky-bg, var(--_lc-surface-bg));
   padding-inline: var(--_lc-pass-through-sidebar-inline-padding, 4px);
 }
 
