@@ -170,7 +170,10 @@ export class CalendarWeekView extends BaseElement {
   }
 
   render() {
-    const clampedVisibleHours = Math.max(1, Math.min(24, Math.floor(Number(this.visibleHours) || 12)));
+    const clampedVisibleHours = Math.max(
+      1,
+      Math.min(24, Math.floor(Number(this.visibleHours) || 12))
+    );
     const timedHeightFactor = 24 / clampedVisibleHours;
     const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
     const snapPoints = this.daysPerWeek + 1;
@@ -193,7 +196,6 @@ export class CalendarWeekView extends BaseElement {
               ></calendar-weekday-header>
               <calendar-view
                 class="combined-week-all-day-view"
-                ?layout-passthrough=${true}
                 start-date=${this.startDate.toString()}
                 days=${String(this.daysPerWeek)}
                 variant="all-day"
@@ -225,7 +227,6 @@ export class CalendarWeekView extends BaseElement {
             </div>
             <calendar-view
               class="combined-week-timed-view"
-              ?layout-passthrough=${true}
               start-date=${this.startDate.toString()}
               days=${String(this.daysPerWeek)}
               variant="timed"
@@ -256,5 +257,4 @@ export class CalendarWeekView extends BaseElement {
       })
     );
   };
-
 }

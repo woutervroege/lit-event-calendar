@@ -144,20 +144,24 @@
 }
 
 .combined-week-main {
-  display: grid;
-  grid-template-columns: var(--_lc-combined-sidebar-width) minmax(0, 1fr);
-  column-gap: var(--_lc-combined-gap);
   position: relative;
   z-index: 1;
   min-height: 0;
-  align-items: start;
+  height: 100%;
 }
 
 .combined-week-timed-view {
-  --_lc-pass-through-sidebar-z: 120;
-  --_lc-pass-through-sidebar-inline-padding: var(--_lc-combined-sidebar-inline-padding);
-  --_lc-pass-through-sticky-bg: var(--_lc-combined-surface-bg);
-  --_lc-pass-through-timed-top-offset: 4px;
+  height: 100%;
+  --_lc-time-sidebar-width: var(--_lc-combined-sidebar-width);
+  --_lc-time-label-gap: var(--_lc-combined-gap);
+  --_lc-time-sidebar-position: sticky;
+  --_lc-time-sidebar-sticky-top: 0px;
+  --_lc-time-sidebar-z-index: 120;
+  --_lc-time-sidebar-align-self: start;
+  --_lc-time-sidebar-inline-padding: var(--_lc-combined-sidebar-inline-padding);
+  --_lc-time-sidebar-bg: var(--_lc-combined-surface-bg);
+  --_lc-timed-section-top-offset: 4px;
+  --_lc-hour-labels-margin-top: 0px;
 }
 
 @container (max-width: 1100px) {
