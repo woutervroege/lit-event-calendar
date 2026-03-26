@@ -1429,9 +1429,11 @@ export class CalendarView extends BaseElement {
 
     for (const [dayIndex, ids] of hiddenIdsByDay.entries()) {
       const colors: string[] = [];
+      const seenColors = new Set<string>();
       for (const id of ids) {
         const color = eventColorsById.get(id);
-        if (!color) continue;
+        if (!color || seenColors.has(color)) continue;
+        seenColors.add(color);
         colors.push(color);
       }
       if (colors.length) {
