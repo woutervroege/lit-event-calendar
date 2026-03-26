@@ -75,6 +75,7 @@ export class CalendarView extends BaseElement {
   #cachedDays: Temporal.PlainDate[] = [];
   #cachedEventEntriesSource?: EventsMap;
   #cachedEventEntries: EventEntry[] = [];
+  #instanceToken = Math.random().toString(36).slice(2, 10);
 
   get #sortedEvents(): EventEntry[] {
     const events = this.#eventsForVariant;
@@ -847,19 +848,79 @@ export class CalendarView extends BaseElement {
     if (!anchorLeft) {
       buttonStyle.transform = "translateX(-100%)";
     }
+    const popoverId = `day-overflow-popover-${this.#instanceToken}-${dayIndex}`;
+
+    if (!this.#isMonthView) {
+      return html`
+        <button
+          type="button"
+          class="day-label absolute z-[3] w-6 h-6 p-0 text-sm font-medium rounded-md flex justify-center items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis ${sharedFocusRingColorClasses}"
+          style=${styleMap(buttonStyle)}
+          aria-label=${accessibilityLabel}
+          tabindex="0"
+          @click=${(event: MouseEvent) => this.#handleDayLabelClick(day, dayIndex, event)}
+          @keydown=${(event: KeyboardEvent) => this.#handleDayLabelKeyDown(day, dayIndex, event)}
+        >
+          ${label}
+        </button>
+      `;
+    }
 
     return html`
-      <button
-        type="button"
-        class="day-label absolute z-[3] w-6 h-6 p-0 text-sm font-medium rounded-md flex justify-center items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis ${sharedFocusRingColorClasses}"
-        style=${styleMap(buttonStyle)}
-        aria-label=${accessibilityLabel}
-        tabindex="0"
-        @click=${(event: MouseEvent) => this.#handleDayLabelClick(day, dayIndex, event)}
-        @keydown=${(event: KeyboardEvent) => this.#handleDayLabelKeyDown(day, dayIndex, event)}
+      <div class="day-overflow-indicator-anchor">
+        <button
+          type="button"
+          class="day-label day-overflow-toggle absolute z-[3] w-6 h-6 p-0 text-sm font-medium rounded-md flex justify-center items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis ${sharedFocusRingColorClasses}"
+          style=${styleMap(buttonStyle)}
+          aria-label=${accessibilityLabel}
+          aria-haspopup="dialog"
+          popovertarget=${popoverId}
+          popovertargetaction="toggle"
+          tabindex="0"
+        >
+          ${label}
+        </button>
+        ${this.#renderDayOverflowPopover(popoverId, day, dayIndex)}
+      </div>
+    `;
+  }
+
+  #renderDayOverflowPopover(
+    popoverId: string,
+    day: Temporal.PlainDate,
+    dayIndex: number
+  ): TemplateResult {
+    const dayEvents = this.#eventsForDay(day);
+    const eventRows = Math.max(1, dayEvents.length);
+    const fullDateLabel = new Intl.DateTimeFormat(this.locale, { dateStyle: "full" }).format(
+      new Date(Date.UTC(day.year, day.month - 1, day.day))
+    );
+
+    return html`
+      <section
+        id=${popoverId}
+        class="day-overflow-popover"
+        popover="auto"
+        role="dialog"
+        aria-label=${`Events on ${fullDateLabel}`}
       >
-        ${label}
-      </button>
+        <div
+          class="day-overflow-popover-cell ${this.#weekendDays.has(day.dayOfWeek)
+            ? "day-overflow-popover-cell-weekend"
+            : ""}"
+          style=${styleMap({
+            "--_lc-days": "1",
+            "--_lc-grid-rows": "1",
+            "--_lc-row-height": "100%",
+            "--_lc-popover-event-count": eventRows.toString(),
+          })}
+        >
+          ${this.#renderPopoverDayNumber(day, dayIndex)}
+          ${dayEvents.map(([id, event]) =>
+            this.#renderDayOverflowPopoverEvent(id, event, day)
+          )}
+        </div>
+      </section>
     `;
   }
 
@@ -982,6 +1043,94 @@ export class CalendarView extends BaseElement {
         composed: true,
       })
     );
+  }
+
+  #eventsForDay(day: Temporal.PlainDate): EventEntry[] {
+    return this.#sortedEvents.filter(([, event]) => this.#eventOverlapsDay(event, day));
+  }
+
+  #eventOverlapsDay(event: EventInput, day: Temporal.PlainDate): boolean {
+    const start = this.#toPlainDateTime(event.start);
+    const end = this.#toPlainDateTime(event.end);
+    if (Temporal.PlainDateTime.compare(end, start) <= 0) return false;
+
+    const dayStart = day.toPlainDateTime({
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+      microsecond: 0,
+      nanosecond: 0,
+    });
+    const dayEnd = day.add({ days: 1 }).toPlainDateTime({
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+      microsecond: 0,
+      nanosecond: 0,
+    });
+
+    return Temporal.PlainDateTime.compare(start, dayEnd) < 0 &&
+      Temporal.PlainDateTime.compare(end, dayStart) > 0;
+  }
+
+  #renderPopoverDayNumber(day: Temporal.PlainDate, dayIndex: number): TemplateResult {
+    const weekdayFormatter = new Intl.DateTimeFormat(this.locale, { weekday: "short" });
+    const dayFormatter = new Intl.NumberFormat(this.locale);
+    const monthFormatter = new Intl.DateTimeFormat(this.locale, { month: "short" });
+    const compactMonthView = this.#isCompactMonthView;
+    const days = this.days;
+    const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
+    const startsNewMonth =
+      previousDay === null || previousDay.month !== day.month || previousDay.year !== day.year;
+    const monthPrefix =
+      startsNewMonth && !compactMonthView
+        ? `${monthFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)))} `
+        : "";
+    const weekday = weekdayFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)));
+    const label = `${weekday} ${monthPrefix}${dayFormatter.format(day.day)}`;
+    const isCurrentDay = Temporal.PlainDate.compare(day, this.currentTime.toPlainDate()) === 0;
+    const outsideVisibleMonth = this.#isOutsideVisibleMonth(day);
+
+    return html`
+      <span
+        class="day-label day-overflow-popover-day-number absolute p-1 text-sm z-0 font-medium rounded-full flex justify-center items-center border-0 bg-transparent text-inherit leading-none ${
+          "min-w-6 px-2"
+        } h-6 ${isCurrentDay ? "current-day" : ""} ${
+          outsideVisibleMonth ? "outside-month-day-label" : ""
+        }"
+        aria-hidden="true"
+      >
+        <time datetime=${day.toString()}>${label}</time>
+      </span>
+    `;
+  }
+
+  #renderDayOverflowPopoverEvent(id: string, event: EventInput, day: Temporal.PlainDate): TemplateResult {
+    return html`
+      ${keyed(
+        `popover-${id}-${day.toString()}`,
+        html`
+          <all-day-event
+            event-id=${id}
+            start=${this.#toEventDateTimeString(event.start)}
+            end=${this.#toEventDateTimeString(event.end)}
+            summary=${event.summary}
+            color=${event.color}
+            style=${styleMap({
+              "inset-inline": "var(--_lc-popover-cell-padding)",
+            })}
+            ?hidden=${this.#optimisticallyDeletingEventIds.has(id)}
+            ?inert=${true}
+            .renderedDays=${[day]}
+            .daysPerRow=${1}
+            .gridRows=${1}
+            .maxVisibleRows=${Number.POSITIVE_INFINITY}
+          ></all-day-event>
+        `
+      )}
+    `;
   }
 
   #renderCurrentTimeIndicator() {

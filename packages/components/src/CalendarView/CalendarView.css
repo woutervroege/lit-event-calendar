@@ -210,6 +210,63 @@ time.current-day,
   color: inherit;
 }
 
+.day-overflow-popover {
+  margin: 0;
+  inset: auto;
+  border-radius: 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  box-shadow:
+    0 14px 28px -16px rgb(15 23 42 / 38%),
+    0 10px 16px -14px rgb(15 23 42 / 24%);
+  min-inline-size: min(340px, calc(100vi - 24px));
+  max-inline-size: min(420px, calc(100vi - 24px));
+  max-block-size: none;
+  overflow: visible;
+  padding: 0;
+  z-index: 120;
+  position: fixed;
+  position-area: block-end span-inline-start;
+  position-try-fallbacks: flip-block, flip-inline;
+  --_lc-popover-day-number-space: var(--_lc-all-day-day-number-space);
+}
+
+.day-overflow-popover::backdrop {
+  background: transparent;
+}
+
+.day-overflow-popover-cell {
+  position: relative;
+  --_lc-popover-cell-padding: 8px;
+  --_lc-all-day-day-number-space: calc(
+    var(--_lc-popover-day-number-space) + var(--_lc-popover-cell-padding)
+  );
+  min-inline-size: 100%;
+  min-height: calc(
+    var(--_lc-all-day-day-number-space) +
+    (var(--_lc-event-height) * var(--_lc-popover-event-count, 1)) +
+    (var(--_lc-popover-cell-padding) * 2)
+  );
+  overflow: hidden;
+  padding: var(--_lc-popover-cell-padding);
+  background: var(--_lc-surface-bg);
+  border: var(--_lc-grid-line-width) solid var(--_lc-grid-line-color);
+  border-radius: 10px;
+  box-shadow: 0 8px 18px -14px rgb(15 23 42 / 45%);
+}
+
+.day-overflow-popover-cell-weekend {
+  background: var(--_lc-weekend-bg-color);
+}
+
+.day-overflow-popover-day-number {
+  inset-inline-start: calc(6px + var(--_lc-popover-cell-padding));
+  top: 0;
+  margin-top: 2px;
+  pointer-events: none;
+}
+
 .hour-label {
   color: var(--_lc-grid-line-day-color);
   display: block;
