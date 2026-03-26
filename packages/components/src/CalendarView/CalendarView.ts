@@ -844,7 +844,7 @@ export class CalendarView extends BaseElement {
     return html`
       <button
         type="button"
-        class="day-label absolute z-[3] h-6 min-w-6 px-2 text-sm font-bold rounded-md flex justify-center items-center cursor-pointer border-0 leading-none whitespace-nowrap overflow-hidden text-ellipsis text-[var(--_lc-grid-line-day-color)] bg-[var(--_lc-grid-ghost-color)] ${sharedFocusRingColorClasses}"
+        class="day-label absolute z-[3] w-6 h-6 p-0 text-sm font-medium rounded-md flex justify-center items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis ${sharedFocusRingColorClasses}"
         style=${styleMap(buttonStyle)}
         aria-label=${accessibilityLabel}
         tabindex="0"
@@ -1202,8 +1202,7 @@ export class CalendarView extends BaseElement {
   }
 
   #getAllDayOverflowIndicatorHeightPx(): number {
-    // Reserve the same vertical space as one rendered all-day event row.
-    return this.#getAllDayEventHeightPx();
+    return 24;
   }
 
   #readSectionCssNumber(propertyName: string, fallback: number): number {
