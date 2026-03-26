@@ -1111,9 +1111,45 @@ export class CalendarView extends BaseElement {
   }
 
   #prepareOverflowPopover(popoverId: string) {
+    const popover = this.renderRoot.querySelector<HTMLElement>(`#${popoverId}`);
+    if (popover) {
+      this.#setOverflowPopoverInlineAlign(popover);
+    }
     if (this.#activeOverflowPopoverId === popoverId) return;
     this.#activeOverflowPopoverId = popoverId;
     this.requestUpdate();
+  }
+
+  #measureOverflowPopoverWidth(popover: HTMLElement): number {
+    if (popover.matches(":popover-open")) {
+      return popover.getBoundingClientRect().width;
+    }
+    popover.setAttribute("data-measuring", "");
+    const width = popover.getBoundingClientRect().width;
+    popover.removeAttribute("data-measuring");
+    return width;
+  }
+
+  #setOverflowPopoverInlineAlign(popover: HTMLElement) {
+    const anchorToggle = this.renderRoot.querySelector<HTMLElement>(
+      `[popovertarget="${popover.id}"]`
+    );
+    if (!anchorToggle) return;
+    const anchorRect = anchorToggle.getBoundingClientRect();
+    const anchorCenterX = (anchorRect.left + anchorRect.right) / 2;
+    const popoverWidth = this.#measureOverflowPopoverWidth(popover);
+    const viewportMarginPx = 12;
+    const availableLeft = anchorCenterX - viewportMarginPx;
+    const availableRight = window.innerWidth - viewportMarginPx - anchorCenterX;
+    const needsHalfWidth = popoverWidth / 2;
+
+    if (availableLeft >= needsHalfWidth && availableRight >= needsHalfWidth) {
+      popover.removeAttribute("data-inline-align");
+      return;
+    }
+
+    const inlineAlign = anchorCenterX < window.innerWidth / 2 ? "start" : "end";
+    popover.setAttribute("data-inline-align", inlineAlign);
   }
 
   #handleOverflowPopoverToggle = (event: Event) => {
@@ -1121,13 +1157,15 @@ export class CalendarView extends BaseElement {
     if (!target?.id) return;
     const toggleEvent = event as Event & { newState?: "open" | "closed" };
     if (toggleEvent.newState === "open") {
-      if (this.#activeOverflowPopoverId === target.id) return;
-      this.#activeOverflowPopoverId = target.id;
-      this.requestUpdate();
+      if (this.#activeOverflowPopoverId !== target.id) {
+        this.#activeOverflowPopoverId = target.id;
+        this.requestUpdate();
+      }
       return;
     }
     if (toggleEvent.newState === "closed" && this.#activeOverflowPopoverId === target.id) {
       this.#activeOverflowPopoverId = null;
+      target.removeAttribute("data-inline-align");
       this.requestUpdate();
     }
   };
