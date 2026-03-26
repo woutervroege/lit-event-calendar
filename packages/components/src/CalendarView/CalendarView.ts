@@ -1170,6 +1170,7 @@ export class CalendarView extends BaseElement {
 
   #handleDragHover = (event: Event) => {
     if (!(event instanceof CustomEvent)) {
+      if (this.#dragHoverDayIndex === null && this.#dragHoverTime === null) return;
       this.#dragHoverDayIndex = null;
       this.#dragHoverTime = null;
       this.requestUpdate();
@@ -1178,11 +1179,18 @@ export class CalendarView extends BaseElement {
 
     const hover = event.detail;
     if (!hover) {
+      if (this.#dragHoverDayIndex === null && this.#dragHoverTime === null) return;
       this.#dragHoverDayIndex = null;
       this.#dragHoverTime = null;
     } else {
-      this.#dragHoverDayIndex = hover.dayIndex ?? null;
-      this.#dragHoverTime = hover.time ?? null;
+      const nextDayIndex = hover.dayIndex ?? null;
+      const nextTime = hover.time ?? null;
+      const unchanged =
+        this.#dragHoverDayIndex === nextDayIndex &&
+        (this.#dragHoverTime?.toString() ?? null) === (nextTime?.toString() ?? null);
+      if (unchanged) return;
+      this.#dragHoverDayIndex = nextDayIndex;
+      this.#dragHoverTime = nextTime;
     }
     this.requestUpdate();
   };

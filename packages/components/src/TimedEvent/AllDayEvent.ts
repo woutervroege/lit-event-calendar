@@ -10,6 +10,8 @@ import { BaseEvent } from "./BaseEvent";
 
 @customElement("all-day-event")
 export class AllDayEvent extends BaseEvent {
+  static #stackIndexCache = new WeakMap<HTMLElement, Map<string, Map<AllDayEvent, number>>>();
+
   #lockedStackIndex: number | null = null;
   #previewDisplayTime: string | null = null;
   #keyboardHintId = `all-day-event-kbd-${Math.random().toString(36).slice(2, 9)}`;
@@ -32,6 +34,7 @@ export class AllDayEvent extends BaseEvent {
 
   connectedCallback() {
     super.connectedCallback();
+    this.#clearStackIndexCache();
     this.addEventListener(
       "interaction-drag-hover",
       this.#handleInteractionDragHover as EventListener
@@ -39,6 +42,7 @@ export class AllDayEvent extends BaseEvent {
   }
 
   disconnectedCallback() {
+    this.#clearStackIndexCache();
     this.removeEventListener(
       "interaction-drag-hover",
       this.#handleInteractionDragHover as EventListener
@@ -48,6 +52,9 @@ export class AllDayEvent extends BaseEvent {
 
   override updated(changedProperties: PropertyValues) {
     super.updated(changedProperties);
+    if (changedProperties.has("summary")) {
+      this.#clearStackIndexCache();
+    }
     // When start/end change outside of a drag (e.g. keyboard move), refresh all siblings
     // so stacking is recalculated. Pointer drag already does this in onDragEnd().
     if (
@@ -60,6 +67,7 @@ export class AllDayEvent extends BaseEvent {
 
   /** Clear lock and request re-render of all all-day siblings so stacking is recalculated. */
   #refreshSiblingsStacking(): void {
+    this.#clearStackIndexCache();
     this.#lockedStackIndex = null;
     const parent = this.parentElement;
     if (parent) {
@@ -95,40 +103,101 @@ export class AllDayEvent extends BaseEvent {
     });
   }
 
-  #getVisibleDayKeys(renderedDays: string[]): string[] {
-    return this.days.map((day) => day.toString()).filter((day) => renderedDays.includes(day));
+  #clearStackIndexCache() {
+    const parent = this.parentElement;
+    if (!parent) return;
+    AllDayEvent.#stackIndexCache.delete(parent);
   }
 
-  #getReferenceDay(renderedDays: string[]): string | null {
-    const visibleDays = this.#getVisibleDayKeys(renderedDays);
-    return visibleDays.length ? visibleDays[0] : null;
+  #stackCacheKey(renderedDays: string[], rowIndex: number | null): string {
+    const rowToken = rowIndex === null ? "all" : String(rowIndex);
+    return `${rowToken}|${this.daysPerRow}|${this.gridRows}|${renderedDays.join(",")}`;
+  }
+
+  #getStackIndexMap(renderedDays: string[], rowIndex: number | null): Map<AllDayEvent, number> {
+    const parent = this.parentElement;
+    if (!parent) {
+      const fallback = new Map<AllDayEvent, number>();
+      fallback.set(this, 0);
+      return fallback;
+    }
+
+    const key = this.#stackCacheKey(renderedDays, rowIndex);
+    let parentCache = AllDayEvent.#stackIndexCache.get(parent);
+    if (!parentCache) {
+      parentCache = new Map();
+      AllDayEvent.#stackIndexCache.set(parent, parentCache);
+    }
+    const cached = parentCache.get(key);
+    if (cached) return cached;
+
+    const computed = this.#computeStackIndexMap(renderedDays, rowIndex);
+    parentCache.set(key, computed);
+    return computed;
+  }
+
+  #computeStackIndexMap(renderedDays: string[], rowIndex: number | null): Map<AllDayEvent, number> {
+    const result = new Map<AllDayEvent, number>();
+    const occupiedByDay = new Map<string, Set<number>>();
+
+    for (const sibling of this.siblings) {
+      const dayKeys =
+        rowIndex === null
+          ? sibling.#dayKeysForGlobalStack(renderedDays)
+          : sibling.#dayKeysForRowStack(renderedDays, rowIndex);
+      if (!dayKeys.length) {
+        result.set(sibling, 0);
+        continue;
+      }
+
+      const occupied = new Set<number>();
+      for (const key of dayKeys) {
+        const occupiedRows = occupiedByDay.get(key);
+        if (!occupiedRows) continue;
+        for (const row of occupiedRows) occupied.add(row);
+      }
+
+      const stackIndex = this.#findFirstFreeRow(occupied);
+      result.set(sibling, stackIndex);
+
+      for (const key of dayKeys) {
+        const occupiedRows = occupiedByDay.get(key) ?? new Set<number>();
+        occupiedRows.add(stackIndex);
+        occupiedByDay.set(key, occupiedRows);
+      }
+    }
+
+    return result;
+  }
+
+  #dayKeysForGlobalStack(renderedDays: string[]): string[] {
+    return this.#getVisibleDayKeys(renderedDays);
+  }
+
+  #dayKeysForRowStack(renderedDays: string[], rowIndex: number): string[] {
+    if (!this.daysPerRow || this.daysPerRow <= 0 || this.gridRows <= 0) {
+      return this.#dayKeysForGlobalStack(renderedDays);
+    }
+
+    const startDayIndex = rowIndex * this.daysPerRow;
+    const endDayIndex = Math.min(startDayIndex + this.daysPerRow, renderedDays.length);
+    const rowDayKeys = new Set(renderedDays.slice(startDayIndex, endDayIndex));
+
+    return this.days
+      .map((day) => day.toString())
+      .filter((key) => rowDayKeys.has(key));
+  }
+
+  #getVisibleDayKeys(renderedDays: string[]): string[] {
+    return this.days.map((day) => day.toString()).filter((day) => renderedDays.includes(day));
   }
 
   #getStackIndex(renderedDays: string[], options?: { ignoreLock?: boolean }): number {
     if (!options?.ignoreLock && this.#lockedStackIndex !== null) {
       return this.#lockedStackIndex;
     }
-
-    const referenceDay = this.#getReferenceDay(renderedDays);
-    if (!referenceDay) return 0;
-
-    const occupiedRows = this.#getOccupiedRowsForReferenceDay(referenceDay, renderedDays);
-    return this.#findFirstFreeRow(occupiedRows);
-  }
-
-  #getOccupiedRowsForReferenceDay(referenceDay: string, renderedDays: string[]): Set<number> {
-    const occupiedRows = new Set<number>();
-
-    for (const sibling of this.siblings) {
-      if (sibling === this) break;
-      const siblingDayKeys = sibling.days.map((day) => day.toString());
-      if (!siblingDayKeys.includes(referenceDay)) continue;
-
-      const siblingIndex = sibling.#getStackIndex(renderedDays);
-      occupiedRows.add(siblingIndex);
-    }
-
-    return occupiedRows;
+    const stackMap = this.#getStackIndexMap(renderedDays, null);
+    return stackMap.get(this) ?? 0;
   }
 
   #findFirstFreeRow(occupiedRows: Set<number>): number {
@@ -144,30 +213,8 @@ export class AllDayEvent extends BaseEvent {
     if (!this.daysPerRow || this.daysPerRow <= 0 || this.gridRows <= 0) {
       return this.#getStackIndex(renderedDays);
     }
-
-    // Always compute per-row during drag so the event keeps correct margin on each row (no lock here).
-
-    const startDayIndex = rowIndex * this.daysPerRow;
-    const endDayIndex = Math.min(startDayIndex + this.daysPerRow, renderedDays.length);
-    const rowDayKeys = renderedDays.slice(startDayIndex, endDayIndex);
-    const ourDaysOnRow = new Set(
-      this.days.map((d) => d.toString()).filter((key) => rowDayKeys.includes(key))
-    );
-    if (ourDaysOnRow.size === 0) return 0;
-
-    const occupied = new Set<number>();
-    for (const sibling of this.siblings) {
-      if (sibling === this) break;
-      const siblingDaysOnRow = sibling.days
-        .map((d) => d.toString())
-        .filter((key) => rowDayKeys.includes(key));
-      const overlaps = siblingDaysOnRow.some((key) => ourDaysOnRow.has(key));
-      if (!overlaps) continue;
-
-      occupied.add(sibling.#getStackIndexForRow(renderedDays, rowIndex));
-    }
-
-    return this.#findFirstFreeRow(occupied);
+    const stackMap = this.#getStackIndexMap(renderedDays, rowIndex);
+    return stackMap.get(this) ?? 0;
   }
 
   // All-day events always occupy the full width of the day column they belong to.
