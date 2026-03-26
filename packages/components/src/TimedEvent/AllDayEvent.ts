@@ -85,7 +85,8 @@ export class AllDayEvent extends BaseEvent {
       const aEnd = a.endDate?.toString() ?? "";
       const bEnd = b.endDate?.toString() ?? "";
       if (aEnd !== bEnd) {
-        return aEnd.localeCompare(bEnd);
+        // Prefer longer all-day spans when start date is equal.
+        return bEnd.localeCompare(aEnd);
       }
       return a.summary.localeCompare(b.summary);
     });
