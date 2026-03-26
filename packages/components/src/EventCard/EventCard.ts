@@ -73,6 +73,8 @@ export class EventCard extends BaseElement {
   }
 
   get #summaryClasses() {
+    const isRtl = this.dir === "rtl";
+    const inset = isRtl ? "right-[80px]" : "left-[80px]";
     return {
       "m-0": true,
       "text-xs": true,
@@ -83,6 +85,8 @@ export class EventCard extends BaseElement {
       "line-through": this.past,
       "decoration-[1.5px]": this.past,
       "opacity-80": this.past,
+      sticky: true,
+      [inset]: true,
     };
   }
 
