@@ -44,16 +44,6 @@
   color: var(--_lc-outside-month-day-color);
 }
 
-time.current-day,
-.day-label.current-day {
-  background-color: var(--_lc-current-day-color);
-  color: var(--_lc-current-day-text-color);
-}
-
-.day-label.current-day time {
-  color: inherit;
-}
-
 :host(:popover-open) {
   display: block;
   animation: day-overflow-popover-fade-in 140ms ease-out;
