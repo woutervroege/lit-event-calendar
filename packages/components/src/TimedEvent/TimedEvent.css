@@ -16,6 +16,8 @@
   --_lc-event-card-bg-default: var(--_lc-event-bg);
   --_lc-event-focus-ring-width: 0px;
   --_lc-event-focus-ring-color: transparent;
+  /* Allow native panning unless an interaction becomes active. */
+  --_lc-event-card-touch-action: pan-x pan-y;
 }
 
 /* Hover state for all segments when any segment is hovered. */

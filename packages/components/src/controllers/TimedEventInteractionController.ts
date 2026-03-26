@@ -86,12 +86,24 @@ export class TimedEventInteractionController {
       return;
     }
 
+    if (this.#activePointerType === "touch" && e.cancelable) {
+      // After long-press activation, block native scrolling while dragging/resizing.
+      e.preventDefault();
+    }
+
     if (this.#operation !== "move") {
       this.#handleResizePointerMove(e);
       return;
     }
 
     this.#handleMovePointerMove(e);
+  };
+
+  readonly #activeTouchMoveBlocker = (e: TouchEvent) => {
+    if (this.#activePointerType !== "touch") return;
+    if (e.cancelable) {
+      e.preventDefault();
+    }
   };
 
   readonly pointerUpHandler = (e: PointerEvent) => {
@@ -300,6 +312,10 @@ export class TimedEventInteractionController {
 
     window.addEventListener("pointermove", this.pointerMoveHandler, true);
     if (this.#activePointerType === "touch") {
+      window.addEventListener("touchmove", this.#activeTouchMoveBlocker, {
+        capture: true,
+        passive: false,
+      });
       this.#dispatchTouchInteractionActive(true);
     }
     if (this.#isDragging) {
@@ -696,6 +712,7 @@ export class TimedEventInteractionController {
     window.removeEventListener("pointerup", this.pointerUpHandler, true);
     window.removeEventListener("pointercancel", this.pointerCancelHandler, true);
     window.removeEventListener("pointermove", this.pointerMoveHandler, true);
+    window.removeEventListener("touchmove", this.#activeTouchMoveBlocker, true);
     this.#highlightedDayIndex = null;
     this.#highlightedTime = null;
     this.#dispatchDragHover(null);
@@ -730,6 +747,7 @@ export class TimedEventInteractionController {
     window.removeEventListener("pointerup", this.pointerUpHandler, true);
     window.removeEventListener("pointercancel", this.pointerCancelHandler, true);
     window.removeEventListener("pointermove", this.pointerMoveHandler, true);
+    window.removeEventListener("touchmove", this.#activeTouchMoveBlocker, true);
     if (this.#activePointerId !== undefined) {
       this.#pointerCaptureTarget?.releasePointerCapture(this.#activePointerId);
     }

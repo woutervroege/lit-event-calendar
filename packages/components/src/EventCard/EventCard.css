@@ -2,7 +2,7 @@
   position: absolute;
   width: 100%;
   container-type: size;
-  touch-action: none;
+  touch-action: var(--_lc-event-card-touch-action, none);
   --_lc-event-card-bg: var(
     --_lc-event-card-bg-active,
     var(--_lc-event-card-bg-default, var(--_lc-event-bg))
