@@ -50,7 +50,6 @@ export class CalendarView extends BaseElement {
   declare events?: EventsMap;
   variant: "timed" | "all-day" = "timed";
   labelsHidden = false;
-  layoutPassthrough = false;
   rtl = false;
   #dragHoverDayIndex: number | null = null;
   #dragHoverTime: Temporal.PlainTime | null = null;
@@ -157,7 +156,6 @@ export class CalendarView extends BaseElement {
         },
       },
       labelsHidden: { type: Boolean, attribute: "labels-hidden", reflect: true },
-      layoutPassthrough: { type: Boolean, attribute: "layout-passthrough", reflect: true },
       rtl: { type: Boolean, reflect: true },
       locale: { type: String },
       timezone: { type: String },
