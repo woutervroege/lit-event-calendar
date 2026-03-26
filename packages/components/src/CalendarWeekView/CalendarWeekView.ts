@@ -1,11 +1,11 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
+import { ifDefined } from "lit/directives/if-defined.js";
 import "../CalendarView/CalendarView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import { getLocaleDirection, getLocaleWeekInfo } from "../utils/Locale.js";
-import { getHourlyTimeLabels } from "../utils/TimeFormatting.js";
 import componentStyle from "./CalendarWeekView.css?inline";
 
 type EventInput = {
@@ -173,64 +173,76 @@ export class CalendarWeekView extends BaseElement {
     const clampedVisibleHours = Math.max(1, Math.min(24, Math.floor(Number(this.visibleHours) || 12)));
     const timedHeightFactor = 24 / clampedVisibleHours;
     const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
-    const timedSidebarLabels = getHourlyTimeLabels(this.locale, 24);
-    const timedSidebarRows = timedSidebarLabels.map(
-      (label) => html`<div class="timed-sidebar-label-row" data-hour-label=${label} aria-hidden="true"></div>`
-    );
+    const snapPoints = this.daysPerWeek + 1;
+    const snapRows = 24;
 
     return html`
-      <div class="week-layout" dir=${direction} style=${`--_lc-week-days: ${this.daysPerWeek};`}>
-        <div class="weekday-sidebar-spacer" aria-hidden="true"></div>
-        <calendar-weekday-header
-          class="weekday-header"
-          .locale=${this.locale}
-          .weekStart=${this.weekStart}
-          .days=${this.daysPerWeek}
-        ></calendar-weekday-header>
-        <div class="all-day-sidebar-label" aria-hidden="true">All-day</div>
-        <calendar-view
-          class="all-day"
-          start-date=${this.startDate.toString()}
-          .days=${this.daysPerWeek}
-          variant="all-day"
-          .events=${this.#allDayEvents}
-          .rtl=${this.rtl}
-          .locale=${this.locale}
-          .timezone=${this.timezone}
-          .currentTime=${this.currentTime}
-          .snapInterval=${this.snapInterval}
-          .labelsHidden=${false}
-          @event-modified=${this.#reemit}
-          @event-deleted=${this.#reemit}
-        ></calendar-view>
-        <div class="timed-scroll">
-          <div class="timed-content" style=${`--_lc-week-timed-height-factor: ${timedHeightFactor};`}>
-            <div class="timed-sidebar" aria-hidden="true">${timedSidebarRows}</div>
+      <div
+        class="combined-week-scroll-root"
+        dir=${direction}
+        style=${`--_lc-combined-days: ${this.daysPerWeek}; --_lc-combined-timed-height-factor: ${timedHeightFactor};`}
+      >
+        <div class="combined-week-grid-canvas">
+          <header class="combined-week-header">
+            <aside class="combined-week-header-sidebar" aria-hidden="true">All-day</aside>
+            <section class="combined-week-header-main">
+              <calendar-weekday-header
+                .locale=${this.locale}
+                .weekStart=${this.weekStart}
+                .days=${this.daysPerWeek}
+              ></calendar-weekday-header>
+              <calendar-view
+                class="combined-week-all-day-view"
+                ?layout-passthrough=${true}
+                start-date=${this.startDate.toString()}
+                days=${String(this.daysPerWeek)}
+                variant="all-day"
+                .events=${this.#allDayEvents}
+                .rtl=${this.rtl}
+                locale=${ifDefined(this.locale)}
+                timezone=${ifDefined(this.timezone)}
+                current-time=${ifDefined(this.currentTime)}
+                .snapInterval=${this.snapInterval}
+                .labelsHidden=${false}
+                @day-selection-requested=${this.#reemit}
+                @event-modified=${this.#reemit}
+                @event-deleted=${this.#reemit}
+              ></calendar-view>
+            </section>
+          </header>
+
+          <main class="combined-week-main">
+            <div class="combined-week-snap-overlay" aria-hidden="true">
+              <div
+                class="combined-week-snap-grid"
+                style=${`--_lc-combined-snap-days: ${this.daysPerWeek}; --_lc-combined-snap-rows: ${snapRows};`}
+              >
+                ${Array.from(
+                  { length: snapPoints * snapRows },
+                  () => html`<span class="combined-week-snap-cell"></span>`
+                )}
+              </div>
+            </div>
             <calendar-view
-              class="timed"
+              class="combined-week-timed-view"
+              ?layout-passthrough=${true}
               start-date=${this.startDate.toString()}
-              .days=${this.daysPerWeek}
+              days=${String(this.daysPerWeek)}
               variant="timed"
               .events=${this.#timedEvents}
               .rtl=${this.rtl}
-              .locale=${this.locale}
-              .timezone=${this.timezone}
-              .currentTime=${this.currentTime}
+              locale=${ifDefined(this.locale)}
+              timezone=${ifDefined(this.timezone)}
+              current-time=${ifDefined(this.currentTime)}
               .snapInterval=${this.snapInterval}
-              .labelsHidden=${true}
+              .visibleHours=${this.visibleHours}
+              .labelsHidden=${false}
               @event-modified=${this.#reemit}
               @event-deleted=${this.#reemit}
             ></calendar-view>
-          </div>
-        </div>
-        <div class="week-snap-track" aria-hidden="true">
-          ${Array.from(
-            { length: this.daysPerWeek + 1 },
-            () => html`<span class="week-snap-point"></span>`
-          )}
+          </main>
         </div>
       </div>
-      <div class="week-divider" aria-hidden="true"></div>
     `;
   }
 

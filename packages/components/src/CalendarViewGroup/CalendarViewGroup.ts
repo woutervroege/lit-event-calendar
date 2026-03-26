@@ -2,13 +2,11 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { cache } from "lit/directives/cache.js";
-import { ifDefined } from "lit/directives/if-defined.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import "../CalendarView/CalendarView.js";
-import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../CalendarMonthView/CalendarMonthView.js";
+import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
-import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
+import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 
 export type CalendarViewMode = "day" | "week" | "month" | "year";
@@ -229,7 +227,23 @@ export class CalendarViewGroup extends BaseElement {
     if (view === "day" || view === "week") {
       const startDate = view === "day" ? this.#resolvedStartDate : this.#weekStartDate;
       const daysPerWeek = view === "day" ? 1 : this.daysPerWeek;
-      return this.#renderCombinedWeekView(startDate, daysPerWeek);
+      return html`
+        <calendar-week-view
+          start-date=${startDate.toString()}
+          .weekStart=${this.weekStart}
+          .daysPerWeek=${daysPerWeek}
+          .events=${this.events}
+          .rtl=${this.rtl}
+          .locale=${this.locale}
+          .timezone=${this.timezone}
+          .currentTime=${this.currentTime}
+          .snapInterval=${this.snapInterval}
+          .visibleHours=${this.visibleHours}
+          @day-selection-requested=${this.#handleDaySelectionRequested}
+          @event-modified=${this.#reemit}
+          @event-deleted=${this.#reemit}
+        ></calendar-week-view>
+      `;
     }
 
     if (view === "year") {
@@ -262,138 +276,6 @@ export class CalendarViewGroup extends BaseElement {
         @event-deleted=${this.#reemit}
       ></calendar-month-view>
     `;
-  }
-
-  get #weekEvents(): EventsMap {
-    const entries = Array.from(this.events?.entries() ?? []);
-    return new Map(
-      entries.map(([id, event]) => [
-        id,
-        {
-          ...event,
-          start: this.#toTemporalDateLike(event.start),
-          end: this.#toTemporalDateLike(event.end),
-        },
-      ])
-    );
-  }
-
-  #renderCombinedWeekView(startDate: Temporal.PlainDate, daysPerWeek: number) {
-    const clampedVisibleHours = Math.max(1, Math.min(24, Math.floor(Number(this.visibleHours) || 12)));
-    const timedHeightFactor = 24 / clampedVisibleHours;
-    const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
-    const snapPoints = daysPerWeek + 1;
-    const snapRows = 24;
-    const eventEntries = Array.from(this.#weekEvents.entries());
-    const allDayEvents = new Map(eventEntries.filter(([, event]) => this.#isAllDayEvent(event)));
-    const timedEvents = new Map(eventEntries.filter(([, event]) => this.#isTimedEvent(event)));
-
-    return html`
-      <div
-        class="combined-week-scroll-root"
-        dir=${direction}
-        style=${`--_lc-combined-days: ${daysPerWeek}; --_lc-combined-timed-height-factor: ${timedHeightFactor};`}
-      >
-        <div class="combined-week-grid-canvas">
-          <header class="combined-week-header">
-            <aside class="combined-week-header-sidebar" aria-hidden="true">All-day</aside>
-            <section class="combined-week-header-main">
-              <calendar-weekday-header
-                .locale=${this.locale}
-                .weekStart=${this.weekStart}
-                .days=${daysPerWeek}
-              ></calendar-weekday-header>
-              <calendar-view
-                class="combined-week-all-day-view"
-                ?layout-passthrough=${true}
-                start-date=${startDate.toString()}
-                days=${String(daysPerWeek)}
-                variant="all-day"
-                .events=${allDayEvents}
-                .rtl=${this.rtl}
-                locale=${ifDefined(this.locale)}
-                timezone=${ifDefined(this.timezone)}
-                current-time=${ifDefined(this.currentTime)}
-                .snapInterval=${this.snapInterval}
-                .labelsHidden=${false}
-                @day-selection-requested=${this.#handleDaySelectionRequested}
-                @event-modified=${this.#reemit}
-                @event-deleted=${this.#reemit}
-              ></calendar-view>
-            </section>
-          </header>
-
-          <main class="combined-week-main">
-            <div class="combined-week-snap-overlay" aria-hidden="true">
-              <div
-                class="combined-week-snap-grid"
-                style=${`--_lc-combined-snap-days: ${daysPerWeek}; --_lc-combined-snap-rows: ${snapRows};`}
-              >
-                ${Array.from({ length: snapPoints * snapRows }, () => html`<span class="combined-week-snap-cell"></span>`)}
-              </div>
-            </div>
-            <calendar-view
-              class="combined-week-timed-view"
-              ?layout-passthrough=${true}
-              start-date=${startDate.toString()}
-              days=${String(daysPerWeek)}
-              variant="timed"
-              .events=${timedEvents}
-              .rtl=${this.rtl}
-              locale=${ifDefined(this.locale)}
-              timezone=${ifDefined(this.timezone)}
-              current-time=${ifDefined(this.currentTime)}
-              .snapInterval=${this.snapInterval}
-              .visibleHours=${this.visibleHours}
-              .labelsHidden=${false}
-              @event-modified=${this.#reemit}
-              @event-deleted=${this.#reemit}
-            ></calendar-view>
-          </main>
-        </div>
-      </div>
-    `;
-  }
-
-  #isAllDayEvent(event: EventInput): boolean {
-    return this.#isDateOnlyValue(event.start) || this.#isDateOnlyValue(event.end);
-  }
-
-  #isTimedEvent(event: EventInput): boolean {
-    if (this.#isAllDayEvent(event)) return false;
-    return (
-      (typeof event.start === "string" && event.start.includes("T")) ||
-      (typeof event.end === "string" && event.end.includes("T")) ||
-      event.start instanceof Temporal.PlainDateTime ||
-      event.start instanceof Temporal.ZonedDateTime ||
-      event.end instanceof Temporal.PlainDateTime ||
-      event.end instanceof Temporal.ZonedDateTime
-    );
-  }
-
-  #isDateOnlyValue(value: EventInput["start"]): boolean {
-    if (value instanceof Temporal.PlainDate) return true;
-    if (value instanceof Temporal.PlainDateTime || value instanceof Temporal.ZonedDateTime) return false;
-    return !value.includes("T");
-  }
-
-  #toTemporalDateLike(
-    value: EventInput["start"]
-  ): Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime {
-    if (
-      value instanceof Temporal.PlainDate ||
-      value instanceof Temporal.PlainDateTime ||
-      value instanceof Temporal.ZonedDateTime
-    ) {
-      return value;
-    }
-    if (!value.includes("T")) {
-      return Temporal.PlainDate.from(value);
-    }
-    if (value.includes("[") && value.includes("]")) {
-      return Temporal.ZonedDateTime.from(value);
-    }
-    return Temporal.PlainDateTime.from(value);
   }
 
   #handleDaySelectionRequested = (event: Event) => {
