@@ -58,10 +58,27 @@ export class EventCard extends BaseElement {
 
   render() {
     const hasTimeLabel = Boolean(this.time?.trim() || this.timeDetail?.trim());
+    const time = this.time?.trim();
+    const timeDetail = this.timeDetail?.trim();
+    const compactTime = time?.split(" - ")[0]?.trim() ?? "";
+    const compactTimeLabel = [compactTime, timeDetail ? `(${timeDetail})` : ""]
+      .filter(Boolean)
+      .join(" ");
     return html`
           <div class=${classMap(this.#cardClasses)} dir="${this.dir}">
               ${this.past ? html`<span class="sr-only">Past event.</span>` : ""}
               <h6 class=${classMap(this.#summaryClasses)}>
+                <span class=${classMap(this.#compactLabelClasses)}>
+                  ${
+                    hasTimeLabel
+                      ? html`
+                          <span class="event-card-compact-time">${compactTimeLabel}</span>
+                          <span aria-hidden="true"> </span>
+                        `
+                      : ""
+                  }
+                  <span>${this.summary}</span>
+                </span>
                 <span class=${classMap(this.#summaryMainClasses)}>${this.summary}</span>
                 ${
                   hasTimeLabel
@@ -81,6 +98,16 @@ export class EventCard extends BaseElement {
               <slot></slot>
           </div>
         `;
+  }
+
+  get #compactLabelClasses() {
+    return {
+      "event-card-compact-label": true,
+      "min-w-0": true,
+      "max-w-full": true,
+      hidden: true,
+      truncate: true,
+    };
   }
 
   get #summaryClasses() {

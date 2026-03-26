@@ -56,35 +56,33 @@
   margin-top: 2px;
 }
 
+:host .event-card-compact-label {
+  display: none;
+}
+
+:host .event-card-compact-time {
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Compact cards: keep summary + time on a single row. */
 @container (max-height: 47px) {
   :host .event-card-heading {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: baseline;
-    gap: 4px;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  :host .event-card-summary-main {
-    order: 2;
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  :host .event-card-time {
-    order: 1;
-    display: inline-flex;
-    align-items: baseline;
-    gap: 4px;
-    margin-top: 0;
-    flex: 0 1 auto;
-    min-width: 0;
-  }
-
-  :host .event-card-time-main,
-  :host .event-card-time-detail {
+  :host .event-card-compact-label {
+    display: block;
     min-width: 0;
     max-width: 100%;
+  }
+
+  :host .event-card-summary-main,
+  :host .event-card-time {
+    display: none;
   }
 }
 
