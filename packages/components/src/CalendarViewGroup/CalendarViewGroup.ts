@@ -35,6 +35,7 @@ export class CalendarViewGroup extends BaseElement {
   #startDate?: string;
   weekStart?: WeekdayNumber;
   #daysPerWeek = 7;
+  #visibleDays?: number;
   declare events?: EventsMap;
   locale?: string;
   timezone?: string;
@@ -59,6 +60,10 @@ export class CalendarViewGroup extends BaseElement {
       daysPerWeek: {
         type: Number,
         attribute: "days-per-week",
+      },
+      visibleDays: {
+        type: Number,
+        attribute: "visible-days",
       },
       events: {
         type: Object,
@@ -115,6 +120,22 @@ export class CalendarViewGroup extends BaseElement {
     const numeric = Number(rawValue);
     const nextValue = Number.isFinite(numeric) ? Math.max(1, Math.min(7, Math.floor(numeric))) : 7;
     this.#daysPerWeek = nextValue;
+  }
+
+  get visibleDays(): number | undefined {
+    return this.#visibleDays;
+  }
+
+  set visibleDays(value: number | string | null | undefined) {
+    if (value === null || value === undefined || value === "") {
+      this.#visibleDays = undefined;
+      return;
+    }
+    const rawValue = typeof value === "string" ? Number(value) : value;
+    const numeric = Number(rawValue);
+    this.#visibleDays = Number.isFinite(numeric)
+      ? Math.max(1, Math.min(7, Math.floor(numeric)))
+      : undefined;
   }
 
   get month(): number {
@@ -231,6 +252,7 @@ export class CalendarViewGroup extends BaseElement {
           start-date=${startDate.toString()}
           .weekStart=${this.weekStart}
           .daysPerWeek=${daysPerWeek}
+          .visibleDays=${this.visibleDays}
           .events=${this.events}
           .rtl=${this.rtl}
           .locale=${this.locale}

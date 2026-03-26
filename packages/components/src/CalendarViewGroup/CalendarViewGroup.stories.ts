@@ -46,6 +46,25 @@ const meta: Meta = {
       options: [1, 2, 3, 4, 5, 6, 7],
     },
     daysPerWeek: { control: { type: "number", min: 1, max: 7, step: 1 } },
+    visibleDays: {
+      control: {
+        type: "select",
+        labels: {
+          auto: "auto (responsive)",
+        },
+      },
+      options: ["auto", "1", "2", "3", "4", "5", "6", "7"],
+      mapping: {
+        auto: undefined,
+        1: 1,
+        2: 2,
+        3: 3,
+        4: 4,
+        5: 5,
+        6: 6,
+        7: 7,
+      },
+    },
     locale: {
       control: "select",
       options: localeOptions,
@@ -84,6 +103,11 @@ const meta: Meta = {
       el.setAttribute("week-start", String(args.weekStart));
     }
     el.setAttribute("days-per-week", String(args.daysPerWeek));
+    if (typeof args.visibleDays === "number") {
+      el.setAttribute("visible-days", String(args.visibleDays));
+    } else {
+      el.removeAttribute("visible-days");
+    }
     if (args.locale) {
       el.setAttribute("locale", args.locale);
     }

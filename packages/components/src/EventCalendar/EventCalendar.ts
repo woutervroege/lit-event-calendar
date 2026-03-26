@@ -69,6 +69,7 @@ export class EventCalendar extends BaseElement {
   #view: CalendarViewMode = "month";
   #startDate?: string;
   #daysPerWeek = 7;
+  #visibleDays?: number;
   #rangeLabelText = "";
   weekStart?: WeekdayNumber;
   declare events?: EventsMap;
@@ -95,6 +96,10 @@ export class EventCalendar extends BaseElement {
       daysPerWeek: {
         type: Number,
         attribute: "days-per-week",
+      },
+      visibleDays: {
+        type: Number,
+        attribute: "visible-days",
       },
       events: {
         type: Object,
@@ -149,6 +154,27 @@ export class EventCalendar extends BaseElement {
     const nextValue = Number.isFinite(numeric) ? Math.max(1, Math.min(7, Math.floor(numeric))) : 7;
     if (this.#daysPerWeek === nextValue) return;
     this.#daysPerWeek = nextValue;
+    this.requestUpdate();
+  }
+
+  get visibleDays(): number | undefined {
+    return this.#visibleDays;
+  }
+
+  set visibleDays(value: number | string | null | undefined) {
+    const rawValue = typeof value === "string" ? Number(value) : value;
+    if (value === null || value === undefined || value === "") {
+      if (this.#visibleDays === undefined) return;
+      this.#visibleDays = undefined;
+      this.requestUpdate();
+      return;
+    }
+    const numeric = Number(rawValue);
+    const nextValue = Number.isFinite(numeric)
+      ? Math.max(1, Math.min(7, Math.floor(numeric)))
+      : undefined;
+    if (this.#visibleDays === nextValue) return;
+    this.#visibleDays = nextValue;
     this.requestUpdate();
   }
 
@@ -262,6 +288,7 @@ export class EventCalendar extends BaseElement {
           start-date=${ifDefined(this.#startDate)}
           .weekStart=${this.weekStart}
           .daysPerWeek=${this.daysPerWeek}
+          .visibleDays=${this.visibleDays}
           .events=${this.events}
           .locale=${this.locale}
           .timezone=${this.timezone}
