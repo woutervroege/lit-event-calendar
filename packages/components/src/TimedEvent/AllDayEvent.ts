@@ -368,6 +368,8 @@ export class AllDayEvent extends BaseEvent {
         class="interaction-surface m-0 text-0 relative w-full h-full border-none bg-none outline-none p-0"
         role="group"
         tabindex=${isFocusable ? "0" : "-1"}
+        aria-hidden=${isFocusable ? "false" : "true"}
+        ?inert=${!isFocusable}
         aria-label=${this.#interactionLabel}
         aria-describedby=${this.#keyboardHintId}
         aria-keyshortcuts="Control+Meta+ArrowUp Control+Meta+ArrowDown Control+Meta+ArrowLeft Control+Meta+ArrowRight Control+Shift+ArrowUp Control+Shift+ArrowDown"

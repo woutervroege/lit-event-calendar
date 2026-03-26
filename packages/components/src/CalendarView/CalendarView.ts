@@ -824,9 +824,16 @@ export class CalendarView extends BaseElement {
     const top = rowIndex * rowHeightPx + indicatorOffsetWithinRowPx;
     const cellWidth = 100 / cols;
     const inlineInsetPx = 6;
+    const day = this.days[dayIndex];
+    if (!day) return null;
     const formattedHiddenCount = new Intl.NumberFormat(this.locale).format(hiddenCount);
     const label = `+${formattedHiddenCount}`;
-    const accessibilityLabel = label;
+    const fullDateLabel = new Intl.DateTimeFormat(this.locale, { dateStyle: "full" }).format(
+      new Date(Date.UTC(day.year, day.month - 1, day.day))
+    );
+    const accessibilityLabel = `${formattedHiddenCount} more ${
+      hiddenCount === 1 ? "event" : "events"
+    } on ${fullDateLabel}`;
     const anchorLeft = !this.#isRtl;
     const left = anchorLeft
       ? `calc(${cellLeft}% + ${inlineInsetPx}px)`
@@ -848,6 +855,8 @@ export class CalendarView extends BaseElement {
         style=${styleMap(buttonStyle)}
         aria-label=${accessibilityLabel}
         tabindex="0"
+        @click=${(event: MouseEvent) => this.#handleDayLabelClick(day, dayIndex, event)}
+        @keydown=${(event: KeyboardEvent) => this.#handleDayLabelKeyDown(day, dayIndex, event)}
       >
         ${label}
       </button>
