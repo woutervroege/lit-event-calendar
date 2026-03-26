@@ -78,6 +78,7 @@ export class CalendarView extends BaseElement {
   #cachedEventEntriesSource?: EventsMap;
   #cachedEventEntries: EventEntry[] = [];
   #instanceToken = Math.random().toString(36).slice(2, 10);
+  #activeOverflowPopoverId: string | null = null;
 
   get #sortedEvents(): EventEntry[] {
     const events = this.#eventsForVariant;
@@ -881,6 +882,7 @@ export class CalendarView extends BaseElement {
           popovertarget=${popoverId}
           popovertargetaction="toggle"
           tabindex="0"
+          @click=${() => this.#prepareOverflowPopover(popoverId)}
         >
           ${label}
         </button>
@@ -895,7 +897,8 @@ export class CalendarView extends BaseElement {
     dayIndex: number,
     anchorName: string
   ): TemplateResult {
-    const dayEvents = this.#eventsForDay(day);
+    const shouldRenderContent = this.#activeOverflowPopoverId === popoverId;
+    const dayEvents = shouldRenderContent ? this.#eventsForDay(day) : [];
     const fullDateLabel = new Intl.DateTimeFormat(this.locale, { dateStyle: "full" }).format(
       new Date(Date.UTC(day.year, day.month - 1, day.day))
     );
@@ -926,6 +929,7 @@ export class CalendarView extends BaseElement {
         ?outside-visible-month=${outsideVisibleMonth}
         ?is-weekend=${this.#weekendDays.has(day.dayOfWeek)}
         .events=${popoverEvents}
+        @toggle=${this.#handleOverflowPopoverToggle}
         @update=${this.#handleEventUpdate}
         @delete=${this.#handleEventDelete}
       ></day-overflow-popover>
@@ -1105,6 +1109,28 @@ export class CalendarView extends BaseElement {
     const weekday = weekdayFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)));
     return `${weekday} ${monthPrefix}${dayFormatter.format(day.day)}`;
   }
+
+  #prepareOverflowPopover(popoverId: string) {
+    if (this.#activeOverflowPopoverId === popoverId) return;
+    this.#activeOverflowPopoverId = popoverId;
+    this.requestUpdate();
+  }
+
+  #handleOverflowPopoverToggle = (event: Event) => {
+    const target = event.currentTarget as HTMLElement | null;
+    if (!target?.id) return;
+    const toggleEvent = event as Event & { newState?: "open" | "closed" };
+    if (toggleEvent.newState === "open") {
+      if (this.#activeOverflowPopoverId === target.id) return;
+      this.#activeOverflowPopoverId = target.id;
+      this.requestUpdate();
+      return;
+    }
+    if (toggleEvent.newState === "closed" && this.#activeOverflowPopoverId === target.id) {
+      this.#activeOverflowPopoverId = null;
+      this.requestUpdate();
+    }
+  };
 
   #renderCurrentTimeIndicator() {
     const days = this.days;
