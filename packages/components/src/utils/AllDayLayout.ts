@@ -18,7 +18,6 @@ type PlacedRowSegment = RowSegment & {
 
 type PlacedEvent = {
   id: string;
-  firstVisibleDayIndex: number;
   segments: PlacedRowSegment[];
 };
 
@@ -26,6 +25,7 @@ export type AllDayLayout = {
   placedEvents: PlacedEvent[];
   activeCountsByDay: Map<number, number>;
   maxEventsOnAnyDay: number;
+  daysPerRow: number;
 };
 
 export function buildAllDayLayout({
@@ -39,7 +39,7 @@ export function buildAllDayLayout({
 }): AllDayLayout {
   const activeCountsByDay = new Map<number, number>();
   if (!renderedDays.length || daysPerRow <= 0 || !items.length) {
-    return { placedEvents: [], activeCountsByDay, maxEventsOnAnyDay: 0 };
+    return { placedEvents: [], activeCountsByDay, maxEventsOnAnyDay: 0, daysPerRow };
   }
 
   const placedEvents: PlacedEvent[] = [];
@@ -82,12 +82,11 @@ export function buildAllDayLayout({
 
     placedEvents.push({
       id: item.id,
-      firstVisibleDayIndex: range.startIndex,
       segments: placedSegments,
     });
   }
 
-  return { placedEvents, activeCountsByDay, maxEventsOnAnyDay };
+  return { placedEvents, activeCountsByDay, maxEventsOnAnyDay, daysPerRow };
 }
 
 export function computeHiddenAllDayCountsByDay(
@@ -98,12 +97,17 @@ export function computeHiddenAllDayCountsByDay(
   if (!Number.isFinite(maxVisibleRows)) return hiddenCountsByDay;
 
   for (const eventLayout of layout.placedEvents) {
-    const isHidden = eventLayout.segments.some((segment) => segment.stackIndex >= maxVisibleRows);
-    if (!isHidden) continue;
-    hiddenCountsByDay.set(
-      eventLayout.firstVisibleDayIndex,
-      (hiddenCountsByDay.get(eventLayout.firstVisibleDayIndex) ?? 0) + 1
+    const hiddenSegments = eventLayout.segments.filter(
+      (segment) => segment.stackIndex >= maxVisibleRows
     );
+    if (!hiddenSegments.length) continue;
+
+    for (const segment of hiddenSegments) {
+      for (let colIndex = segment.startColIndex; colIndex <= segment.endColIndex; colIndex += 1) {
+        const dayIndex = segment.rowIndex * layout.daysPerRow + colIndex;
+        hiddenCountsByDay.set(dayIndex, (hiddenCountsByDay.get(dayIndex) ?? 0) + 1);
+      }
+    }
   }
 
   return hiddenCountsByDay;
