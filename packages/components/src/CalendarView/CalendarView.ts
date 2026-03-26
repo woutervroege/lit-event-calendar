@@ -916,9 +916,17 @@ export class CalendarView extends BaseElement {
           })}
         >
           ${this.#renderPopoverDayNumber(day, dayIndex)}
-          ${dayEvents.map(([id, event]) =>
-            this.#renderDayOverflowPopoverEvent(id, event, day)
-          )}
+          ${
+            dayEvents.length
+              ? html`
+                  <div class="day-overflow-popover-events">
+                    ${dayEvents.map(([id, event]) =>
+                      this.#renderDayOverflowPopoverEvent(id, event, day)
+                    )}
+                  </div>
+                `
+              : ""
+          }
         </div>
       </section>
     `;
@@ -1109,27 +1117,29 @@ export class CalendarView extends BaseElement {
 
   #renderDayOverflowPopoverEvent(id: string, event: EventInput, day: Temporal.PlainDate): TemplateResult {
     return html`
-      ${keyed(
-        `popover-${id}-${day.toString()}`,
-        html`
-          <all-day-event
-            event-id=${id}
-            start=${this.#toEventDateTimeString(event.start)}
-            end=${this.#toEventDateTimeString(event.end)}
-            summary=${event.summary}
-            color=${event.color}
-            style=${styleMap({
-              "inset-inline": "var(--_lc-popover-cell-padding)",
-            })}
-            ?hidden=${this.#optimisticallyDeletingEventIds.has(id)}
-            ?inert=${true}
-            .renderedDays=${[day]}
-            .daysPerRow=${1}
-            .gridRows=${1}
-            .maxVisibleRows=${Number.POSITIVE_INFINITY}
-          ></all-day-event>
-        `
-      )}
+      <div class="day-overflow-popover-event">
+        ${keyed(
+          `popover-${id}-${day.toString()}`,
+          html`
+            <all-day-event
+              event-id=${id}
+              start=${this.#toEventDateTimeString(event.start)}
+              end=${this.#toEventDateTimeString(event.end)}
+              summary=${event.summary}
+              color=${event.color}
+              style=${styleMap({
+                "--_lc-all-day-day-number-space": "0px",
+              })}
+              ?hidden=${this.#optimisticallyDeletingEventIds.has(id)}
+              ?inert=${true}
+              .renderedDays=${[day]}
+              .daysPerRow=${1}
+              .gridRows=${1}
+              .maxVisibleRows=${Number.POSITIVE_INFINITY}
+            ></all-day-event>
+          `
+        )}
+      </div>
     `;
   }
 
