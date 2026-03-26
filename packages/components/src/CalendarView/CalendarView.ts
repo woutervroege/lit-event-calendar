@@ -852,7 +852,7 @@ export class CalendarView extends BaseElement {
       top: `${top}px`,
       height: `${indicatorHeightPx}px`,
       "min-width": `${indicatorHeightPx}px`,
-      width: `calc(${cellWidth}% - ${inlineInsetPx + inlineEndInsetPx}px)`,
+      "max-width": `calc(${cellWidth}% - ${inlineInsetPx + inlineEndInsetPx}px)`,
     };
     if (!anchorLeft) {
       buttonStyle.transform = "translateX(-100%)";
@@ -898,10 +898,9 @@ export class CalendarView extends BaseElement {
   }
 
   #renderOverflowDots(colors: string[], hiddenCount: number): TemplateResult {
-    const maxDots = 4;
-    const shownColors = colors.slice(0, maxDots);
+    const shownColors = colors.slice(0, hiddenCount);
     const hasColors = shownColors.length > 0;
-    const fallbackDots = Math.min(hiddenCount, maxDots);
+    const fallbackDots = hiddenCount;
     return html`
       <span class="day-overflow-dots" aria-hidden="true">
         ${
@@ -1432,7 +1431,7 @@ export class CalendarView extends BaseElement {
       const colors: string[] = [];
       for (const id of ids) {
         const color = eventColorsById.get(id);
-        if (!color || colors.includes(color)) continue;
+        if (!color) continue;
         colors.push(color);
       }
       if (colors.length) {
