@@ -213,7 +213,6 @@ time.current-day,
 .day-overflow-popover {
   --_lc-overflow-popover-gap: 8px;
   margin: 0;
-  margin-block: var(--_lc-overflow-popover-gap);
   inset: auto;
   border-radius: 12px;
   border: 0;
@@ -229,7 +228,9 @@ time.current-day,
   padding: 0;
   z-index: 120;
   position: fixed;
-  position-area: block-end center;
+  top: calc(anchor(bottom) + var(--_lc-overflow-popover-gap));
+  left: anchor(center);
+  translate: -50% 0;
   position-try-fallbacks: flip-block, flip-inline;
   height: auto;
   --_lc-popover-day-number-space: calc(var(--_lc-all-day-day-number-space) - 6px);

@@ -849,6 +849,8 @@ export class CalendarView extends BaseElement {
       buttonStyle.transform = "translateX(-100%)";
     }
     const popoverId = `day-overflow-popover-${this.#instanceToken}-${dayIndex}`;
+    const anchorName = `--day-overflow-anchor-${this.#instanceToken}-${dayIndex}`;
+    buttonStyle["anchor-name"] = anchorName;
 
     if (!this.#isMonthView) {
       return html`
@@ -880,7 +882,7 @@ export class CalendarView extends BaseElement {
         >
           ${label}
         </button>
-        ${this.#renderDayOverflowPopover(popoverId, day, dayIndex)}
+        ${this.#renderDayOverflowPopover(popoverId, day, dayIndex, anchorName)}
       </div>
     `;
   }
@@ -888,7 +890,8 @@ export class CalendarView extends BaseElement {
   #renderDayOverflowPopover(
     popoverId: string,
     day: Temporal.PlainDate,
-    dayIndex: number
+    dayIndex: number,
+    anchorName: string
   ): TemplateResult {
     const dayEvents = this.#eventsForDay(day);
     const eventRows = Math.max(1, dayEvents.length);
@@ -903,6 +906,9 @@ export class CalendarView extends BaseElement {
         popover="auto"
         role="dialog"
         aria-label=${`Events on ${fullDateLabel}`}
+        style=${styleMap({
+          "position-anchor": anchorName,
+        })}
       >
         <div
           class="day-overflow-popover-cell ${this.#weekendDays.has(day.dayOfWeek)
