@@ -3,7 +3,10 @@
   width: 100%;
   container-type: size;
   touch-action: none;
-  --_lc-event-card-bg: var(--_lc-event-card-bg-active, var(--_lc-event-card-bg-default, var(--_lc-event-bg)));
+  --_lc-event-card-bg: var(
+    --_lc-event-card-bg-active,
+    var(--_lc-event-card-bg-default, var(--_lc-event-bg))
+  );
   --_lc-event-card-text-color: var(--_lc-event-text-color, CanvasText);
   --_lc-event-card-accent-color: var(--_lc-event-accent-color, CanvasText);
   --_lc-event-focus-ring-width: 0px;
@@ -12,16 +15,12 @@
 }
 
 :host > div {
-  width: max(
-    0px,
-    calc(
-      (100% / var(--_lc-days)) * var(--_lc-width) -
-        var(--_lc-indentation, 0px)
-    )
-  );
+  width: max(0px, calc((100% / var(--_lc-days)) * var(--_lc-width) - var(--_lc-indentation, 0px)));
   inset-inline-start: var(--_lc-left);
   margin-inline-start: calc(
-    (100% / var(--_lc-days)) * var(--_lc-margin-left) + var(--_lc-indentation, 0px)
+    (100% / var(--_lc-days)) *
+    var(--_lc-margin-left) +
+    var(--_lc-indentation, 0px)
   );
   z-index: var(--_lc-z-index, 1);
   transform: scale(var(--event-card-scale, 1));
@@ -31,6 +30,16 @@
 :host > div::before {
   outline: var(--_lc-event-focus-ring-width) solid var(--_lc-event-focus-ring-color);
   outline-offset: var(--_lc-event-focus-ring-gap);
+}
+
+:host([segment-direction="horizontal"]) h6.sticky {
+  left: var(--_lc-time-sidebar-width);
+  right: auto;
+}
+
+:host([segment-direction="horizontal"]) > div[dir="rtl"] h6.sticky {
+  left: auto;
+  right: var(--_lc-time-sidebar-width);
 }
 
 @container (max-height: 12px) {

@@ -73,20 +73,18 @@ export class EventCard extends BaseElement {
   }
 
   get #summaryClasses() {
-    const isRtl = this.dir === "rtl";
-    const inset = isRtl ? "right-[80px]" : "left-[80px]";
     return {
       "m-0": true,
       "text-xs": true,
       "text-start": true,
       "font-bold": true,
-      "p-0": true,
+      "px-2": true,
+      "pt-2": true,
       "truncate": true,
       "line-through": this.past,
       "decoration-[1.5px]": this.past,
       "opacity-80": this.past,
       sticky: true,
-      [inset]: true,
     };
   }
 
@@ -97,7 +95,8 @@ export class EventCard extends BaseElement {
       "text-start": true,
       "font-light": true,
       "tabular-nums": true,
-      "p-0": true,
+      "px-2": true,
+      "pb-2": true,
       "block": true,
       "max-w-full": true,
       "overflow-hidden": true,
@@ -141,7 +140,6 @@ export class EventCard extends BaseElement {
     return {
       "[@container(max-height:47px)]:flex": true,
       "[@container(max-height:47px)]:gap-1": true,
-      "p-2": true,
       "before:content-['']": true,
       "before:absolute": true,
       "before:bg-[var(--_lc-event-card-bg)]": true,

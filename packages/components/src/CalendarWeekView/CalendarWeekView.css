@@ -141,6 +141,7 @@
 
 .combined-week-all-day-view {
   min-height: var(--_lc-all-day-row-height, 120px);
+  --_lc-time-sidebar-width: var(--_lc-combined-sidebar-width);
 }
 
 .combined-week-main {
