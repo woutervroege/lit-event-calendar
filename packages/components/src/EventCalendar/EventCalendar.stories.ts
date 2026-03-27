@@ -1,20 +1,37 @@
+import { Temporal } from "@js-temporal/polyfill";
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./EventCalendar.js";
 import { calendarCssProps } from "../calendarCssProps.js";
-import { localeOptions, type StoryEvent, sampleEvents, timezoneOptions } from "../storyData.js";
+import {
+  localeOptions,
+  type CalendarEvent,
+  sampleEvents,
+  toTemporalDateLike,
+  timezoneOptions,
+} from "../storyData.js";
 import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 
-type StoryEventCalendarElement = HTMLElement & { events: Map<string, StoryEvent> };
+type StoryEventCalendarElement = HTMLElement & { events: Map<string, CalendarEvent> };
+type EventCreateRequestDetail = {
+  start?: string;
+  end?: string;
+  summary?: string;
+  color?: string;
+  sourceId?: string;
+};
 
 function preserveDateOnlyShape(
-  nextValue: { toString(): string; toPlainDate(): { toString(): string } } | null | undefined,
-  currentValue: string
-): string {
+  nextValue: CalendarEvent["start"] | null | undefined,
+  currentValue: CalendarEvent["start"]
+): CalendarEvent["start"] {
   if (!nextValue) return currentValue;
-  if (!currentValue.includes("T")) {
-    return nextValue.toPlainDate().toString();
+  if (currentValue instanceof Temporal.PlainDate) {
+    if ("toPlainDate" in nextValue) {
+      return nextValue.toPlainDate();
+    }
+    return nextValue;
   }
-  return nextValue.toString();
+  return nextValue;
 }
 
 const meta: Meta = {
@@ -78,6 +95,9 @@ const meta: Meta = {
     currentTime: { control: "text", description: "Current time (ISO string)" },
     snapInterval: { control: { type: "number", min: 5, max: 60, step: 5 } },
     visibleHours: { control: { type: "number", min: 1, max: 24, step: 1 } },
+    defaultEventSummary: { control: "text", description: "Default created event summary" },
+    defaultEventColor: { control: "color", description: "Default created event color" },
+    defaultSourceId: { control: "text", description: "Default created event source id" },
   },
   args: {
     view: "month",
@@ -87,6 +107,9 @@ const meta: Meta = {
     currentTime: "2025-01-15T14:30:00",
     snapInterval: 15,
     visibleHours: 12,
+    defaultEventSummary: "New event",
+    defaultEventColor: "#0ea5e9",
+    defaultSourceId: "",
     events: sampleEvents,
   },
   render: (args) => {
@@ -119,9 +142,38 @@ const meta: Meta = {
     }
     el.setAttribute("snap-interval", String(args.snapInterval));
     el.setAttribute("visible-hours", String(args.visibleHours));
+    if (args.defaultEventSummary) {
+      el.setAttribute("default-event-summary", String(args.defaultEventSummary));
+    }
+    if (args.defaultEventColor) {
+      el.setAttribute("default-event-color", String(args.defaultEventColor));
+    }
+    if (args.defaultSourceId) {
+      el.setAttribute("default-source-id", String(args.defaultSourceId));
+    } else {
+      el.removeAttribute("default-source-id");
+    }
 
     const entries = Array.isArray(args.events) ? args.events : sampleEvents;
     el.events = new Map(entries);
+
+    el.addEventListener("event-create-requested", (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const detail = event.detail as EventCreateRequestDetail | null;
+      if (!detail?.start || !detail.end) return;
+
+      const eventId = `event-created-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const nextEvents = new Map(el.events);
+      nextEvents.set(eventId, {
+        eventId,
+        start: toTemporalDateLike(detail.start),
+        end: toTemporalDateLike(detail.end),
+        summary: detail.summary ?? "New event",
+        color: detail.color ?? "#0ea5e9",
+        sourceId: detail.sourceId,
+      });
+      el.events = nextEvents;
+    });
 
     el.addEventListener("event-modified", (event: Event) => {
       if (!(event instanceof CustomEvent)) return;

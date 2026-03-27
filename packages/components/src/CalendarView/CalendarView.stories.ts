@@ -2,15 +2,24 @@ import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarView.js";
 import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 import {
+  type CalendarEvent,
   localeOptions,
   sampleEvents,
+  toTemporalDateLike,
   timezoneOptions,
   timezoneShiftEvents,
-  type StoryEvent,
 } from "../storyData.js";
 import { calendarCssProps } from "../calendarCssProps.js";
 
-type StoryCalendarViewElement = HTMLElement & { events: Map<string, StoryEvent> };
+type StoryCalendarViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
+type EventCreateRequestDetail = {
+  start?: string;
+  end?: string;
+  summary?: string;
+  color?: string;
+  sourceId?: string;
+  trigger?: string;
+};
 
 const meta: Meta = {
   title: "CalendarView/CalendarView",
@@ -36,6 +45,9 @@ const meta: Meta = {
     labelsHidden: { control: "boolean", description: "Hide day number labels" },
     snapInterval: { control: { type: "number", min: 5, max: 60, step: 5 } },
     visibleHours: { control: { type: "number", min: 1, max: 24, step: 1 } },
+    defaultEventSummary: { control: "text", description: "Default created event summary" },
+    defaultEventColor: { control: "color", description: "Default created event color" },
+    defaultSourceId: { control: "text", description: "Default created event source id" },
   },
   args: {
     startDate: "2025-01-05",
@@ -45,6 +57,9 @@ const meta: Meta = {
     labelsHidden: false,
     snapInterval: 30,
     visibleHours: 24,
+    defaultEventSummary: "New event",
+    defaultEventColor: "#0ea5e9",
+    defaultSourceId: "",
     events: sampleEvents,
   },
   render: (args) => {
@@ -64,8 +79,43 @@ const meta: Meta = {
     if (args.timezone) {
       el.setAttribute("timezone", args.timezone);
     }
+    if (args.defaultEventSummary) {
+      el.setAttribute("default-event-summary", String(args.defaultEventSummary));
+    }
+    if (args.defaultEventColor) {
+      el.setAttribute("default-event-color", String(args.defaultEventColor));
+    }
+    if (args.defaultSourceId) {
+      el.setAttribute("default-source-id", String(args.defaultSourceId));
+    } else {
+      el.removeAttribute("default-source-id");
+    }
     const entries = Array.isArray(args.events) ? args.events : sampleEvents;
     el.events = new Map(entries);
+    el.addEventListener("event-create-requested", (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const detail = event.detail as EventCreateRequestDetail | null;
+      if (!detail?.start || !detail.end) return;
+
+      const eventId = `event-created-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const nextEvents = new Map(el.events);
+      nextEvents.set(eventId, {
+        eventId,
+        start: toTemporalDateLike(detail.start),
+        end: toTemporalDateLike(detail.end),
+        summary: detail.summary ?? "New event",
+        color: detail.color ?? "#0ea5e9",
+        sourceId: detail.sourceId,
+      });
+      el.events = nextEvents;
+
+      console.info("event-create-requested", {
+        eventId,
+        start: detail.start,
+        end: detail.end,
+        trigger: detail.trigger ?? null,
+      });
+    });
     el.addEventListener("event-modified", (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
       const detail = event.detail as BaseEvent | null;
@@ -76,8 +126,8 @@ const meta: Meta = {
 
       el.events = new Map(el.events).set(detail.eventId, {
         ...current,
-        start: detail.start?.toString() ?? current.start,
-        end: detail.end?.toString() ?? current.end,
+        start: detail.start ?? current.start,
+        end: detail.end ?? current.end,
         summary: detail.summary,
         color: detail.color,
       });

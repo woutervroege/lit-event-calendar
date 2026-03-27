@@ -2,13 +2,13 @@ import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarWeekView.js";
 import { calendarCssProps } from "../calendarCssProps.js";
 import {
+  type CalendarTemporalEvent,
   localeOptions,
   timezoneOptions,
-  type WeekStoryEvent,
   weekSplitEvents,
 } from "../storyData.js";
 
-type StoryCalendarWeekViewElement = HTMLElement & { events: Map<string, WeekStoryEvent> };
+type StoryCalendarWeekViewElement = HTMLElement & { events: Map<string, CalendarTemporalEvent> };
 
 const meta: Meta = {
   title: "CalendarView/CalendarWeekView",

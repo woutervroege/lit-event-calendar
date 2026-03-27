@@ -5,24 +5,10 @@ import { ifDefined } from "lit/directives/if-defined.js";
 import "../CalendarView/CalendarView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
+import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import { type AllDayLayoutItem, buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { getLocaleDirection, getLocaleWeekInfo } from "../utils/Locale.js";
 import componentStyle from "./CalendarWeekView.css?inline";
-
-type EventInput = {
-  /**
-   * iCalendar UID. Repeated occurrences should share this value.
-   */
-  uid?: string;
-  /**
-   * iCalendar RECURRENCE-ID for one occurrence in a recurring series.
-   */
-  recurrenceId?: string;
-  start: string | Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime;
-  end: string | Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime;
-  summary: string;
-  color: string;
-};
 
 type EventEntry = [id: string, event: EventInput];
 type EventsMap = Map<string, EventInput>;
@@ -47,6 +33,9 @@ export class CalendarWeekView extends BaseElement {
   snapInterval = 15;
   visibleHours = 12;
   rtl = false;
+  defaultEventSummary = "New event";
+  defaultEventColor = "#0ea5e9";
+  defaultSourceId?: string;
 
   static get properties() {
     return {
@@ -107,6 +96,9 @@ export class CalendarWeekView extends BaseElement {
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
+      defaultEventSummary: { type: String, attribute: "default-event-summary" },
+      defaultEventColor: { type: String, attribute: "default-event-color" },
+      defaultSourceId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
@@ -184,8 +176,6 @@ export class CalendarWeekView extends BaseElement {
   #isTimedEvent(event: EventInput): boolean {
     if (this.#isAllDayEvent(event)) return false;
     return (
-      (typeof event.start === "string" && event.start.includes("T")) ||
-      (typeof event.end === "string" && event.end.includes("T")) ||
       event.start instanceof Temporal.PlainDateTime ||
       event.start instanceof Temporal.ZonedDateTime ||
       event.end instanceof Temporal.PlainDateTime ||
@@ -194,11 +184,7 @@ export class CalendarWeekView extends BaseElement {
   }
 
   #isDateOnlyValue(value: EventInput["start"]): boolean {
-    if (value instanceof Temporal.PlainDate) return true;
-    if (value instanceof Temporal.PlainDateTime || value instanceof Temporal.ZonedDateTime) {
-      return false;
-    }
-    return !value.includes("T");
+    return value instanceof Temporal.PlainDate;
   }
 
   #toPlainDateTime(value: EventInput["start"]): Temporal.PlainDateTime {
@@ -213,17 +199,8 @@ export class CalendarWeekView extends BaseElement {
     if (value instanceof Temporal.PlainDate) {
       return value.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
     }
-    if (this.#isTimezonedString(value)) {
-      const zoned = Temporal.ZonedDateTime.from(value);
-      return this.timezone
-        ? zoned.withTimeZone(this.timezone).toPlainDateTime()
-        : zoned.toPlainDateTime();
-    }
-    return Temporal.PlainDateTime.from(value);
-  }
-
-  #isTimezonedString(value: string): boolean {
-    return value.includes("[") && value.includes("]");
+    const exhaustiveCheck: never = value;
+    throw new TypeError(`Unsupported calendar event date value: ${String(exhaustiveCheck)}`);
   }
 
   #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {
@@ -277,7 +254,11 @@ export class CalendarWeekView extends BaseElement {
                 current-time=${ifDefined(this.currentTime)}
                 .snapInterval=${this.snapInterval}
                 .labelsHidden=${false}
+                .defaultEventSummary=${this.defaultEventSummary}
+                .defaultEventColor=${this.defaultEventColor}
+                .defaultSourceId=${this.defaultSourceId}
                 @day-selection-requested=${this.#reemit}
+                @event-create-requested=${this.#reemit}
                 @event-modified=${this.#reemit}
                 @event-deleted=${this.#reemit}
               ></calendar-view>
@@ -309,6 +290,10 @@ export class CalendarWeekView extends BaseElement {
               .snapInterval=${this.snapInterval}
               .visibleHours=${this.visibleHours}
               .labelsHidden=${false}
+              .defaultEventSummary=${this.defaultEventSummary}
+              .defaultEventColor=${this.defaultEventColor}
+              .defaultSourceId=${this.defaultSourceId}
+              @event-create-requested=${this.#reemit}
               @event-modified=${this.#reemit}
               @event-deleted=${this.#reemit}
             ></calendar-view>

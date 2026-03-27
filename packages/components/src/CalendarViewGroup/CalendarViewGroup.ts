@@ -6,21 +6,13 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
+import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 
 export type CalendarViewMode = "day" | "week" | "month" | "year";
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type CalendarNavigationDirection = "previous" | "today" | "next";
-
-type EventInput = {
-  uid?: string;
-  recurrenceId?: string;
-  start: string | Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime;
-  end: string | Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime;
-  summary: string;
-  color: string;
-};
 
 type EventsMap = Map<string, EventInput>;
 type EventEntry = [id: string, event: EventInput];
@@ -43,6 +35,9 @@ export class CalendarViewGroup extends BaseElement {
   snapInterval = 15;
   visibleHours = 12;
   rtl = false;
+  defaultEventSummary = "New event";
+  defaultEventColor = "#0ea5e9";
+  defaultSourceId?: string;
 
   static get properties() {
     return {
@@ -78,6 +73,9 @@ export class CalendarViewGroup extends BaseElement {
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
+      defaultEventSummary: { type: String, attribute: "default-event-summary" },
+      defaultEventColor: { type: String, attribute: "default-event-color" },
+      defaultSourceId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
@@ -260,7 +258,11 @@ export class CalendarViewGroup extends BaseElement {
           .currentTime=${this.currentTime}
           .snapInterval=${this.snapInterval}
           .visibleHours=${this.visibleHours}
+          .defaultEventSummary=${this.defaultEventSummary}
+          .defaultEventColor=${this.defaultEventColor}
+          .defaultSourceId=${this.defaultSourceId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
+          @event-create-requested=${this.#reemit}
           @event-modified=${this.#reemit}
           @event-deleted=${this.#reemit}
         ></calendar-week-view>
@@ -276,7 +278,11 @@ export class CalendarViewGroup extends BaseElement {
           .locale=${this.locale}
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
+          .defaultEventSummary=${this.defaultEventSummary}
+          .defaultEventColor=${this.defaultEventColor}
+          .defaultSourceId=${this.defaultSourceId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
+          @event-create-requested=${this.#reemit}
           @event-modified=${this.#reemit}
           @event-deleted=${this.#reemit}
         ></calendar-year-view>
@@ -292,7 +298,11 @@ export class CalendarViewGroup extends BaseElement {
         .locale=${this.locale}
         .timezone=${this.timezone}
         .currentTime=${this.#resolvedCurrentTime}
+        .defaultEventSummary=${this.defaultEventSummary}
+        .defaultEventColor=${this.defaultEventColor}
+        .defaultSourceId=${this.defaultSourceId}
         @day-selection-requested=${this.#handleDaySelectionRequested}
+        @event-create-requested=${this.#reemit}
         @event-modified=${this.#reemit}
         @event-deleted=${this.#reemit}
       ></calendar-month-view>

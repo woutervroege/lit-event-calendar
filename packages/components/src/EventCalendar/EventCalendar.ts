@@ -10,18 +10,11 @@ import type {
   CalendarViewGroup,
   CalendarViewMode,
 } from "../CalendarViewGroup/CalendarViewGroup.js";
+import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import "../TabSwitch/TabSwitch.js";
 import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-type EventInput = {
-  uid?: string;
-  recurrenceId?: string;
-  start: string | Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime;
-  end: string | Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime;
-  summary: string;
-  color: string;
-};
 type EventsMap = Map<string, EventInput>;
 
 type ViewUnit = Extract<CalendarViewMode, "day" | "week" | "month" | "year">;
@@ -79,6 +72,9 @@ export class EventCalendar extends BaseElement {
   snapInterval = 15;
   visibleHours = 12;
   rtl = false;
+  defaultEventSummary = "New event";
+  defaultEventColor = "#0ea5e9";
+  defaultSourceId?: string;
 
   static get properties() {
     return {
@@ -110,6 +106,9 @@ export class EventCalendar extends BaseElement {
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
+      defaultEventSummary: { type: String, attribute: "default-event-summary" },
+      defaultEventColor: { type: String, attribute: "default-event-color" },
+      defaultSourceId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
@@ -296,9 +295,13 @@ export class EventCalendar extends BaseElement {
           .snapInterval=${this.snapInterval}
           .visibleHours=${this.visibleHours}
           .rtl=${this.rtl}
+          .defaultEventSummary=${this.defaultEventSummary}
+          .defaultEventColor=${this.defaultEventColor}
+          .defaultSourceId=${this.defaultSourceId}
           @view-changed=${this.#syncFromViewGroup}
           @start-date-changed=${this.#syncFromViewGroup}
           @day-selection-requested=${this.#syncFromViewGroup}
+          @event-create-requested=${this.#reemit}
           @event-modified=${this.#reemit}
           @event-deleted=${this.#reemit}
         ></calendar-view-group>

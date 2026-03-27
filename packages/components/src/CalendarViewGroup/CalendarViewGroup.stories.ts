@@ -1,20 +1,24 @@
+import { Temporal } from "@js-temporal/polyfill";
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarViewGroup.js";
 import { calendarCssProps } from "../calendarCssProps.js";
-import { localeOptions, type StoryEvent, sampleEvents, timezoneOptions } from "../storyData.js";
+import { localeOptions, type CalendarEvent, sampleEvents, timezoneOptions } from "../storyData.js";
 import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 
-type StoryCalendarViewGroupElement = HTMLElement & { events: Map<string, StoryEvent> };
+type StoryCalendarViewGroupElement = HTMLElement & { events: Map<string, CalendarEvent> };
 
 function preserveDateOnlyShape(
-  nextValue: { toString(): string; toPlainDate(): { toString(): string } } | null | undefined,
-  currentValue: string
-): string {
+  nextValue: CalendarEvent["start"] | null | undefined,
+  currentValue: CalendarEvent["start"]
+): CalendarEvent["start"] {
   if (!nextValue) return currentValue;
-  if (!currentValue.includes("T")) {
-    return nextValue.toPlainDate().toString();
+  if (currentValue instanceof Temporal.PlainDate) {
+    if ("toPlainDate" in nextValue) {
+      return nextValue.toPlainDate();
+    }
+    return nextValue;
   }
-  return nextValue.toString();
+  return nextValue;
 }
 
 const meta: Meta = {

@@ -2,9 +2,9 @@ import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarMonthView.js";
 import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 import { calendarCssProps } from "../calendarCssProps.js";
-import { localeOptions, type StoryEvent, sampleEvents, timezoneOptions } from "../storyData.js";
+import { localeOptions, type CalendarEvent, sampleEvents, timezoneOptions } from "../storyData.js";
 
-type StoryCalendarMonthViewElement = HTMLElement & { events: Map<string, StoryEvent> };
+type StoryCalendarMonthViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
 
 const meta: Meta = {
   title: "CalendarView/CalendarMonthView",
@@ -81,8 +81,8 @@ const meta: Meta = {
 
       el.events = new Map(el.events).set(detail.eventId, {
         ...current,
-        start: detail.start?.toString() ?? current.start,
-        end: detail.end?.toString() ?? current.end,
+        start: detail.start ?? current.start,
+        end: detail.end ?? current.end,
         summary: detail.summary,
         color: detail.color,
       });
