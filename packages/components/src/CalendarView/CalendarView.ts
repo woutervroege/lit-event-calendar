@@ -52,7 +52,8 @@ type AllDayOverflowLayout = {
   hiddenColorsByDay: Map<number, string[]>;
 };
 const COMPACT_MONTH_MAX_INLINE_SIZE_PX = 520;
-const CREATE_TOUCH_LONG_PRESS_MS = 500;
+// Keep touch-create activation aligned with timed event move/resize activation.
+const CREATE_TOUCH_LONG_PRESS_MS = 160;
 const CREATE_TOUCH_CANCEL_DISTANCE_PX = 10;
 const CREATE_DRAG_ACTIVATION_DISTANCE_PX = 6;
 const SECONDS_IN_DAY = 24 * 60 * 60;
@@ -92,7 +93,9 @@ export class CalendarView extends BaseElement {
         startDayIndex: number;
         currentDateTime: Temporal.PlainDateTime;
         dragActivated: boolean;
+        longPressActivated: boolean;
         longPressTimerId: number | null;
+        captureTarget: HTMLElement | null;
       }
     | null = null;
   #calendarViewProvider = new ContextProvider(this, { context: calendarViewContext });
@@ -113,6 +116,13 @@ export class CalendarView extends BaseElement {
   #cachedEventEntries: EventEntry[] = [];
   #instanceToken = Math.random().toString(36).slice(2, 10);
   #activeOverflowPopoverId: string | null = null;
+  #createTouchMoveBlocker = (event: TouchEvent) => {
+    const pending = this.#pendingCreatePointer;
+    if (!pending || pending.pointerType !== "touch" || !pending.longPressActivated) return;
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+  };
 
   get #sortedEvents(): EventEntry[] {
     const events = this.#eventsForVariant;
@@ -244,6 +254,7 @@ export class CalendarView extends BaseElement {
 
   disconnectedCallback() {
     this.#cancelPendingCreatePointer();
+    this.#stopGlobalCreatePointerTracking();
     this.#stopStyleObserver();
     this.#stopResizeObserver();
     this.#cancelScheduledResizeSync();
@@ -1156,18 +1167,15 @@ export class CalendarView extends BaseElement {
       longPressTimerId = window.setTimeout(() => {
         const pending = this.#pendingCreatePointer;
         if (!pending || pending.pointerId !== event.pointerId || pending.pointerType !== "touch") return;
-        const endDateTime = this.#defaultCreateEndDateTime(pending.startDateTime);
-        this.#emitEventCreateRequested({
-          start: pending.startDateTime.toString(),
-          end: endDateTime.toString(),
-          dayIndex: pending.startDayIndex,
-          trigger: "long-press",
-          pointerType: pending.pointerType,
-          sourceEvent: event,
-        });
-        this.#cancelPendingCreatePointer(event, section);
+        pending.longPressActivated = true;
+        pending.dragActivated = true;
+        pending.currentDateTime = this.#defaultCreateEndDateTime(pending.startDateTime);
+        pending.longPressTimerId = null;
+        this.requestUpdate();
       }, CREATE_TOUCH_LONG_PRESS_MS);
     }
+
+    this.#startGlobalCreatePointerTracking();
 
     this.#pendingCreatePointer = {
       pointerId: event.pointerId,
@@ -1178,7 +1186,9 @@ export class CalendarView extends BaseElement {
       startDayIndex: startHit.dayIndex,
       currentDateTime: startHit.dateTime,
       dragActivated: false,
+      longPressActivated: false,
       longPressTimerId,
+      captureTarget: section,
     };
   };
 
@@ -1190,9 +1200,20 @@ export class CalendarView extends BaseElement {
     const deltaY = event.clientY - pending.startClientY;
     const pointerDistance = Math.hypot(deltaX, deltaY);
     if (pending.pointerType === "touch") {
-      if (pointerDistance >= CREATE_TOUCH_CANCEL_DISTANCE_PX) {
+      if (!pending.longPressActivated && pointerDistance >= CREATE_TOUCH_CANCEL_DISTANCE_PX) {
         this.#cancelPendingCreatePointer(event, event.currentTarget as HTMLElement | null);
+        return;
       }
+      if (!pending.longPressActivated) return;
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      const hoverHit = this.#resolveTimedHitFromPoint(event.clientX, event.clientY);
+      if (!hoverHit) return;
+      pending.currentDateTime = hoverHit.dateTime;
+      this.#dragHoverDayIndex = null;
+      this.#dragHoverTime = null;
+      this.requestUpdate();
       return;
     }
 
@@ -1216,6 +1237,27 @@ export class CalendarView extends BaseElement {
     const section = event.currentTarget as HTMLElement | null;
 
     if (pending.pointerType === "touch") {
+      if (!pending.longPressActivated) {
+        this.#cancelPendingCreatePointer(event, section);
+        return;
+      }
+      let startDateTime = pending.startDateTime;
+      let endDateTime = pending.currentDateTime;
+      if (Temporal.PlainDateTime.compare(endDateTime, startDateTime) < 0) {
+        [startDateTime, endDateTime] = [endDateTime, startDateTime];
+      }
+      if (Temporal.PlainDateTime.compare(startDateTime, endDateTime) === 0) {
+        endDateTime = this.#defaultCreateEndDateTime(startDateTime);
+      }
+      const startDayIndex = this.#dayIndexForDate(startDateTime.toPlainDate()) ?? pending.startDayIndex;
+      this.#emitEventCreateRequested({
+        start: startDateTime.toString(),
+        end: endDateTime.toString(),
+        dayIndex: startDayIndex,
+        trigger: "long-press",
+        pointerType: pending.pointerType,
+        sourceEvent: event,
+      });
       this.#cancelPendingCreatePointer(event, section);
       return;
     }
@@ -1264,10 +1306,19 @@ export class CalendarView extends BaseElement {
     if (pending?.longPressTimerId != null) {
       clearTimeout(pending.longPressTimerId);
     }
+    this.#stopGlobalCreatePointerTracking();
     if (event && section) {
       try {
         if (section.hasPointerCapture(event.pointerId)) {
           section.releasePointerCapture(event.pointerId);
+        }
+      } catch {
+        // No-op if pointer capture is unavailable/released already.
+      }
+    } else if (event && pending?.captureTarget) {
+      try {
+        if (pending.captureTarget.hasPointerCapture(event.pointerId)) {
+          pending.captureTarget.releasePointerCapture(event.pointerId);
         }
       } catch {
         // No-op if pointer capture is unavailable/released already.
@@ -1359,7 +1410,7 @@ export class CalendarView extends BaseElement {
   }> {
     if (this.variant !== "timed" || this.#days <= 0) return [];
     const pending = this.#pendingCreatePointer;
-    if (!pending || pending.pointerType === "touch" || !pending.dragActivated) return [];
+    if (!pending || !pending.dragActivated) return [];
 
     let startDateTime = pending.startDateTime;
     let endDateTime = pending.currentDateTime;
@@ -1453,6 +1504,23 @@ export class CalendarView extends BaseElement {
         minute: "2-digit",
       });
     return `${format(startDateTime)} - ${format(endDateTime)}`;
+  }
+
+  #startGlobalCreatePointerTracking() {
+    window.addEventListener("pointermove", this.#handleCreatePointerMove, true);
+    window.addEventListener("pointerup", this.#handleCreatePointerUp, true);
+    window.addEventListener("pointercancel", this.#handleCreatePointerCancel, true);
+    window.addEventListener("touchmove", this.#createTouchMoveBlocker, {
+      capture: true,
+      passive: false,
+    });
+  }
+
+  #stopGlobalCreatePointerTracking() {
+    window.removeEventListener("pointermove", this.#handleCreatePointerMove, true);
+    window.removeEventListener("pointerup", this.#handleCreatePointerUp, true);
+    window.removeEventListener("pointercancel", this.#handleCreatePointerCancel, true);
+    window.removeEventListener("touchmove", this.#createTouchMoveBlocker, true);
   }
 
   #emitEventCreateRequested(detail: EventCreateRequestDetail) {
