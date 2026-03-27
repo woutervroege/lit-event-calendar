@@ -10,7 +10,7 @@ import type {
   CalendarViewGroup,
   CalendarViewMode,
 } from "../CalendarViewGroup/CalendarViewGroup.js";
-import type { CalendarEventInput as EventInput } from "../models/CalendarEvent.js";
+import type { CalendarEvent as EventInput } from "../models/CalendarEvent.js";
 import "../TabSwitch/TabSwitch.js";
 import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
 

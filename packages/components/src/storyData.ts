@@ -1,13 +1,10 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type {
+  CalendarEvent,
   CalendarEventDateValue,
-  CalendarEventInput,
 } from "./models/CalendarEvent.js";
+export type { CalendarEvent } from "./models/CalendarEvent.js";
 
-export type CalendarEvent = Omit<CalendarEventInput, "start" | "end"> & {
-  start: CalendarEventDateValue;
-  end: CalendarEventDateValue;
-};
 export type CalendarEventSampleEntry = [id: string, event: CalendarEvent];
 export type CalendarTemporalEvent = Omit<CalendarEvent, "start" | "end"> & {
   start: CalendarEventDateValue;

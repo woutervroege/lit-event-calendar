@@ -6,7 +6,7 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
-import type { CalendarEventInput as EventInput } from "../models/CalendarEvent.js";
+import type { CalendarEvent as EventInput } from "../models/CalendarEvent.js";
 import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 

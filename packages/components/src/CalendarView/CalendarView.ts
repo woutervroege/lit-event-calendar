@@ -28,7 +28,7 @@ import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/L
 import { getHourlyTimeLabels } from "../utils/TimeFormatting.js";
 import type { DayOverflowPopoverEvent } from "./DayOverflowPopover.js";
 import "../EventCard/EventCard.js";
-import type { CalendarEventInput as EventInput } from "../models/CalendarEvent.js";
+import type { CalendarEvent as EventInput } from "../models/CalendarEvent.js";
 
 type EventEntry = [id: string, event: EventInput];
 type EventsMap = Map<string, EventInput>;
@@ -279,7 +279,7 @@ export class CalendarView extends BaseElement {
     if (!this.#currentTime) {
       return Temporal.Now.zonedDateTimeISO(this.timezone).toPlainDateTime();
     }
-    return this.#toPlainDateTime(this.#currentTime);
+    return this.#toPlainDateTimeFromString(this.#currentTime);
   }
 
   set currentTime(currentTime:
@@ -1906,17 +1906,17 @@ export class CalendarView extends BaseElement {
     if (value instanceof Temporal.PlainDateTime) {
       return value;
     }
-    if (value instanceof Temporal.PlainDate) {
-      return value.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
-    }
-    if (this.#isTimezonedString(value)) {
+    return value.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
+  }
+
+  #toPlainDateTimeFromString(value: string): Temporal.PlainDateTime {
+    if (value.includes("[") && value.includes("]")) {
       return Temporal.ZonedDateTime.from(value).withTimeZone(this.timezone).toPlainDateTime();
     }
     return Temporal.PlainDateTime.from(value);
   }
 
   #toEventDateTimeString(value: EventInput["start"]): string {
-    if (typeof value === "string") return value;
     return value.toString();
   }
 
@@ -1925,15 +1925,7 @@ export class CalendarView extends BaseElement {
   }
 
   #isDateOnlyValue(value: EventInput["start"]): boolean {
-    if (value instanceof Temporal.PlainDate) return true;
-    if (value instanceof Temporal.PlainDateTime || value instanceof Temporal.ZonedDateTime) {
-      return false;
-    }
-    return !value.includes("T");
-  }
-
-  #isTimezonedString(value: string): boolean {
-    return value.includes("[") && value.includes("]");
+    return value instanceof Temporal.PlainDate;
   }
 
   get #eventsAsEntries(): EventEntry[] {

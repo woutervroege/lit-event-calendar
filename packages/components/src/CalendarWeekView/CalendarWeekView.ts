@@ -5,7 +5,7 @@ import { ifDefined } from "lit/directives/if-defined.js";
 import "../CalendarView/CalendarView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import type { CalendarEventInput as EventInput } from "../models/CalendarEvent.js";
+import type { CalendarEvent as EventInput } from "../models/CalendarEvent.js";
 import { type AllDayLayoutItem, buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { getLocaleDirection, getLocaleWeekInfo } from "../utils/Locale.js";
 import componentStyle from "./CalendarWeekView.css?inline";
@@ -170,8 +170,6 @@ export class CalendarWeekView extends BaseElement {
   #isTimedEvent(event: EventInput): boolean {
     if (this.#isAllDayEvent(event)) return false;
     return (
-      (typeof event.start === "string" && event.start.includes("T")) ||
-      (typeof event.end === "string" && event.end.includes("T")) ||
       event.start instanceof Temporal.PlainDateTime ||
       event.start instanceof Temporal.ZonedDateTime ||
       event.end instanceof Temporal.PlainDateTime ||
@@ -180,11 +178,7 @@ export class CalendarWeekView extends BaseElement {
   }
 
   #isDateOnlyValue(value: EventInput["start"]): boolean {
-    if (value instanceof Temporal.PlainDate) return true;
-    if (value instanceof Temporal.PlainDateTime || value instanceof Temporal.ZonedDateTime) {
-      return false;
-    }
-    return !value.includes("T");
+    return value instanceof Temporal.PlainDate;
   }
 
   #toPlainDateTime(value: EventInput["start"]): Temporal.PlainDateTime {
@@ -199,17 +193,8 @@ export class CalendarWeekView extends BaseElement {
     if (value instanceof Temporal.PlainDate) {
       return value.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
     }
-    if (this.#isTimezonedString(value)) {
-      const zoned = Temporal.ZonedDateTime.from(value);
-      return this.timezone
-        ? zoned.withTimeZone(this.timezone).toPlainDateTime()
-        : zoned.toPlainDateTime();
-    }
-    return Temporal.PlainDateTime.from(value);
-  }
-
-  #isTimezonedString(value: string): boolean {
-    return value.includes("[") && value.includes("]");
+    const exhaustiveCheck: never = value;
+    throw new TypeError(`Unsupported calendar event date value: ${String(exhaustiveCheck)}`);
   }
 
   #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {

@@ -3,7 +3,7 @@ import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import type { CalendarEventInput as EventInput } from "../models/CalendarEvent.js";
+import type { CalendarEvent as EventInput } from "../models/CalendarEvent.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarYearView.css?inline";
 
