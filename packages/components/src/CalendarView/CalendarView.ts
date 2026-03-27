@@ -23,9 +23,11 @@ import {
   computeHiddenAllDayCountsByDay,
   computeHiddenAllDayEventIdsByDay,
 } from "../utils/AllDayLayout.js";
+import { getEventColorStyles } from "../utils/EventColor.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import { getHourlyTimeLabels } from "../utils/TimeFormatting.js";
 import type { DayOverflowPopoverEvent } from "./DayOverflowPopover.js";
+import "../EventCard/EventCard.js";
 
 type EventInput = {
   /**
@@ -533,7 +535,7 @@ export class CalendarView extends BaseElement {
 
   render() {
     const hoverStyle: Record<string, string> = {};
-    const createPreviewStyle = this.#getCreatePreviewStyle();
+    const createPreview = this.#getCreatePreviewCardModel();
     const showTimedLabels = this.variant === "timed" && !this.labelsHidden;
     const timedSidebarLabels = getHourlyTimeLabels(this.locale, this.hours);
     const timedSidebarRows = timedSidebarLabels.map((label, hour) => {
@@ -613,8 +615,17 @@ export class CalendarView extends BaseElement {
           ${this.#renderWeekendHighlights()}
           ${this.variant === "timed" ? this.#renderCurrentTimeIndicator() : ""}
           ${
-            createPreviewStyle
-              ? html`<div class="event-create-preview absolute" style=${styleMap(createPreviewStyle)}></div>`
+            createPreview
+              ? html`
+                  <event-card
+                    summary="New event"
+                    time=${this.#formatCreatePreviewTimeRange(createPreview.start, createPreview.end)}
+                    segment-direction="vertical"
+                    ?first-segment=${true}
+                    ?last-segment=${true}
+                    style=${styleMap(createPreview.style)}
+                  ></event-card>
+                `
               : ""
           }
           ${
@@ -1345,7 +1356,11 @@ export class CalendarView extends BaseElement {
     return dayIndex >= 0 ? dayIndex : null;
   }
 
-  #getCreatePreviewStyle(): Record<string, string> | null {
+  #getCreatePreviewCardModel(): {
+    start: Temporal.PlainDateTime;
+    end: Temporal.PlainDateTime;
+    style: Record<string, string>;
+  } | null {
     if (this.variant !== "timed" || this.#days <= 0) return null;
     const pending = this.#pendingCreatePointer;
     if (!pending || pending.pointerType === "touch" || !pending.dragActivated) return null;
@@ -1378,15 +1393,41 @@ export class CalendarView extends BaseElement {
       endDateTime.millisecond / 3_600_000;
     const top = (startHour / 24) * 100;
     const minDurationHours = Math.max(this.#snapInterval, 5) / 60;
-    const durationHours = Math.max(minDurationHours, endHour - startHour);
+    const rawDurationHours = endHour - startHour;
+    const durationHours = Math.max(minDurationHours, rawDurationHours);
     const height = (durationHours / 24) * 100;
+    const previewEndDateTime =
+      rawDurationHours <= 0 ? startDateTime.add({ minutes: Math.max(this.#snapInterval, 5) }) : endDateTime;
+    const colorStyles = getEventColorStyles("#0EA5E9");
 
     return {
-      left: `${left}%`,
-      width: `${width}%`,
-      top: `${top}%`,
-      height: `${height}%`,
+      start: startDateTime,
+      end: previewEndDateTime,
+      style: {
+        ...colorStyles,
+        top: `${top}%`,
+        bottom: `${Math.max(0, 100 - (top + height))}%`,
+        "--_lc-left": `${left}%`,
+        "--_lc-width": `${width / (100 / this.#days)}`,
+        "--_lc-margin-left": "0",
+        "--_lc-indentation": "0px",
+        "--_lc-inline-inset-start": "1px",
+        "--_lc-inline-inset-end": "2px",
+        "--_lc-z-index": "8",
+      },
     };
+  }
+
+  #formatCreatePreviewTimeRange(
+    startDateTime: Temporal.PlainDateTime,
+    endDateTime: Temporal.PlainDateTime
+  ): string {
+    const format = (dateTime: Temporal.PlainDateTime): string =>
+      dateTime.toPlainTime().toLocaleString(this.locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    return `${format(startDateTime)} - ${format(endDateTime)}`;
   }
 
   #emitEventCreateRequested(detail: EventCreateRequestDetail) {

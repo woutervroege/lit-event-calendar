@@ -121,15 +121,6 @@ section[data-drag-hover]::before {
   z-index: 9;
 }
 
-.event-create-preview {
-  pointer-events: none;
-  z-index: 8;
-  background: color-mix(in srgb, var(--_lc-current-day-color) 18%, transparent);
-  border: 1px solid color-mix(in srgb, var(--_lc-current-day-color) 78%, transparent);
-  border-radius: 6px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 22%, transparent);
-}
-
 /* Month view: multi-row grid (e.g. 7 columns × N weeks) */
 section.month-view {
   background-image:
