@@ -91,7 +91,6 @@ export class CalendarView extends BaseElement {
         startDateTime: Temporal.PlainDateTime;
         startDayIndex: number;
         currentDateTime: Temporal.PlainDateTime;
-        currentDayIndex: number;
         dragActivated: boolean;
         longPressTimerId: number | null;
       }
@@ -535,7 +534,7 @@ export class CalendarView extends BaseElement {
 
   render() {
     const hoverStyle: Record<string, string> = {};
-    const createPreview = this.#getCreatePreviewCardModel();
+    const createPreviewSegments = this.#getCreatePreviewCardModels();
     const showTimedLabels = this.variant === "timed" && !this.labelsHidden;
     const timedSidebarLabels = getHourlyTimeLabels(this.locale, this.hours);
     const timedSidebarRows = timedSidebarLabels.map((label, hour) => {
@@ -614,20 +613,18 @@ export class CalendarView extends BaseElement {
         >
           ${this.#renderWeekendHighlights()}
           ${this.variant === "timed" ? this.#renderCurrentTimeIndicator() : ""}
-          ${
-            createPreview
-              ? html`
-                  <event-card
-                    summary="New event"
-                    time=${this.#formatCreatePreviewTimeRange(createPreview.start, createPreview.end)}
-                    segment-direction="vertical"
-                    ?first-segment=${true}
-                    ?last-segment=${true}
-                    style=${styleMap(createPreview.style)}
-                  ></event-card>
-                `
-              : ""
-          }
+          ${createPreviewSegments.map(
+            (segment) => html`
+              <event-card
+                summary="New event"
+                time=${segment.timeLabel}
+                segment-direction="vertical"
+                ?first-segment=${segment.firstSegment}
+                ?last-segment=${segment.lastSegment}
+                style=${styleMap(segment.style)}
+              ></event-card>
+            `
+          )}
           ${
             this.variant === "all-day" && !this.labelsHidden
               ? this.#renderAllDayInterleavedByDate(allDayOverflow)
@@ -1180,7 +1177,6 @@ export class CalendarView extends BaseElement {
       startDateTime: startHit.dateTime,
       startDayIndex: startHit.dayIndex,
       currentDateTime: startHit.dateTime,
-      currentDayIndex: startHit.dayIndex,
       dragActivated: false,
       longPressTimerId,
     };
@@ -1208,7 +1204,6 @@ export class CalendarView extends BaseElement {
     const hoverHit = this.#resolveTimedHitFromPoint(event.clientX, event.clientY);
     if (!hoverHit) return;
     pending.currentDateTime = hoverHit.dateTime;
-    pending.currentDayIndex = hoverHit.dayIndex;
     // Keep the create interaction visual focused on the growing preview block.
     this.#dragHoverDayIndex = null;
     this.#dragHoverTime = null;
@@ -1356,66 +1351,96 @@ export class CalendarView extends BaseElement {
     return dayIndex >= 0 ? dayIndex : null;
   }
 
-  #getCreatePreviewCardModel(): {
-    start: Temporal.PlainDateTime;
-    end: Temporal.PlainDateTime;
+  #getCreatePreviewCardModels(): Array<{
+    firstSegment: boolean;
+    lastSegment: boolean;
+    timeLabel: string;
     style: Record<string, string>;
-  } | null {
-    if (this.variant !== "timed" || this.#days <= 0) return null;
+  }> {
+    if (this.variant !== "timed" || this.#days <= 0) return [];
     const pending = this.#pendingCreatePointer;
-    if (!pending || pending.pointerType === "touch" || !pending.dragActivated) return null;
+    if (!pending || pending.pointerType === "touch" || !pending.dragActivated) return [];
 
     let startDateTime = pending.startDateTime;
     let endDateTime = pending.currentDateTime;
     if (Temporal.PlainDateTime.compare(endDateTime, startDateTime) < 0) {
       [startDateTime, endDateTime] = [endDateTime, startDateTime];
     }
-
-    // Keep the preview focused on same-day drag selection in timed view.
-    if (Temporal.PlainDate.compare(startDateTime.toPlainDate(), endDateTime.toPlainDate()) !== 0) {
-      return null;
+    if (Temporal.PlainDateTime.compare(startDateTime, endDateTime) === 0) {
+      endDateTime = startDateTime.add({ minutes: Math.max(this.#snapInterval, 5) });
+    }
+    const minDurationHours = Math.max(this.#snapInterval, 5) / 60;
+    if (
+      Temporal.PlainDate.compare(startDateTime.toPlainDate(), endDateTime.toPlainDate()) === 0 &&
+      Temporal.PlainDateTime.compare(endDateTime, startDateTime) > 0
+    ) {
+      const startHour =
+        startDateTime.hour +
+        startDateTime.minute / 60 +
+        startDateTime.second / 3600 +
+        startDateTime.millisecond / 3_600_000;
+      const endHour =
+        endDateTime.hour +
+        endDateTime.minute / 60 +
+        endDateTime.second / 3600 +
+        endDateTime.millisecond / 3_600_000;
+      if (endHour - startHour < minDurationHours) {
+        endDateTime = startDateTime.add({ minutes: Math.max(this.#snapInterval, 5) });
+      }
     }
 
-    const dayIndex = this.#dayIndexForDate(startDateTime.toPlainDate());
-    if (dayIndex === null) return null;
-    const visualDayIndex = this.#toVisualColumnIndex(dayIndex, this.#days);
-    const left = (visualDayIndex / this.#days) * 100;
-    const width = (1 / this.#days) * 100;
-    const startHour =
-      startDateTime.hour +
-      startDateTime.minute / 60 +
-      startDateTime.second / 3600 +
-      startDateTime.millisecond / 3_600_000;
-    const endHour =
-      endDateTime.hour +
-      endDateTime.minute / 60 +
-      endDateTime.second / 3600 +
-      endDateTime.millisecond / 3_600_000;
-    const top = (startHour / 24) * 100;
-    const minDurationHours = Math.max(this.#snapInterval, 5) / 60;
-    const rawDurationHours = endHour - startHour;
-    const durationHours = Math.max(minDurationHours, rawDurationHours);
-    const height = (durationHours / 24) * 100;
-    const previewEndDateTime =
-      rawDurationHours <= 0 ? startDateTime.add({ minutes: Math.max(this.#snapInterval, 5) }) : endDateTime;
-    const colorStyles = getEventColorStyles("#0EA5E9");
+    const startDate = startDateTime.toPlainDate();
+    const endDate = endDateTime.toPlainDate();
+    const visibleDays = this.days;
+    const segmentDayIndices = visibleDays
+      .map((day, index) => ({ day, index }))
+      .filter(({ day }) => {
+        return (
+          Temporal.PlainDate.compare(day, startDate) >= 0 &&
+          Temporal.PlainDate.compare(day, endDate) <= 0
+        );
+      });
+    if (!segmentDayIndices.length) return [];
 
-    return {
-      start: startDateTime,
-      end: previewEndDateTime,
-      style: {
-        ...colorStyles,
-        top: `${top}%`,
-        bottom: `${Math.max(0, 100 - (top + height))}%`,
-        "--_lc-left": `${left}%`,
-        "--_lc-width": `${width / (100 / this.#days)}`,
-        "--_lc-margin-left": "0",
-        "--_lc-indentation": "0px",
-        "--_lc-inline-inset-start": "1px",
-        "--_lc-inline-inset-end": "2px",
-        "--_lc-z-index": "8",
-      },
-    };
+    const colorStyles = getEventColorStyles("#0EA5E9");
+    const timeLabel = this.#formatCreatePreviewTimeRange(startDateTime, endDateTime);
+
+    return segmentDayIndices.map(({ day, index: dayIndex }, segmentIndex) => {
+      const isStartDay = Temporal.PlainDate.compare(day, startDate) === 0;
+      const isEndDay = Temporal.PlainDate.compare(day, endDate) === 0;
+      const startHour =
+        startDateTime.hour +
+        startDateTime.minute / 60 +
+        startDateTime.second / 3600 +
+        startDateTime.millisecond / 3_600_000;
+      const endHour =
+        endDateTime.hour +
+        endDateTime.minute / 60 +
+        endDateTime.second / 3600 +
+        endDateTime.millisecond / 3_600_000;
+      const top = isStartDay ? (startHour / 24) * 100 : 0;
+      const bottom = isEndDay ? Math.max(0, 100 - (endHour / 24) * 100) : 0;
+      const visualDayIndex = this.#toVisualColumnIndex(dayIndex, this.#days);
+      const left = (visualDayIndex / this.#days) * 100;
+
+      return {
+        firstSegment: segmentIndex === 0,
+        lastSegment: segmentIndex === segmentDayIndices.length - 1,
+        timeLabel: segmentIndex === 0 ? timeLabel : "",
+        style: {
+          ...colorStyles,
+          top: `${top}%`,
+          bottom: `${bottom}%`,
+          "--_lc-left": `${left}%`,
+          "--_lc-width": "1",
+          "--_lc-margin-left": "0",
+          "--_lc-indentation": "0px",
+          "--_lc-inline-inset-start": "1px",
+          "--_lc-inline-inset-end": "2px",
+          "--_lc-z-index": "8",
+        },
+      };
+    });
   }
 
   #formatCreatePreviewTimeRange(
