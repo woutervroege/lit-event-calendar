@@ -94,8 +94,10 @@ export class CalendarView extends BaseElement {
         pointerType: string;
         startClientX: number;
         startClientY: number;
+        currentClientY: number;
         startDateTime: Temporal.PlainDateTime;
         startDayIndex: number;
+        currentDayIndex: number;
         currentDateTime: Temporal.PlainDateTime;
         dragActivated: boolean;
         longPressActivated: boolean;
@@ -1196,8 +1198,10 @@ export class CalendarView extends BaseElement {
       pointerType: event.pointerType,
       startClientX: event.clientX,
       startClientY: event.clientY,
+      currentClientY: event.clientY,
       startDateTime: startHit.dateTime,
       startDayIndex: startHit.dayIndex,
+      currentDayIndex: startHit.dayIndex,
       currentDateTime: startHit.dateTime,
       dragActivated: false,
       longPressActivated: false,
@@ -1224,6 +1228,8 @@ export class CalendarView extends BaseElement {
       }
       const hoverHit = this.#resolveCreateHitFromPoint(event.clientX, event.clientY);
       if (!hoverHit) return;
+      pending.currentClientY = event.clientY;
+      pending.currentDayIndex = hoverHit.dayIndex;
       pending.currentDateTime = hoverHit.dateTime;
       this.#dragHoverDayIndex = null;
       this.#dragHoverTime = null;
@@ -1238,6 +1244,8 @@ export class CalendarView extends BaseElement {
 
     const hoverHit = this.#resolveCreateHitFromPoint(event.clientX, event.clientY);
     if (!hoverHit) return;
+    pending.currentClientY = event.clientY;
+    pending.currentDayIndex = hoverHit.dayIndex;
     pending.currentDateTime = hoverHit.dateTime;
     // Keep the create interaction visual focused on the growing preview block.
     this.#dragHoverDayIndex = null;
@@ -1589,6 +1597,7 @@ export class CalendarView extends BaseElement {
 
     const cols = this.#isMonthView ? this.daysPerRow : this.#days;
     if (cols <= 0) return [];
+    const laneIndex = this.#getAllDayCreateLaneIndex();
     const rowSegments = new Map<number, { startCol: number; endCol: number }>();
     for (const { index: dayIndex } of segmentDayIndices) {
       const rowIndex = this.#isMonthView ? Math.floor(dayIndex / cols) : 0;
@@ -1610,8 +1619,8 @@ export class CalendarView extends BaseElement {
       const inlineInsetStart = this.#isMonthView ? "2px" : "1px";
       const inlineInsetEnd = this.#isMonthView ? "1px" : "2px";
       const top = this.#isMonthView
-        ? `calc(var(--_lc-row-height, 100%) * ${rowIndex} + var(--_lc-all-day-day-number-space))`
-        : "calc(var(--_lc-all-day-day-number-space))";
+        ? `calc(var(--_lc-row-height, 100%) * ${rowIndex} + var(--_lc-all-day-day-number-space) + var(--_lc-event-height, 32px) * ${laneIndex})`
+        : `calc(var(--_lc-all-day-day-number-space) + var(--_lc-event-height, 32px) * ${laneIndex})`;
 
       return {
         firstSegment: segmentIndex === 0,
@@ -1632,6 +1641,38 @@ export class CalendarView extends BaseElement {
         },
       };
     });
+  }
+
+  #getAllDayCreateLaneIndex(): number {
+    const pending = this.#pendingCreatePointer;
+    if (!pending) return 0;
+    const section = this.renderRoot.querySelector("section");
+    if (!section) return 0;
+    const bounds = section.getBoundingClientRect();
+    if (!Number.isFinite(bounds.height) || bounds.height <= 0) return 0;
+
+    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    const rows = this.#isMonthView ? this.gridRows : 1;
+    if (cols <= 0 || rows <= 0) return 0;
+    const activeRowIndex = this.#isMonthView ? Math.floor(pending.currentDayIndex / cols) : 0;
+    const rowHeightPx = bounds.height / rows;
+    if (!Number.isFinite(rowHeightPx) || rowHeightPx <= 0) return 0;
+
+    const style = getComputedStyle(this);
+    const dayNumberSpacePx = this.#readPxVar(style, "--_lc-all-day-day-number-space", 36);
+    const eventHeightPx = this.#readPxVar(style, "--_lc-event-height", 32);
+    const laneAreaPx = Math.max(0, rowHeightPx - dayNumberSpacePx);
+    const maxLaneIndex = Math.max(0, Math.floor((laneAreaPx - 1) / Math.max(1, eventHeightPx)));
+    const rowTopPx = bounds.top + activeRowIndex * rowHeightPx;
+    const localY = pending.currentClientY - rowTopPx - dayNumberSpacePx;
+    const laneIndex = Math.floor(localY / Math.max(1, eventHeightPx));
+    return Math.max(0, Math.min(maxLaneIndex, laneIndex));
+  }
+
+  #readPxVar(style: CSSStyleDeclaration, name: string, fallback: number): number {
+    const raw = style.getPropertyValue(name).trim();
+    const parsed = Number.parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : fallback;
   }
 
   #formatCreatePreviewTimeRange(
