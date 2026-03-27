@@ -67,6 +67,11 @@ type EventCreateRequestDetail = {
   sourceEvent: Event;
 };
 
+type CreateHit = {
+  dayIndex: number;
+  dateTime: Temporal.PlainDateTime;
+};
+
 @customElement("calendar-view")
 export class CalendarView extends BaseElement {
   #startDate?: string;
@@ -629,7 +634,7 @@ export class CalendarView extends BaseElement {
               <event-card
                 summary="New event"
                 time=${segment.timeLabel}
-                segment-direction="vertical"
+                segment-direction=${segment.segmentDirection}
                 ?first-segment=${segment.firstSegment}
                 ?last-segment=${segment.lastSegment}
                 style=${styleMap(segment.style)}
@@ -1145,12 +1150,11 @@ export class CalendarView extends BaseElement {
   }
 
   #handleCreatePointerDown = (event: PointerEvent) => {
-    if (this.variant !== "timed") return;
     if (this.#pendingCreatePointer) return;
     if (!this.#isCreateEligibleTarget(event.target)) return;
     if (event.pointerType !== "touch" && event.button !== 0) return;
 
-    const startHit = this.#resolveTimedHitFromPoint(event.clientX, event.clientY);
+    const startHit = this.#resolveCreateHitFromPoint(event.clientX, event.clientY);
     if (!startHit) return;
 
     const section = event.currentTarget as HTMLElement | null;
@@ -1169,7 +1173,17 @@ export class CalendarView extends BaseElement {
         if (!pending || pending.pointerId !== event.pointerId || pending.pointerType !== "touch") return;
         pending.longPressActivated = true;
         pending.dragActivated = true;
-        pending.currentDateTime = this.#defaultCreateEndDateTime(pending.startDateTime);
+        pending.currentDateTime =
+          this.variant === "timed"
+            ? this.#defaultCreateEndDateTime(pending.startDateTime)
+            : pending.startDateTime.toPlainDate().toPlainDateTime({
+                hour: 0,
+                minute: 0,
+                second: 0,
+                millisecond: 0,
+                microsecond: 0,
+                nanosecond: 0,
+              });
         pending.longPressTimerId = null;
         this.requestUpdate();
       }, CREATE_TOUCH_LONG_PRESS_MS);
@@ -1208,7 +1222,7 @@ export class CalendarView extends BaseElement {
       if (event.cancelable) {
         event.preventDefault();
       }
-      const hoverHit = this.#resolveTimedHitFromPoint(event.clientX, event.clientY);
+      const hoverHit = this.#resolveCreateHitFromPoint(event.clientX, event.clientY);
       if (!hoverHit) return;
       pending.currentDateTime = hoverHit.dateTime;
       this.#dragHoverDayIndex = null;
@@ -1222,7 +1236,7 @@ export class CalendarView extends BaseElement {
     }
     if (!pending.dragActivated) return;
 
-    const hoverHit = this.#resolveTimedHitFromPoint(event.clientX, event.clientY);
+    const hoverHit = this.#resolveCreateHitFromPoint(event.clientX, event.clientY);
     if (!hoverHit) return;
     pending.currentDateTime = hoverHit.dateTime;
     // Keep the create interaction visual focused on the growing preview block.
@@ -1246,8 +1260,24 @@ export class CalendarView extends BaseElement {
       if (Temporal.PlainDateTime.compare(endDateTime, startDateTime) < 0) {
         [startDateTime, endDateTime] = [endDateTime, startDateTime];
       }
-      if (Temporal.PlainDateTime.compare(startDateTime, endDateTime) === 0) {
+      if (this.variant === "timed" && Temporal.PlainDateTime.compare(startDateTime, endDateTime) === 0) {
         endDateTime = this.#defaultCreateEndDateTime(startDateTime);
+      }
+      if (this.variant === "all-day") {
+        const startDate = startDateTime.toPlainDate();
+        const endDateInclusive = endDateTime.toPlainDate();
+        const endExclusive = endDateInclusive.add({ days: 1 });
+        const startDayIndex = this.#dayIndexForDate(startDate) ?? pending.startDayIndex;
+        this.#emitEventCreateRequested({
+          start: startDate.toString(),
+          end: endExclusive.toString(),
+          dayIndex: startDayIndex,
+          trigger: "long-press",
+          pointerType: pending.pointerType,
+          sourceEvent: event,
+        });
+        this.#cancelPendingCreatePointer(event, section);
+        return;
       }
       const startDayIndex = this.#dayIndexForDate(startDateTime.toPlainDate()) ?? pending.startDayIndex;
       this.#emitEventCreateRequested({
@@ -1267,7 +1297,7 @@ export class CalendarView extends BaseElement {
       return;
     }
 
-    const endHit = this.#resolveTimedHitFromPoint(event.clientX, event.clientY);
+    const endHit = this.#resolveCreateHitFromPoint(event.clientX, event.clientY);
     if (!endHit) {
       this.#cancelPendingCreatePointer(event, section);
       return;
@@ -1278,7 +1308,23 @@ export class CalendarView extends BaseElement {
     if (Temporal.PlainDateTime.compare(endDateTime, startDateTime) < 0) {
       [startDateTime, endDateTime] = [endDateTime, startDateTime];
     }
-    if (Temporal.PlainDateTime.compare(startDateTime, endDateTime) === 0) {
+    if (this.variant === "timed" && Temporal.PlainDateTime.compare(startDateTime, endDateTime) === 0) {
+      this.#cancelPendingCreatePointer(event, section);
+      return;
+    }
+    if (this.variant === "all-day") {
+      const startDate = startDateTime.toPlainDate();
+      const endDateInclusive = endDateTime.toPlainDate();
+      const endExclusive = endDateInclusive.add({ days: 1 });
+      const startDayIndex = this.#dayIndexForDate(startDate) ?? pending.startDayIndex;
+      this.#emitEventCreateRequested({
+        start: startDate.toString(),
+        end: endExclusive.toString(),
+        dayIndex: startDayIndex,
+        trigger: "drag-select",
+        pointerType: pending.pointerType,
+        sourceEvent: event,
+      });
       this.#cancelPendingCreatePointer(event, section);
       return;
     }
@@ -1367,6 +1413,48 @@ export class CalendarView extends BaseElement {
     };
   }
 
+  #resolveAllDayHitFromPoint(clientX: number, clientY: number): CreateHit | null {
+    const section = this.renderRoot.querySelector("section");
+    if (!section || this.#days <= 0) return null;
+    const bounds = section.getBoundingClientRect();
+    if (!Number.isFinite(bounds.width) || !Number.isFinite(bounds.height)) return null;
+    if (bounds.width <= 0 || bounds.height <= 0) return null;
+    const days = this.days;
+    if (!days.length) return null;
+
+    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    const rows = this.#isMonthView ? this.gridRows : 1;
+    if (cols <= 0 || rows <= 0) return null;
+
+    const boundedX = Math.max(0, Math.min(bounds.width - Number.EPSILON, clientX - bounds.left));
+    const boundedY = Math.max(0, Math.min(bounds.height - Number.EPSILON, clientY - bounds.top));
+    const visualColIndex = Math.floor((boundedX / bounds.width) * cols);
+    const colIndex = this.#isRtl ? cols - visualColIndex - 1 : visualColIndex;
+    const rowIndex = Math.floor((boundedY / bounds.height) * rows);
+    const dayIndex = rowIndex * cols + colIndex;
+    const day = days[dayIndex];
+    if (!day) return null;
+
+    return {
+      dayIndex,
+      dateTime: day.toPlainDateTime({
+        hour: 0,
+        minute: 0,
+        second: 0,
+        millisecond: 0,
+        microsecond: 0,
+        nanosecond: 0,
+      }),
+    };
+  }
+
+  #resolveCreateHitFromPoint(clientX: number, clientY: number): CreateHit | null {
+    if (this.variant === "timed") {
+      return this.#resolveTimedHitFromPoint(clientX, clientY);
+    }
+    return this.#resolveAllDayHitFromPoint(clientX, clientY);
+  }
+
   #snappedTimeFromFraction(fractionY: number): Temporal.PlainTime {
     const clampedFraction = Math.max(0, Math.min(0.999999, fractionY));
     const incrementSeconds = Math.max(60, Math.round(this.#snapInterval * 60));
@@ -1406,9 +1494,10 @@ export class CalendarView extends BaseElement {
     firstSegment: boolean;
     lastSegment: boolean;
     timeLabel: string;
+    segmentDirection: "horizontal" | "vertical";
     style: Record<string, string>;
   }> {
-    if (this.variant !== "timed" || this.#days <= 0) return [];
+    if (this.#days <= 0) return [];
     const pending = this.#pendingCreatePointer;
     if (!pending || !pending.dragActivated) return [];
 
@@ -1417,26 +1506,28 @@ export class CalendarView extends BaseElement {
     if (Temporal.PlainDateTime.compare(endDateTime, startDateTime) < 0) {
       [startDateTime, endDateTime] = [endDateTime, startDateTime];
     }
-    if (Temporal.PlainDateTime.compare(startDateTime, endDateTime) === 0) {
-      endDateTime = startDateTime.add({ minutes: Math.max(this.#snapInterval, 5) });
-    }
-    const minDurationHours = Math.max(this.#snapInterval, 5) / 60;
-    if (
-      Temporal.PlainDate.compare(startDateTime.toPlainDate(), endDateTime.toPlainDate()) === 0 &&
-      Temporal.PlainDateTime.compare(endDateTime, startDateTime) > 0
-    ) {
-      const startHour =
-        startDateTime.hour +
-        startDateTime.minute / 60 +
-        startDateTime.second / 3600 +
-        startDateTime.millisecond / 3_600_000;
-      const endHour =
-        endDateTime.hour +
-        endDateTime.minute / 60 +
-        endDateTime.second / 3600 +
-        endDateTime.millisecond / 3_600_000;
-      if (endHour - startHour < minDurationHours) {
+    if (this.variant === "timed") {
+      if (Temporal.PlainDateTime.compare(startDateTime, endDateTime) === 0) {
         endDateTime = startDateTime.add({ minutes: Math.max(this.#snapInterval, 5) });
+      }
+      const minDurationHours = Math.max(this.#snapInterval, 5) / 60;
+      if (
+        Temporal.PlainDate.compare(startDateTime.toPlainDate(), endDateTime.toPlainDate()) === 0 &&
+        Temporal.PlainDateTime.compare(endDateTime, startDateTime) > 0
+      ) {
+        const startHour =
+          startDateTime.hour +
+          startDateTime.minute / 60 +
+          startDateTime.second / 3600 +
+          startDateTime.millisecond / 3_600_000;
+        const endHour =
+          endDateTime.hour +
+          endDateTime.minute / 60 +
+          endDateTime.second / 3600 +
+          endDateTime.millisecond / 3_600_000;
+        if (endHour - startHour < minDurationHours) {
+          endDateTime = startDateTime.add({ minutes: Math.max(this.#snapInterval, 5) });
+        }
       }
     }
 
@@ -1454,40 +1545,89 @@ export class CalendarView extends BaseElement {
     if (!segmentDayIndices.length) return [];
 
     const colorStyles = getEventColorStyles("#0EA5E9");
-    const timeLabel = this.#formatCreatePreviewTimeRange(startDateTime, endDateTime);
+    if (this.variant === "timed") {
+      const timeLabel = this.#formatCreatePreviewTimeRange(startDateTime, endDateTime);
 
-    return segmentDayIndices.map(({ day, index: dayIndex }, segmentIndex) => {
-      const isStartDay = Temporal.PlainDate.compare(day, startDate) === 0;
-      const isEndDay = Temporal.PlainDate.compare(day, endDate) === 0;
-      const startHour =
-        startDateTime.hour +
-        startDateTime.minute / 60 +
-        startDateTime.second / 3600 +
-        startDateTime.millisecond / 3_600_000;
-      const endHour =
-        endDateTime.hour +
-        endDateTime.minute / 60 +
-        endDateTime.second / 3600 +
-        endDateTime.millisecond / 3_600_000;
-      const top = isStartDay ? (startHour / 24) * 100 : 0;
-      const bottom = isEndDay ? Math.max(0, 100 - (endHour / 24) * 100) : 0;
-      const visualDayIndex = this.#toVisualColumnIndex(dayIndex, this.#days);
-      const left = (visualDayIndex / this.#days) * 100;
+      return segmentDayIndices.map(({ day, index: dayIndex }, segmentIndex) => {
+        const isStartDay = Temporal.PlainDate.compare(day, startDate) === 0;
+        const isEndDay = Temporal.PlainDate.compare(day, endDate) === 0;
+        const startHour =
+          startDateTime.hour +
+          startDateTime.minute / 60 +
+          startDateTime.second / 3600 +
+          startDateTime.millisecond / 3_600_000;
+        const endHour =
+          endDateTime.hour +
+          endDateTime.minute / 60 +
+          endDateTime.second / 3600 +
+          endDateTime.millisecond / 3_600_000;
+        const top = isStartDay ? (startHour / 24) * 100 : 0;
+        const bottom = isEndDay ? Math.max(0, 100 - (endHour / 24) * 100) : 0;
+        const visualDayIndex = this.#toVisualColumnIndex(dayIndex, this.#days);
+        const left = (visualDayIndex / this.#days) * 100;
+
+        return {
+          firstSegment: segmentIndex === 0,
+          lastSegment: segmentIndex === segmentDayIndices.length - 1,
+          timeLabel: segmentIndex === 0 ? timeLabel : "",
+          segmentDirection: "vertical",
+          style: {
+            ...colorStyles,
+            top: `${top}%`,
+            bottom: `${bottom}%`,
+            "--_lc-left": `${left}%`,
+            "--_lc-width": "1",
+            "--_lc-margin-left": "0",
+            "--_lc-indentation": "0px",
+            "--_lc-inline-inset-start": "1px",
+            "--_lc-inline-inset-end": "2px",
+            "--_lc-z-index": "8",
+          },
+        };
+      });
+    }
+
+    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    if (cols <= 0) return [];
+    const rowSegments = new Map<number, { startCol: number; endCol: number }>();
+    for (const { index: dayIndex } of segmentDayIndices) {
+      const rowIndex = this.#isMonthView ? Math.floor(dayIndex / cols) : 0;
+      const colIndex = this.#isMonthView ? dayIndex % cols : dayIndex;
+      const existing = rowSegments.get(rowIndex);
+      if (!existing) {
+        rowSegments.set(rowIndex, { startCol: colIndex, endCol: colIndex });
+      } else {
+        existing.startCol = Math.min(existing.startCol, colIndex);
+        existing.endCol = Math.max(existing.endCol, colIndex);
+      }
+    }
+
+    const orderedRows = Array.from(rowSegments.entries()).sort(([a], [b]) => a - b);
+    return orderedRows.map(([rowIndex, segment], segmentIndex) => {
+      const widthInColumns = segment.endCol - segment.startCol + 1;
+      const visualStartCol = this.#toVisualColumnIndex(segment.startCol, cols);
+      const left = (visualStartCol / cols) * 100;
+      const inlineInsetStart = this.#isMonthView ? "2px" : "1px";
+      const inlineInsetEnd = this.#isMonthView ? "1px" : "2px";
+      const top = this.#isMonthView
+        ? `calc(var(--_lc-row-height, 100%) * ${rowIndex} + var(--_lc-all-day-day-number-space))`
+        : "calc(var(--_lc-all-day-day-number-space))";
 
       return {
         firstSegment: segmentIndex === 0,
-        lastSegment: segmentIndex === segmentDayIndices.length - 1,
-        timeLabel: segmentIndex === 0 ? timeLabel : "",
+        lastSegment: segmentIndex === orderedRows.length - 1,
+        timeLabel: "",
+        segmentDirection: "horizontal",
         style: {
           ...colorStyles,
-          top: `${top}%`,
-          bottom: `${bottom}%`,
+          top,
+          height: "var(--_lc-event-height, 32px)",
           "--_lc-left": `${left}%`,
-          "--_lc-width": "1",
+          "--_lc-width": `${widthInColumns}`,
           "--_lc-margin-left": "0",
           "--_lc-indentation": "0px",
-          "--_lc-inline-inset-start": "1px",
-          "--_lc-inline-inset-end": "2px",
+          "--_lc-inline-inset-start": inlineInsetStart,
+          "--_lc-inline-inset-end": inlineInsetEnd,
           "--_lc-z-index": "8",
         },
       };
