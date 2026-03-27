@@ -47,6 +47,9 @@ const SECONDS_IN_DAY = 24 * 60 * 60;
 type EventCreateRequestDetail = {
   start: string;
   end: string;
+  summary: string;
+  color: string;
+  sourceId?: string;
   dayIndex: number;
   trigger: "long-press" | "drag-select";
   pointerType: string;
@@ -72,6 +75,9 @@ export class CalendarView extends BaseElement {
   variant: "timed" | "all-day" = "timed";
   labelsHidden = false;
   rtl = false;
+  defaultEventSummary = "New event";
+  defaultEventColor = "#0ea5e9";
+  defaultSourceId?: string;
   #dragHoverDayIndex: number | null = null;
   #dragHoverTime: Temporal.PlainTime | null = null;
   #pendingCreatePointer:
@@ -207,6 +213,9 @@ export class CalendarView extends BaseElement {
       },
       labelsHidden: { type: Boolean, attribute: "labels-hidden", reflect: true },
       rtl: { type: Boolean, reflect: true },
+      defaultEventSummary: { type: String, attribute: "default-event-summary" },
+      defaultEventColor: { type: String, attribute: "default-event-color" },
+      defaultSourceId: { type: String, attribute: "default-source-id" },
       locale: { type: String },
       timezone: { type: String },
       snapInterval: { type: Number, attribute: "snap-interval" },
@@ -620,7 +629,7 @@ export class CalendarView extends BaseElement {
           ${createPreviewSegments.map(
             (segment) => html`
               <event-card
-                summary="New event"
+                summary=${this.defaultEventSummary}
                 time=${segment.timeLabel}
                 segment-direction=${segment.segmentDirection}
                 ?first-segment=${segment.firstSegment}
@@ -1265,6 +1274,9 @@ export class CalendarView extends BaseElement {
         this.#emitEventCreateRequested({
           start: startDate.toString(),
           end: endExclusive.toString(),
+          summary: this.defaultEventSummary,
+          color: this.defaultEventColor,
+          sourceId: this.defaultSourceId,
           dayIndex: startDayIndex,
           trigger: "long-press",
           pointerType: pending.pointerType,
@@ -1277,6 +1289,9 @@ export class CalendarView extends BaseElement {
       this.#emitEventCreateRequested({
         start: startDateTime.toString(),
         end: endDateTime.toString(),
+        summary: this.defaultEventSummary,
+        color: this.defaultEventColor,
+        sourceId: this.defaultSourceId,
         dayIndex: startDayIndex,
         trigger: "long-press",
         pointerType: pending.pointerType,
@@ -1314,6 +1329,9 @@ export class CalendarView extends BaseElement {
       this.#emitEventCreateRequested({
         start: startDate.toString(),
         end: endExclusive.toString(),
+        summary: this.defaultEventSummary,
+        color: this.defaultEventColor,
+        sourceId: this.defaultSourceId,
         dayIndex: startDayIndex,
         trigger: "drag-select",
         pointerType: pending.pointerType,
@@ -1327,6 +1345,9 @@ export class CalendarView extends BaseElement {
     this.#emitEventCreateRequested({
       start: startDateTime.toString(),
       end: endDateTime.toString(),
+      summary: this.defaultEventSummary,
+      color: this.defaultEventColor,
+      sourceId: this.defaultSourceId,
       dayIndex: startDayIndex,
       trigger: "drag-select",
       pointerType: pending.pointerType,
@@ -1538,7 +1559,7 @@ export class CalendarView extends BaseElement {
       });
     if (!segmentDayIndices.length) return [];
 
-    const colorStyles = getEventColorStyles("#0EA5E9");
+    const colorStyles = getEventColorStyles(this.defaultEventColor);
     if (this.variant === "timed") {
       const timeLabel = this.#formatCreatePreviewTimeRange(startDateTime, endDateTime);
 

@@ -72,6 +72,9 @@ export class EventCalendar extends BaseElement {
   snapInterval = 15;
   visibleHours = 12;
   rtl = false;
+  defaultEventSummary = "New event";
+  defaultEventColor = "#0ea5e9";
+  defaultSourceId?: string;
 
   static get properties() {
     return {
@@ -103,6 +106,9 @@ export class EventCalendar extends BaseElement {
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
+      defaultEventSummary: { type: String, attribute: "default-event-summary" },
+      defaultEventColor: { type: String, attribute: "default-event-color" },
+      defaultSourceId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
@@ -289,6 +295,9 @@ export class EventCalendar extends BaseElement {
           .snapInterval=${this.snapInterval}
           .visibleHours=${this.visibleHours}
           .rtl=${this.rtl}
+          .defaultEventSummary=${this.defaultEventSummary}
+          .defaultEventColor=${this.defaultEventColor}
+          .defaultSourceId=${this.defaultSourceId}
           @view-changed=${this.#syncFromViewGroup}
           @start-date-changed=${this.#syncFromViewGroup}
           @day-selection-requested=${this.#syncFromViewGroup}

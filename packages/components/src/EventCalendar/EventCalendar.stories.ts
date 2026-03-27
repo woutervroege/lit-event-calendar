@@ -12,7 +12,13 @@ import {
 import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 
 type StoryEventCalendarElement = HTMLElement & { events: Map<string, CalendarEvent> };
-type EventCreateRequestDetail = { start?: string; end?: string };
+type EventCreateRequestDetail = {
+  start?: string;
+  end?: string;
+  summary?: string;
+  color?: string;
+  sourceId?: string;
+};
 
 function preserveDateOnlyShape(
   nextValue: CalendarEvent["start"] | null | undefined,
@@ -89,6 +95,9 @@ const meta: Meta = {
     currentTime: { control: "text", description: "Current time (ISO string)" },
     snapInterval: { control: { type: "number", min: 5, max: 60, step: 5 } },
     visibleHours: { control: { type: "number", min: 1, max: 24, step: 1 } },
+    defaultEventSummary: { control: "text", description: "Default created event summary" },
+    defaultEventColor: { control: "color", description: "Default created event color" },
+    defaultSourceId: { control: "text", description: "Default created event source id" },
   },
   args: {
     view: "month",
@@ -98,6 +107,9 @@ const meta: Meta = {
     currentTime: "2025-01-15T14:30:00",
     snapInterval: 15,
     visibleHours: 12,
+    defaultEventSummary: "New event",
+    defaultEventColor: "#0ea5e9",
+    defaultSourceId: "",
     events: sampleEvents,
   },
   render: (args) => {
@@ -130,6 +142,17 @@ const meta: Meta = {
     }
     el.setAttribute("snap-interval", String(args.snapInterval));
     el.setAttribute("visible-hours", String(args.visibleHours));
+    if (args.defaultEventSummary) {
+      el.setAttribute("default-event-summary", String(args.defaultEventSummary));
+    }
+    if (args.defaultEventColor) {
+      el.setAttribute("default-event-color", String(args.defaultEventColor));
+    }
+    if (args.defaultSourceId) {
+      el.setAttribute("default-source-id", String(args.defaultSourceId));
+    } else {
+      el.removeAttribute("default-source-id");
+    }
 
     const entries = Array.isArray(args.events) ? args.events : sampleEvents;
     el.events = new Map(entries);
@@ -145,8 +168,9 @@ const meta: Meta = {
         eventId,
         start: toTemporalDateLike(detail.start),
         end: toTemporalDateLike(detail.end),
-        summary: "New event",
-        color: "#0ea5e9",
+        summary: detail.summary ?? "New event",
+        color: detail.color ?? "#0ea5e9",
+        sourceId: detail.sourceId,
       });
       el.events = nextEvents;
     });

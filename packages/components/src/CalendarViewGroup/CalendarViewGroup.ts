@@ -35,6 +35,9 @@ export class CalendarViewGroup extends BaseElement {
   snapInterval = 15;
   visibleHours = 12;
   rtl = false;
+  defaultEventSummary = "New event";
+  defaultEventColor = "#0ea5e9";
+  defaultSourceId?: string;
 
   static get properties() {
     return {
@@ -70,6 +73,9 @@ export class CalendarViewGroup extends BaseElement {
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
+      defaultEventSummary: { type: String, attribute: "default-event-summary" },
+      defaultEventColor: { type: String, attribute: "default-event-color" },
+      defaultSourceId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
@@ -252,6 +258,9 @@ export class CalendarViewGroup extends BaseElement {
           .currentTime=${this.currentTime}
           .snapInterval=${this.snapInterval}
           .visibleHours=${this.visibleHours}
+          .defaultEventSummary=${this.defaultEventSummary}
+          .defaultEventColor=${this.defaultEventColor}
+          .defaultSourceId=${this.defaultSourceId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-create-requested=${this.#reemit}
           @event-modified=${this.#reemit}
@@ -269,6 +278,9 @@ export class CalendarViewGroup extends BaseElement {
           .locale=${this.locale}
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
+          .defaultEventSummary=${this.defaultEventSummary}
+          .defaultEventColor=${this.defaultEventColor}
+          .defaultSourceId=${this.defaultSourceId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-create-requested=${this.#reemit}
           @event-modified=${this.#reemit}
@@ -286,6 +298,9 @@ export class CalendarViewGroup extends BaseElement {
         .locale=${this.locale}
         .timezone=${this.timezone}
         .currentTime=${this.#resolvedCurrentTime}
+        .defaultEventSummary=${this.defaultEventSummary}
+        .defaultEventColor=${this.defaultEventColor}
+        .defaultSourceId=${this.defaultSourceId}
         @day-selection-requested=${this.#handleDaySelectionRequested}
         @event-create-requested=${this.#reemit}
         @event-modified=${this.#reemit}

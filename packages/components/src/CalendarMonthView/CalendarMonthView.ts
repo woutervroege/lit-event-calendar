@@ -24,6 +24,9 @@ export class CalendarMonthView extends BaseElement {
   locale?: string;
   timezone?: string;
   currentTime?: string;
+  defaultEventSummary = "New event";
+  defaultEventColor = "#0ea5e9";
+  defaultSourceId?: string;
 
   static get properties() {
     return {
@@ -52,6 +55,9 @@ export class CalendarMonthView extends BaseElement {
       locale: { type: String },
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
+      defaultEventSummary: { type: String, attribute: "default-event-summary" },
+      defaultEventColor: { type: String, attribute: "default-event-color" },
+      defaultSourceId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
@@ -101,6 +107,9 @@ export class CalendarMonthView extends BaseElement {
           .timezone=${this.timezone}
           .currentTime=${this.currentTime}
           .labelsHidden=${false}
+          .defaultEventSummary=${this.defaultEventSummary}
+          .defaultEventColor=${this.defaultEventColor}
+          .defaultSourceId=${this.defaultSourceId}
           @day-selection-requested=${this.#reemit}
           @event-create-requested=${this.#reemit}
           @event-modified=${this.#reemit}
