@@ -98,10 +98,6 @@ export abstract class BaseEvent extends BaseElement {
 
   updated(changedProperties: PropertyValues) {
     super.updated(changedProperties);
-    if (changedProperties.has("start") || changedProperties.has("end")) {
-      if (this.interactionController.isDragging) return;
-      this.dispatchEvent(new CustomEvent("update"));
-    }
   }
 
   get start(): Temporal.PlainDateTime | null {
