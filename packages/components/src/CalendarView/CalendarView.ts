@@ -244,16 +244,6 @@ export class CalendarView extends BaseElement {
     } as const;
   }
 
-  static get observers() {
-    const observers = new Map();
-    observers.set("_handleEventsChange", ["events"]);
-    return observers;
-  }
-
-  _handleEventsChange() {
-    console.info("events changed");
-  }
-
   static get styles() {
     return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }

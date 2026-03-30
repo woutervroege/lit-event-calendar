@@ -36,6 +36,9 @@ export class CalendarWeekView extends BaseElement {
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
   defaultSourceId?: string;
+  #splitEventsSource?: EventsMap;
+  #cachedAllDayEvents: EventsMap = new Map();
+  #cachedTimedEvents: EventsMap = new Map();
 
   static get properties() {
     return {
@@ -132,11 +135,13 @@ export class CalendarWeekView extends BaseElement {
   }
 
   get #allDayEvents(): EventsMap {
-    return new Map(this.#eventEntries.filter(([, event]) => this.#isAllDayEvent(event)));
+    this.#syncSplitEventsCache();
+    return this.#cachedAllDayEvents;
   }
 
   get #timedEvents(): EventsMap {
-    return new Map(this.#eventEntries.filter(([, event]) => this.#isTimedEvent(event)));
+    this.#syncSplitEventsCache();
+    return this.#cachedTimedEvents;
   }
 
   get #renderedDays(): Temporal.PlainDate[] {
@@ -212,6 +217,16 @@ export class CalendarWeekView extends BaseElement {
     const firstDay = getLocaleWeekInfo(locale).firstDay;
     if (isWeekdayNumber(firstDay)) return firstDay;
     return 1;
+  }
+
+  #syncSplitEventsCache() {
+    if (this.events === this.#splitEventsSource) return;
+    this.#splitEventsSource = this.events;
+    const sourceEntries = Array.from(this.events?.entries() ?? []);
+    this.#cachedAllDayEvents = new Map(
+      sourceEntries.filter(([, event]) => this.#isAllDayEvent(event))
+    );
+    this.#cachedTimedEvents = new Map(sourceEntries.filter(([, event]) => this.#isTimedEvent(event)));
   }
 
   render() {
