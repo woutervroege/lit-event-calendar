@@ -218,6 +218,7 @@ export function attachRequestEventHandlers(
       for (const key of seriesKeys) {
         const seriesEvent = nextEvents.get(key);
         if (!seriesEvent) continue;
+        if (seriesEvent.isException) continue;
         nextEvents.set(key, {
           ...applySharedUpdate(seriesEvent),
           start: applyDateValueShift(seriesEvent.start, startShift),
