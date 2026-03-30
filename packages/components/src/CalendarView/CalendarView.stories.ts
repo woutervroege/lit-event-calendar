@@ -107,16 +107,38 @@ const meta: Meta = {
       if (!detail?.start || !detail.end) return;
 
       const eventId = `event-created-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-      const nextEvents = new Map(el.events);
-      nextEvents.set(eventId, {
+      const optimisticEvents = new Map(el.events);
+      optimisticEvents.set(eventId, {
         eventId,
         start: toTemporalDateLike(detail.start),
         end: toTemporalDateLike(detail.end),
         summary: detail.summary ?? "New event",
         color: detail.color ?? "#0ea5e9",
         sourceId: detail.sourceId,
+        isOptimistic: true,
       });
-      el.events = nextEvents;
+      el.events = optimisticEvents;
+
+      const committedSummary = window.prompt("Event title", detail.summary ?? "New event");
+      if (committedSummary === null) {
+        event.preventDefault();
+        const rolledBackEvents = new Map(el.events);
+        rolledBackEvents.delete(eventId);
+        el.events = rolledBackEvents;
+        return;
+      }
+
+      window.setTimeout(() => {
+        const committedEvents = new Map(el.events);
+        const created = committedEvents.get(eventId);
+        if (!created) return;
+        committedEvents.set(eventId, {
+          ...created,
+          summary: committedSummary,
+          isOptimistic: false,
+        });
+        el.events = committedEvents;
+      }, 300);
 
       console.info("event-create-requested", {
         eventId,
@@ -156,9 +178,11 @@ const meta: Meta = {
       const nextEvents = new Map(el.events);
 
       const doDelete = confirm("Are you sure you want to delete this event?");
-      if (doDelete) {
-        nextEvents.delete(detail.eventId);
+      if (!doDelete) {
+        event.preventDefault();
+        return;
       }
+      nextEvents.delete(detail.eventId);
       el.events = nextEvents;
 
       console.info("event-delete-requested", { eventId: detail.eventId });

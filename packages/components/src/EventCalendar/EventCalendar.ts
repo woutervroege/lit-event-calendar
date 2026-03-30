@@ -337,13 +337,16 @@ export class EventCalendar extends BaseElement {
 
   #reemit = (event: Event) => {
     event.stopPropagation();
-    this.dispatchEvent(
-      new CustomEvent(event.type, {
-        detail: (event as CustomEvent).detail,
-        bubbles: true,
-        composed: true,
-      })
-    );
+    const forwardedEvent = new CustomEvent(event.type, {
+      detail: (event as CustomEvent).detail,
+      bubbles: true,
+      composed: true,
+      cancelable: event.cancelable,
+    });
+    const notCancelled = this.dispatchEvent(forwardedEvent);
+    if (!notCancelled && event.cancelable) {
+      event.preventDefault();
+    }
   };
 
   override updated(changedProperties: Map<PropertyKey, unknown>): void {

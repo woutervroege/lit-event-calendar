@@ -110,9 +110,11 @@ const meta: Meta = {
 
       const nextEvents = new Map(el.events);
       const doDelete = confirm("Are you sure you want to delete this event?");
-      if (doDelete) {
-        nextEvents.delete(detail.eventId);
+      if (!doDelete) {
+        event.preventDefault();
+        return;
       }
+      nextEvents.delete(detail.eventId);
       el.events = nextEvents;
     });
     return el;

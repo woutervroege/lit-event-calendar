@@ -119,12 +119,15 @@ export class DayOverflowPopover extends BaseElement {
 
   #reemit = (event: Event) => {
     event.stopPropagation();
-    this.dispatchEvent(
-      new CustomEvent(event.type, {
-        detail: (event.target as EventTarget | null) ?? null,
-        bubbles: true,
-        composed: true,
-      })
-    );
+    const forwardedEvent = new CustomEvent(event.type, {
+      detail: (event.target as EventTarget | null) ?? null,
+      bubbles: true,
+      composed: true,
+      cancelable: event.cancelable,
+    });
+    const notCancelled = this.dispatchEvent(forwardedEvent);
+    if (!notCancelled && event.cancelable) {
+      event.preventDefault();
+    }
   };
 }

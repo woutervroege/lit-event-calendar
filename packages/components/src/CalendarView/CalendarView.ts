@@ -1059,6 +1059,7 @@ export class CalendarView extends BaseElement {
         detail,
         bubbles: true,
         composed: true,
+        cancelable: true,
       })
     );
   };
@@ -1078,6 +1079,7 @@ export class CalendarView extends BaseElement {
         detail,
         bubbles: true,
         composed: true,
+        cancelable: true,
       })
     );
   };
@@ -1756,6 +1758,7 @@ export class CalendarView extends BaseElement {
         detail,
         bubbles: true,
         composed: true,
+        cancelable: true,
       })
     );
   }
