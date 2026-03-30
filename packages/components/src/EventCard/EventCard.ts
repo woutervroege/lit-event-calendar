@@ -1,11 +1,11 @@
+import { ContextConsumer } from "@lit/context";
 import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
-import { ContextConsumer } from "@lit/context";
 import { BaseElement } from "../BaseElement/BaseElement";
-import { calendarViewContext, type CalendarViewContextValue } from "../context/CalendarViewContext";
-import componentStyle from "./EventCard.css?inline";
+import { type CalendarViewContextValue, calendarViewContext } from "../context/CalendarViewContext";
 import { getLocaleDirection } from "../utils/Locale";
+import componentStyle from "./EventCard.css?inline";
 
 @customElement("event-card")
 export class EventCard extends BaseElement {
@@ -30,6 +30,9 @@ export class EventCard extends BaseElement {
 
   @property({ type: String, attribute: "time-detail" })
   timeDetail = "";
+
+  @property({ type: String })
+  location = "";
 
   @property({ type: Boolean, attribute: "first-segment" })
   firstSegment = false;
@@ -63,6 +66,9 @@ export class EventCard extends BaseElement {
     const hasTimeLabel = Boolean(this.time?.trim() || this.timeDetail?.trim());
     const time = this.time?.trim();
     const timeDetail = this.timeDetail?.trim();
+    const location = this.location?.trim();
+    const hasLocation = Boolean(location);
+    const hasMetaLabel = hasTimeLabel || hasLocation;
     const compactTime = time?.split(" - ")[0]?.trim() ?? "";
     const compactTimeLabel = [compactTime, timeDetail ? `(${timeDetail})` : ""]
       .filter(Boolean)
@@ -84,17 +90,30 @@ export class EventCard extends BaseElement {
                 </span>
                 <span class=${classMap(this.#summaryMainClasses)}>${this.summary}</span>
                 ${
-                  hasTimeLabel
+                  hasMetaLabel
                     ? html`
-                        <time class=${classMap(this.#summaryTimeClasses)}>
-                          <span class=${classMap(this.#summaryTimeMainClasses)}>${this.time}</span>
-                          ${this.timeDetail
-                            ? html`<span class=${classMap(this.#summaryTimeDetailClasses)}
-                                >(${this.timeDetail})</span
-                              >`
-                            : ""}
-                        </time>
-                      `
+                      <time class=${classMap(this.#summaryTimeClasses)}>
+                        ${
+                          hasTimeLabel
+                            ? html`
+                              <span class=${classMap(this.#summaryTimeMainClasses)}>${this.time}</span>
+                              ${
+                                this.timeDetail
+                                  ? html`<span class=${classMap(this.#summaryTimeDetailClasses)}
+                                    >(${this.timeDetail})</span
+                                  >`
+                                  : ""
+                              }
+                        `
+                            : ""
+                        }
+                      </time>
+                      ${
+                        hasLocation
+                          ? html`<span class=${classMap(this.#summaryLocationClasses)}>${location}</span>`
+                          : ""
+                      }
+                    `
                     : ""
                 }
               </h6>
@@ -164,7 +183,7 @@ export class EventCard extends BaseElement {
       "min-w-0": true,
       "max-w-full": true,
       "inline-block": true,
-      "truncate": true,
+      truncate: true,
     };
   }
 
@@ -174,7 +193,21 @@ export class EventCard extends BaseElement {
       "min-w-0": true,
       "max-w-full": true,
       "inline-block": true,
-      "truncate": true,
+      truncate: true,
+    };
+  }
+
+  get #summaryLocationClasses() {
+    return {
+      "event-card-location": true,
+      "text-xs": true,
+      "font-light": true,
+      "min-w-0": true,
+      "max-w-full": true,
+      block: true,
+      "overflow-hidden": true,
+      "leading-tight": true,
+      truncate: true,
     };
   }
 

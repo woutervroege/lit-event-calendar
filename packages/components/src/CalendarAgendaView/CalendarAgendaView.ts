@@ -17,7 +17,9 @@ type AgendaItem = {
   event: EventInput;
   start: Temporal.PlainDateTime;
   end: Temporal.PlainDateTime;
+  displayDate: Temporal.PlainDate;
   continuesFromPreviousDay: boolean;
+  continuesToNextDay: boolean;
 };
 
 type AgendaDay = {
@@ -101,6 +103,7 @@ export class CalendarAgendaView extends BaseElement {
           .locale=${this.locale}
           summary=${event.summary}
           time=${this.#formatItemTime(item)}
+          location=${event.location ?? ""}
           ?past=${isPast}
           first-segment
           last-segment
@@ -124,17 +127,30 @@ export class CalendarAgendaView extends BaseElement {
       if (!this.#eventOverlapsRange(start, end, rangeStart, rangeEndExclusive)) continue;
 
       const eventStartDate = start.toPlainDate();
-      const displayDate =
+      const eventEndDateInclusive = end.subtract({ nanoseconds: 1 }).toPlainDate();
+      const firstDisplayDate =
         Temporal.PlainDate.compare(eventStartDate, rangeStart) < 0 ? rangeStart : eventStartDate;
-      const key = displayDate.toString();
-      const dayItems = grouped.get(key) ?? [];
-      dayItems.push({
-        event,
-        start,
-        end,
-        continuesFromPreviousDay: Temporal.PlainDate.compare(eventStartDate, displayDate) < 0,
-      });
-      grouped.set(key, dayItems);
+      const rangeEndDateInclusive = rangeEndExclusive.subtract({ days: 1 });
+      const lastDisplayDate =
+        Temporal.PlainDate.compare(eventEndDateInclusive, rangeEndDateInclusive) > 0
+          ? rangeEndDateInclusive
+          : eventEndDateInclusive;
+
+      let displayDate = firstDisplayDate;
+      while (Temporal.PlainDate.compare(displayDate, lastDisplayDate) <= 0) {
+        const key = displayDate.toString();
+        const dayItems = grouped.get(key) ?? [];
+        dayItems.push({
+          event,
+          start,
+          end,
+          displayDate,
+          continuesFromPreviousDay: Temporal.PlainDate.compare(eventStartDate, displayDate) < 0,
+          continuesToNextDay: Temporal.PlainDate.compare(eventEndDateInclusive, displayDate) > 0,
+        });
+        grouped.set(key, dayItems);
+        displayDate = displayDate.add({ days: 1 });
+      }
     }
 
     return Array.from(grouped.entries())
@@ -199,9 +215,13 @@ export class CalendarAgendaView extends BaseElement {
       if (Temporal.PlainDate.compare(startDate, endDate) === 0) {
         return item.continuesFromPreviousDay ? "All day (continues)" : "All day";
       }
-      return `${item.continuesFromPreviousDay ? "Continues" : "All day"} - ${this.#formatDate(
-        startDate
-      )} to ${this.#formatDate(endDate)}`;
+      if (!item.continuesFromPreviousDay && item.continuesToNextDay) {
+        return `All day - until ${this.#formatDate(endDate)}`;
+      }
+      if (item.continuesFromPreviousDay && !item.continuesToNextDay) {
+        return `All day - ends ${this.#formatDate(endDate)}`;
+      }
+      return "All day (continues)";
     }
 
     const startsAndEndsSameDay = Temporal.PlainDate.compare(
@@ -210,6 +230,15 @@ export class CalendarAgendaView extends BaseElement {
     );
     if (startsAndEndsSameDay === 0) {
       return `${this.#formatTime(item.start)} - ${this.#formatTime(item.end)}`;
+    }
+    if (!item.continuesFromPreviousDay && item.continuesToNextDay) {
+      return `${this.#formatTime(item.start)} - continues`;
+    }
+    if (item.continuesFromPreviousDay && !item.continuesToNextDay) {
+      return `Continues - ${this.#formatTime(item.end)}`;
+    }
+    if (item.continuesFromPreviousDay && item.continuesToNextDay) {
+      return "Continues";
     }
     return `${this.#formatDateTime(item.start)} - ${this.#formatDateTime(item.end)}`;
   }

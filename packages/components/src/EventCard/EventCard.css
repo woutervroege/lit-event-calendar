@@ -96,6 +96,16 @@
     font-size: 14px;
     line-height: 1.35;
   }
+
+  :host([layout="flow"]) .event-card-location {
+    display: block;
+  }
+}
+
+@container (min-height: 72px) {
+  :host .event-card-location {
+    display: block;
+  }
 }
 
 :host .event-card-compact-label {
@@ -105,6 +115,11 @@
 :host .event-card-compact-time {
   font-weight: 300;
   font-variant-numeric: tabular-nums;
+}
+
+:host .event-card-location {
+  margin-top: 2px;
+  opacity: 0.84;
 }
 
 /* Compact cards: keep summary + time on a single row. */
