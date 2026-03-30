@@ -27,7 +27,7 @@ export class CalendarMonthView extends BaseElement {
   currentTime?: string;
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
-  defaultSourceId?: string;
+  defaultCalendarId?: string;
 
   static get properties() {
     return {
@@ -58,7 +58,7 @@ export class CalendarMonthView extends BaseElement {
       currentTime: { type: String, attribute: "current-time" },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
       defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultSourceId: { type: String, attribute: "default-source-id" },
+      defaultCalendarId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
@@ -110,7 +110,7 @@ export class CalendarMonthView extends BaseElement {
           .labelsHidden=${false}
           .defaultEventSummary=${this.defaultEventSummary}
           .defaultEventColor=${this.defaultEventColor}
-          .defaultSourceId=${this.defaultSourceId}
+          .defaultCalendarId=${this.defaultCalendarId}
           @day-selection-requested=${this.#reemit}
           @event-create-requested=${this.#reemit}
           @event-update-requested=${this.#reemit}

@@ -32,11 +32,17 @@ type CalendarEventSeedInput = {
   };
 };
 
+const CALENDAR_IDS = {
+  work: "/calendars/wouter/work/",
+  personal: "/calendars/wouter/personal/",
+  travel: "/calendars/wouter/travel/",
+} as const;
+
 export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-flight-london-20250104",
     {
-      envelope: { eventId: "flight-london@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.travel, eventId: "flight-london@example.test" },
       content: {
         start: "2025-01-04T08:30:00",
         end: "2025-01-05T09:45:00",
@@ -48,7 +54,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-hello-world-20250103",
     {
-      envelope: { eventId: "hello-world@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.work, eventId: "hello-world@example.test" },
       content: {
         start: "2025-01-03T12:00:00",
         end: "2025-01-07T18:00:00",
@@ -60,7 +66,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-team-meeting-20250106",
     {
-      envelope: { eventId: "team-meeting@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.work, eventId: "team-meeting@example.test" },
       content: {
         start: "2025-01-06T10:00:00",
         end: "2025-01-07T11:15:00",
@@ -72,7 +78,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-amsterdam-zoned-20250104",
     {
-      envelope: { eventId: "amsterdam-zoned@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.travel, eventId: "amsterdam-zoned@example.test" },
       content: {
         start: "2025-01-04T12:00:00+01:00[Europe/Amsterdam]",
         end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
@@ -84,7 +90,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-fiesta-20250106",
     {
-      envelope: { eventId: "fiesta@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.personal, eventId: "fiesta@example.test" },
       content: {
         start: "2025-01-06T14:00:00",
         end: "2025-01-06T15:00:00",
@@ -97,6 +103,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
     "event-drinks-20250108-1630",
     {
       envelope: {
+        calendarId: CALENDAR_IDS.personal,
         eventId: "drinks-weekly@example.test",
         recurrenceId: "20250108T163000",
       },
@@ -112,6 +119,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
     "event-drinks-20250115-1630",
     {
       envelope: {
+        calendarId: CALENDAR_IDS.personal,
         eventId: "drinks-weekly@example.test",
         recurrenceId: "20250115T163000",
       },
@@ -126,7 +134,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-meeting-john-20250110",
     {
-      envelope: { eventId: "meeting-with-john@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.personal, eventId: "meeting-with-john@example.test" },
       content: {
         start: "2025-01-08",
         end: "2025-01-09",
@@ -138,7 +146,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-company-holiday-20250101",
     {
-      envelope: { eventId: "company-holiday@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.work, eventId: "company-holiday@example.test" },
       content: {
         start: "2025-01-01",
         end: "2025-01-02",
@@ -150,7 +158,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-product-planning-20250106",
     {
-      envelope: { eventId: "product-planning@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.work, eventId: "product-planning@example.test" },
       content: {
         start: "2025-01-06",
         end: "2025-01-08",
@@ -162,7 +170,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-design-qa-20250112",
     {
-      envelope: { eventId: "design-qa@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.work, eventId: "design-qa@example.test" },
       content: {
         start: "2025-01-12",
         end: "2025-01-14",
@@ -174,7 +182,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-team-offsite-20250115",
     {
-      envelope: { eventId: "team-offsite@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.work, eventId: "team-offsite@example.test" },
       content: {
         start: "2025-01-15",
         end: "2025-01-18",
@@ -186,7 +194,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-release-freeze-20250119",
     {
-      envelope: { eventId: "release-freeze@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.work, eventId: "release-freeze@example.test" },
       content: {
         start: "2025-01-19",
         end: "2025-01-21",
@@ -198,7 +206,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-feb5-design-review-20250205",
     {
-      envelope: { eventId: "feb5-design-review@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.work, eventId: "feb5-design-review@example.test" },
       content: {
         start: "2025-02-05",
         end: "2025-02-06",
@@ -210,7 +218,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-feb5-eng-sync-20250205",
     {
-      envelope: { eventId: "feb5-eng-sync@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.work, eventId: "feb5-eng-sync@example.test" },
       content: {
         start: "2025-02-05",
         end: "2025-02-06",
@@ -228,7 +236,7 @@ export const timezoneShiftCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-amsterdam-noon-zoned",
     {
-      envelope: { eventId: "amsterdam-noon-zoned@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.travel, eventId: "amsterdam-noon-zoned@example.test" },
       content: {
         start: "2025-01-06T12:00:00+01:00[Europe/Amsterdam]",
         end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
@@ -240,7 +248,7 @@ export const timezoneShiftCalendarEvents: CalendarEventEntry[] = ([
   [
     "event-local-baseline-0900",
     {
-      envelope: { eventId: "local-baseline@example.test" },
+      envelope: { calendarId: CALENDAR_IDS.work, eventId: "local-baseline@example.test" },
       content: {
         start: "2025-01-06T09:00:00",
         end: "2025-01-06T10:00:00",

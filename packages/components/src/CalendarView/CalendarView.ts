@@ -55,7 +55,7 @@ type EventCreateRequestEmitInput = {
   end: EventInput["end"];
   summary: string;
   color: string;
-  sourceId?: string;
+  calendarId?: string;
 };
 
 type CreateHit = {
@@ -79,7 +79,7 @@ export class CalendarView extends BaseElement {
   rtl = false;
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
-  defaultSourceId?: string;
+  defaultCalendarId?: string;
   #dragHoverDayIndex: number | null = null;
   #dragHoverTime: Temporal.PlainTime | null = null;
   #pendingCreatePointer: {
@@ -214,7 +214,7 @@ export class CalendarView extends BaseElement {
       rtl: { type: Boolean, reflect: true },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
       defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultSourceId: { type: String, attribute: "default-source-id" },
+      defaultCalendarId: { type: String, attribute: "default-source-id" },
       locale: { type: String },
       timezone: { type: String },
       snapInterval: { type: Number, attribute: "snap-interval" },
@@ -1041,7 +1041,7 @@ export class CalendarView extends BaseElement {
     const detail: EventUpdateRequestDetail = {
       envelope: {
         eventId: target.eventId,
-        sourceId: current?.sourceId,
+        calendarId: current?.calendarId,
         recurrenceId: current?.recurrenceId,
         isException: current?.isException,
       },
@@ -1302,7 +1302,7 @@ export class CalendarView extends BaseElement {
           end: endExclusive,
           summary: this.defaultEventSummary,
           color: this.defaultEventColor,
-          sourceId: this.defaultSourceId,
+          calendarId: this.defaultCalendarId,
         });
         this.#cancelPendingCreatePointer(event, section);
         return;
@@ -1312,7 +1312,7 @@ export class CalendarView extends BaseElement {
         end: endDateTime,
         summary: this.defaultEventSummary,
         color: this.defaultEventColor,
-        sourceId: this.defaultSourceId,
+        calendarId: this.defaultCalendarId,
       });
       this.#cancelPendingCreatePointer(event, section);
       return;
@@ -1350,7 +1350,7 @@ export class CalendarView extends BaseElement {
         end: endExclusive,
         summary: this.defaultEventSummary,
         color: this.defaultEventColor,
-        sourceId: this.defaultSourceId,
+        calendarId: this.defaultCalendarId,
       });
       this.#cancelPendingCreatePointer(event, section);
       return;
@@ -1361,7 +1361,7 @@ export class CalendarView extends BaseElement {
       end: endDateTime,
       summary: this.defaultEventSummary,
       color: this.defaultEventColor,
-      sourceId: this.defaultSourceId,
+      calendarId: this.defaultCalendarId,
     });
     this.#cancelPendingCreatePointer(event, section);
   };
@@ -1719,7 +1719,7 @@ export class CalendarView extends BaseElement {
   #emitEventCreateRequested(input: EventCreateRequestEmitInput) {
     const detail: EventCreateRequestDetail = {
       envelope: {
-        sourceId: input.sourceId,
+        calendarId: input.calendarId,
       },
       content: {
         start: input.start,

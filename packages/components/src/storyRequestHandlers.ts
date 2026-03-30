@@ -62,7 +62,7 @@ export function attachRequestEventHandlers(
       end: detail.content.end,
       summary: detail.content.summary ?? "New event",
       color: detail.content.color ?? "#0ea5e9",
-      sourceId: detail.envelope.sourceId,
+      calendarId: detail.envelope.calendarId,
       isOptimistic: true,
     });
     el.events = optimisticEvents;
@@ -88,7 +88,6 @@ export function attachRequestEventHandlers(
       });
       el.events = committedEvents;
     }, 300);
-
   });
 
   el.addEventListener("event-update-requested", (event: Event) => {
@@ -106,11 +105,10 @@ export function attachRequestEventHandlers(
       end: toNextEventValue(detail.content.end, current.end, preserveDateOnly),
       summary: detail.content.summary ?? current.summary,
       color: detail.content.color ?? current.color,
-      sourceId: detail.envelope.sourceId ?? current.sourceId,
+      calendarId: detail.envelope.calendarId ?? current.calendarId,
       recurrenceId: detail.envelope.recurrenceId ?? current.recurrenceId,
       isException: detail.envelope.isException ?? current.isException,
     });
-
   });
 
   el.addEventListener("event-delete-requested", (event: Event) => {
