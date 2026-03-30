@@ -219,7 +219,7 @@ export class TimedEventInteractionController {
       const delta = Temporal.Duration.from({ days: direction });
       this.#setHostStart(start.add(delta));
       this.#setHostEnd(end.add(delta));
-      this.#host.dispatchEvent(new CustomEvent("update"));
+      this.#dispatchUpdate();
       return;
     }
 
@@ -228,7 +228,7 @@ export class TimedEventInteractionController {
     const delta = Temporal.Duration.from({ minutes });
     this.#setHostStart(start.add(delta));
     this.#setHostEnd(end.add(delta));
-    this.#host.dispatchEvent(new CustomEvent("update"));
+    this.#dispatchUpdate();
   }
 
   #moveByHours(hours: number) {
@@ -239,7 +239,7 @@ export class TimedEventInteractionController {
     const delta = Temporal.Duration.from({ hours });
     this.#setHostStart(start.add(delta));
     this.#setHostEnd(end.add(delta));
-    this.#host.dispatchEvent(new CustomEvent("update"));
+    this.#dispatchUpdate();
   }
 
   #adjustEndBySingleStep(direction: -1 | 1) {
@@ -272,7 +272,7 @@ export class TimedEventInteractionController {
     }
 
     this.#setHostEnd(nextEnd);
-    this.#host.dispatchEvent(new CustomEvent("update"));
+    this.#dispatchUpdate();
   }
 
   #deriveOperation(event: PointerEvent): InteractionOperation | null {
@@ -689,7 +689,7 @@ export class TimedEventInteractionController {
   #applyFinalMove(targetStart: Temporal.PlainDateTime, targetEnd: Temporal.PlainDateTime) {
     this.#setHostStart(targetStart);
     this.#setHostEnd(targetEnd);
-    this.#host.dispatchEvent(new CustomEvent("update"));
+    this.#dispatchUpdate();
   }
 
   #setHostStart(value: Temporal.PlainDateTime) {
@@ -771,7 +771,7 @@ export class TimedEventInteractionController {
     }
 
     if (this.#operation !== "move") {
-      this.#host.dispatchEvent(new CustomEvent("update"));
+      this.#dispatchUpdate();
     }
 
     if (wasDragging) {
@@ -809,6 +809,14 @@ export class TimedEventInteractionController {
 
     const host = rootNode.host;
     return host instanceof HTMLElement && host.tagName === "EVENT-CARD";
+  }
+
+  #dispatchUpdate() {
+    this.#host.dispatchEvent(
+      new CustomEvent("update", {
+        detail: { source: "interaction" as const },
+      })
+    );
   }
 
   #computeDayIndex(fractionX: number, fractionY?: number): number {
