@@ -37,7 +37,7 @@ export class CalendarViewGroup extends BaseElement {
   rtl = false;
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
-  defaultSourceId?: string;
+  defaultCalendarId?: string;
 
   static get properties() {
     return {
@@ -75,7 +75,7 @@ export class CalendarViewGroup extends BaseElement {
       rtl: { type: Boolean, reflect: true },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
       defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultSourceId: { type: String, attribute: "default-source-id" },
+      defaultCalendarId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
@@ -260,7 +260,7 @@ export class CalendarViewGroup extends BaseElement {
           .visibleHours=${this.visibleHours}
           .defaultEventSummary=${this.defaultEventSummary}
           .defaultEventColor=${this.defaultEventColor}
-          .defaultSourceId=${this.defaultSourceId}
+          .defaultCalendarId=${this.defaultCalendarId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-create-requested=${this.#reemit}
           @event-update-requested=${this.#reemit}
@@ -280,7 +280,7 @@ export class CalendarViewGroup extends BaseElement {
           .currentTime=${this.#resolvedCurrentTime}
           .defaultEventSummary=${this.defaultEventSummary}
           .defaultEventColor=${this.defaultEventColor}
-          .defaultSourceId=${this.defaultSourceId}
+          .defaultCalendarId=${this.defaultCalendarId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-create-requested=${this.#reemit}
           @event-update-requested=${this.#reemit}
@@ -300,7 +300,7 @@ export class CalendarViewGroup extends BaseElement {
         .currentTime=${this.#resolvedCurrentTime}
         .defaultEventSummary=${this.defaultEventSummary}
         .defaultEventColor=${this.defaultEventColor}
-        .defaultSourceId=${this.defaultSourceId}
+        .defaultCalendarId=${this.defaultCalendarId}
         @day-selection-requested=${this.#handleDaySelectionRequested}
         @event-create-requested=${this.#reemit}
         @event-update-requested=${this.#reemit}
@@ -380,7 +380,9 @@ export class CalendarViewGroup extends BaseElement {
       const startPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
         startDate
       );
-      const endPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(endDate);
+      const endPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
+        endDate
+      );
       return `${startPart} - ${endPart}, ${start.year}`;
     }
 

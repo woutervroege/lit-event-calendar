@@ -35,7 +35,7 @@ export class CalendarWeekView extends BaseElement {
   rtl = false;
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
-  defaultSourceId?: string;
+  defaultCalendarId?: string;
   #splitEventsSource?: EventsMap;
   #cachedAllDayEvents: EventsMap = new Map();
   #cachedTimedEvents: EventsMap = new Map();
@@ -101,7 +101,7 @@ export class CalendarWeekView extends BaseElement {
       rtl: { type: Boolean, reflect: true },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
       defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultSourceId: { type: String, attribute: "default-source-id" },
+      defaultCalendarId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
@@ -226,7 +226,9 @@ export class CalendarWeekView extends BaseElement {
     this.#cachedAllDayEvents = new Map(
       sourceEntries.filter(([, event]) => this.#isAllDayEvent(event))
     );
-    this.#cachedTimedEvents = new Map(sourceEntries.filter(([, event]) => this.#isTimedEvent(event)));
+    this.#cachedTimedEvents = new Map(
+      sourceEntries.filter(([, event]) => this.#isTimedEvent(event))
+    );
   }
 
   render() {
@@ -240,7 +242,9 @@ export class CalendarWeekView extends BaseElement {
     const snapRows = 24;
     const allDayRowHeight = `calc(var(--_lc-all-day-day-number-space, 36px) + ${this.#allDayVisibleRowCount} * var(--_lc-event-height, 32px))`;
     const visibleColumnsStyle =
-      typeof this.visibleDays === "number" ? `--_lc-combined-visible-columns: ${this.visibleDays};` : "";
+      typeof this.visibleDays === "number"
+        ? `--_lc-combined-visible-columns: ${this.visibleDays};`
+        : "";
 
     return html`
       <div
@@ -271,7 +275,7 @@ export class CalendarWeekView extends BaseElement {
                 .labelsHidden=${false}
                 .defaultEventSummary=${this.defaultEventSummary}
                 .defaultEventColor=${this.defaultEventColor}
-                .defaultSourceId=${this.defaultSourceId}
+                .defaultCalendarId=${this.defaultCalendarId}
                 @day-selection-requested=${this.#reemit}
                 @event-create-requested=${this.#reemit}
                 @event-update-requested=${this.#reemit}
@@ -307,7 +311,7 @@ export class CalendarWeekView extends BaseElement {
               .labelsHidden=${false}
               .defaultEventSummary=${this.defaultEventSummary}
               .defaultEventColor=${this.defaultEventColor}
-              .defaultSourceId=${this.defaultSourceId}
+              .defaultCalendarId=${this.defaultCalendarId}
               @event-create-requested=${this.#reemit}
               @event-update-requested=${this.#reemit}
               @event-delete-requested=${this.#reemit}

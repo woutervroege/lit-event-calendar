@@ -6,7 +6,7 @@ export type CalendarEventDateValue =
   | Temporal.ZonedDateTime;
 
 export type CalendarEventEnvelope = {
-  sourceId?: string;
+  calendarId?: string;
   eventId?: string;
   recurrenceId?: string;
   isException?: boolean;

@@ -74,7 +74,7 @@ export class EventCalendar extends BaseElement {
   rtl = false;
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
-  defaultSourceId?: string;
+  defaultCalendarId?: string;
 
   static get properties() {
     return {
@@ -108,7 +108,7 @@ export class EventCalendar extends BaseElement {
       rtl: { type: Boolean, reflect: true },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
       defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultSourceId: { type: String, attribute: "default-source-id" },
+      defaultCalendarId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
@@ -297,7 +297,7 @@ export class EventCalendar extends BaseElement {
           .rtl=${this.rtl}
           .defaultEventSummary=${this.defaultEventSummary}
           .defaultEventColor=${this.defaultEventColor}
-          .defaultSourceId=${this.defaultSourceId}
+          .defaultCalendarId=${this.defaultCalendarId}
           @view-changed=${this.#syncFromViewGroup}
           @start-date-changed=${this.#syncFromViewGroup}
           @day-selection-requested=${this.#syncFromViewGroup}

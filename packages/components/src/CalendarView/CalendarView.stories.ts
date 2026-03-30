@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarView.js";
+import { calendarCssProps } from "../calendarCssProps.js";
 import {
   type CalendarEvent,
   localeOptions,
@@ -7,7 +8,6 @@ import {
   timezoneOptions,
   timezoneShiftEvents,
 } from "../storyData.js";
-import { calendarCssProps } from "../calendarCssProps.js";
 import { attachRequestEventHandlers } from "../storyRequestHandlers.js";
 
 type StoryCalendarViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
@@ -38,7 +38,7 @@ const meta: Meta = {
     visibleHours: { control: { type: "number", min: 1, max: 24, step: 1 } },
     defaultEventSummary: { control: "text", description: "Default created event summary" },
     defaultEventColor: { control: "color", description: "Default created event color" },
-    defaultSourceId: { control: "text", description: "Default created event source id" },
+    defaultCalendarId: { control: "text", description: "Default created event source id" },
   },
   args: {
     startDate: "2025-01-05",
@@ -50,7 +50,7 @@ const meta: Meta = {
     visibleHours: 24,
     defaultEventSummary: "New event",
     defaultEventColor: "#0ea5e9",
-    defaultSourceId: "",
+    defaultCalendarId: "",
     events: sampleEvents,
   },
   render: (args) => {
@@ -76,8 +76,8 @@ const meta: Meta = {
     if (args.defaultEventColor) {
       el.setAttribute("default-event-color", String(args.defaultEventColor));
     }
-    if (args.defaultSourceId) {
-      el.setAttribute("default-source-id", String(args.defaultSourceId));
+    if (args.defaultCalendarId) {
+      el.setAttribute("default-source-id", String(args.defaultCalendarId));
     } else {
       el.removeAttribute("default-source-id");
     }
