@@ -121,8 +121,6 @@ export class DayOverflowPopover extends BaseElement {
     event.stopPropagation();
     const forwardedEvent = new CustomEvent(event.type, {
       detail: (event.target as EventTarget | null) ?? null,
-      bubbles: true,
-      composed: true,
       cancelable: event.cancelable,
     });
     const notCancelled = this.dispatchEvent(forwardedEvent);

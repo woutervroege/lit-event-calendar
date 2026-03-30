@@ -1057,8 +1057,6 @@ export class CalendarView extends BaseElement {
     this.dispatchEvent(
       new CustomEvent("event-update-requested", {
         detail,
-        bubbles: true,
-        composed: true,
         cancelable: true,
       })
     );
@@ -1077,8 +1075,6 @@ export class CalendarView extends BaseElement {
     this.dispatchEvent(
       new CustomEvent("event-delete-requested", {
         detail,
-        bubbles: true,
-        composed: true,
         cancelable: true,
       })
     );
@@ -1170,8 +1166,6 @@ export class CalendarView extends BaseElement {
           pointerType,
           sourceEvent,
         },
-        bubbles: true,
-        composed: true,
       })
     );
   }
@@ -1756,8 +1750,6 @@ export class CalendarView extends BaseElement {
     this.dispatchEvent(
       new CustomEvent("event-create-requested", {
         detail,
-        bubbles: true,
-        composed: true,
         cancelable: true,
       })
     );
