@@ -3,6 +3,7 @@ import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { cache } from "lit/directives/cache.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
+import "../CalendarAgendaView/CalendarAgendaView.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
@@ -10,7 +11,7 @@ import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js
 import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 
-export type CalendarViewMode = "day" | "week" | "month" | "year";
+export type CalendarViewMode = "day" | "week" | "month" | "year" | "agenda";
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type CalendarNavigationDirection = "previous" | "today" | "next";
 
@@ -103,7 +104,11 @@ export class CalendarViewGroup extends BaseElement {
 
   set view(value: CalendarViewMode | string | null | undefined) {
     const nextValue =
-      value === "day" || value === "week" || value === "month" || value === "year"
+      value === "day" ||
+      value === "week" ||
+      value === "month" ||
+      value === "year" ||
+      value === "agenda"
         ? value
         : "month";
     this.#view = nextValue;
@@ -162,7 +167,7 @@ export class CalendarViewGroup extends BaseElement {
       );
     }
 
-    if (this.view === "month") {
+    if (this.view === "month" || this.view === "agenda") {
       return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(
         new Date(Date.UTC(anchor.year, anchor.month - 1, 1))
       );
@@ -230,7 +235,7 @@ export class CalendarViewGroup extends BaseElement {
       this.startDate = this.nextWeek;
       return;
     }
-    if (this.view === "month") {
+    if (this.view === "month" || this.view === "agenda") {
       this.startDate = this.nextMonth;
       return;
     }
@@ -289,6 +294,20 @@ export class CalendarViewGroup extends BaseElement {
       `;
     }
 
+    if (view === "agenda") {
+      return html`
+        <calendar-agenda-view
+          .month=${this.month}
+          .year=${this.year}
+          .events=${this.events}
+          .locale=${this.locale}
+          .timezone=${this.timezone}
+          .currentTime=${this.#resolvedCurrentTime}
+          @day-selection-requested=${this.#handleDaySelectionRequested}
+        ></calendar-agenda-view>
+      `;
+    }
+
     return html`
       <calendar-month-view
         .month=${this.month}
@@ -337,7 +356,7 @@ export class CalendarViewGroup extends BaseElement {
       return anchorDate.add({ years: step });
     }
 
-    if (this.view === "month") {
+    if (this.view === "month" || this.view === "agenda") {
       return Temporal.PlainDate.from({
         year: anchorDate.year,
         month: anchorDate.month,

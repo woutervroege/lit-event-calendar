@@ -17,13 +17,14 @@ import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 type EventsMap = Map<string, EventInput>;
 
-type ViewUnit = Extract<CalendarViewMode, "day" | "week" | "month" | "year">;
+type ViewUnit = Extract<CalendarViewMode, "day" | "week" | "month" | "year" | "agenda">;
 
 const VIEW_OPTIONS_BASE: Array<{ value: ViewUnit; hotkey: string }> = [
   { value: "day", hotkey: "d" },
   { value: "week", hotkey: "w" },
   { value: "month", hotkey: "m" },
   { value: "year", hotkey: "y" },
+  { value: "agenda", hotkey: "a" },
 ];
 
 function capitalizeLabel(value: string, locale = globalThis.navigator?.language ?? "en"): string {
@@ -118,7 +119,11 @@ export class EventCalendar extends BaseElement {
 
   set view(value: CalendarViewMode | string | null | undefined) {
     const nextValue =
-      value === "day" || value === "week" || value === "month" || value === "year"
+      value === "day" ||
+      value === "week" ||
+      value === "month" ||
+      value === "year" ||
+      value === "agenda"
         ? value
         : "month";
     if (this.#view === nextValue) return;

@@ -21,7 +21,7 @@ const meta: Meta = {
   argTypes: {
     view: {
       control: "inline-radio",
-      options: ["day", "week", "month", "year"],
+      options: ["day", "week", "month", "year", "agenda"],
     },
     startDate: { control: "text", description: "Anchor date (YYYY-MM-DD)" },
     weekStart: {
@@ -143,5 +143,11 @@ export const Day: Story = {
 export const Year: Story = {
   args: {
     view: "year",
+  },
+};
+
+export const Agenda: Story = {
+  args: {
+    view: "agenda",
   },
 };

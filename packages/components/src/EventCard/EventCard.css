@@ -21,6 +21,14 @@
   --_lc-event-focus-ring-inset-width: 0px;
 }
 
+:host([layout="flow"]) {
+  position: static;
+  width: 100%;
+  display: block;
+  touch-action: auto;
+  container-type: inline-size;
+}
+
 :host > div {
   width: max(
     0px,
@@ -42,6 +50,13 @@
   z-index: var(--_lc-z-index, 1);
   transform: scale(var(--event-card-scale, 1));
   color: var(--_lc-event-card-text-color);
+}
+
+:host([layout="flow"]) > div {
+  width: 100%;
+  margin-inline-start: 0;
+  inset-inline-start: auto;
+  min-height: 0;
 }
 
 :host > div::before {
@@ -69,6 +84,11 @@
 /* Taller cards: stack summary over time for readability. */
 :host .event-card-time {
   margin-top: 2px;
+}
+
+:host([layout="flow"]) .event-card-heading {
+  position: static;
+  padding: 10px 10px 9px;
 }
 
 :host .event-card-compact-label {

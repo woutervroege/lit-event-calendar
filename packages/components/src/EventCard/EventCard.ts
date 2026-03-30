@@ -40,6 +40,9 @@ export class EventCard extends BaseElement {
   @property({ type: String, attribute: "segment-direction" })
   segmentDirection: "horizontal" | "vertical" = "horizontal";
 
+  @property({ type: String, reflect: true })
+  layout: "absolute" | "flow" = "absolute";
+
   @property({ type: Boolean, reflect: true })
   past = false;
 
