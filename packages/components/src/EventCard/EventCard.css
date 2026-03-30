@@ -9,6 +9,12 @@
   );
   --_lc-event-card-text-color: var(--_lc-event-text-color, CanvasText);
   --_lc-event-card-accent-color: var(--_lc-event-accent-color, CanvasText);
+  --_lc-event-card-overlap-shadow-color: color-mix(
+    in srgb,
+    var(--_lc-event-card-text-color) 72%,
+    transparent
+  );
+  --_lc-event-card-overlap-shadow: 0 0 5px var(--_lc-event-card-overlap-shadow-color);
   --_lc-event-focus-ring-width: 0px;
   --_lc-event-focus-ring-color: transparent;
   --_lc-event-focus-ring-gap: 1px;
@@ -39,6 +45,10 @@
 :host > div::before {
   outline: var(--_lc-event-focus-ring-width) solid var(--_lc-event-focus-ring-color);
   outline-offset: var(--_lc-event-focus-ring-gap);
+}
+
+:host > div.event-card-overlap::before {
+  box-shadow: var(--_lc-event-card-overlap-shadow);
 }
 
 :host([segment-direction="horizontal"]) h6.sticky {
@@ -102,6 +112,7 @@
     border: 0;
     border-radius: 999px;
     background: var(--_lc-event-card-bg);
+    box-shadow: none;
   }
 
   :host h6,

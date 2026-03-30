@@ -178,6 +178,7 @@ export class EventCard extends BaseElement {
   get #cardClasses() {
     const isVertical = this.segmentDirection === "vertical";
     const isRtl = this.dir === "rtl";
+    const isOverlapping = this.#isOverlappingIndentedCard;
     const horizontalStartEdge = this.firstSegment;
     const horizontalEndEdge = this.lastSegment;
     const horizontalLeftEdge = isRtl ? horizontalEndEdge : horizontalStartEdge;
@@ -208,11 +209,19 @@ export class EventCard extends BaseElement {
       "before:rounded-r-sm": isVertical ? false : horizontalRightEdge,
       "before:-z-1": true,
       "transition-transform duration-100": true,
+      "event-card-overlap": isOverlapping,
       relative: true,
       "h-full": true,
       "min-h-[32px]": true,
       "[@container(max-height:47px)]:whitespace-nowrap": true,
       "pointer-events-auto": true,
     };
+  }
+
+  get #isOverlappingIndentedCard(): boolean {
+    const indentationRaw = this.style.getPropertyValue("--_lc-indentation").trim();
+    if (indentationRaw.length === 0) return false;
+    const indentation = Number.parseFloat(indentationRaw);
+    return Number.isFinite(indentation) && indentation > 0;
   }
 }
