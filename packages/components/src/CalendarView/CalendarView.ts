@@ -57,6 +57,20 @@ type EventCreateRequestDetail = {
   sourceEvent: Event;
 };
 
+type EventUpdateRequestDetail = {
+  eventId: string;
+  start?: string;
+  end?: string;
+  summary: string;
+  color: string;
+  sourceEvent: Event;
+};
+
+type EventDeleteRequestDetail = {
+  eventId: string;
+  sourceEvent: Event;
+};
+
 type CreateHit = {
   dayIndex: number;
   dateTime: Temporal.PlainDateTime;
@@ -99,7 +113,6 @@ export class CalendarView extends BaseElement {
   #calendarViewProvider = new ContextProvider(this, { context: calendarViewContext });
   #styleObserver?: MutationObserver;
   #lastDaysPerRowToken = "";
-  #optimisticallyDeletingEventIds = new Set<string>();
   #sectionHeightPx = 0;
   #resizeObserver?: ResizeObserver;
   #resizeSyncRafId: number | null = null;
@@ -143,8 +156,8 @@ export class CalendarView extends BaseElement {
   get #viewportEvents(): EventEntry[] {
     const viewport = this.#renderedViewportRange;
     if (!viewport) return [];
-    return this.#eventsAsEntries.filter(([, event]) =>
-      this.#eventOverlapsViewport(event, viewport)
+    return this.#eventsAsEntries.filter(
+      ([, event]) => !event.isRemoved && this.#eventOverlapsViewport(event, viewport)
     );
   }
 
@@ -684,8 +697,7 @@ export class CalendarView extends BaseElement {
                 end=${this.#toEventDateTimeString(event.end)}
                 summary=${event.summary}
                 color=${event.color}
-                ?hidden=${this.#optimisticallyDeletingEventIds.has(id)}
-                ?inert=${this.#optimisticallyDeletingEventIds.has(id) || this.#isCompactMonthView}
+                ?inert=${this.#isCompactMonthView}
                 .renderedDays=${this.days}
                 .daysPerRow=${this.#isMonthView ? this.daysPerRow : 0}
                 .gridRows=${this.#isMonthView ? this.gridRows : 1}
@@ -701,8 +713,6 @@ export class CalendarView extends BaseElement {
                 end=${this.#toEventDateTimeString(event.end)}
                 summary=${event.summary}
                 color=${event.color}
-                ?hidden=${this.#optimisticallyDeletingEventIds.has(id)}
-                ?inert=${this.#optimisticallyDeletingEventIds.has(id)}
                 .renderedDays=${this.days as unknown as never[]}
                 @update=${this.#handleEventUpdate}
                 @delete=${this.#handleEventDelete}
@@ -1003,7 +1013,7 @@ export class CalendarView extends BaseElement {
       end: this.#toEventDateTimeString(event.end),
       summary: event.summary,
       color: event.color,
-      hidden: this.#optimisticallyDeletingEventIds.has(id),
+      hidden: false,
     }));
     const dayLabel = this.#getPopoverDayLabel(day, dayIndex);
     const isCurrentDay = Temporal.PlainDate.compare(day, this.currentTime.toPlainDate()) === 0;
@@ -1035,10 +1045,18 @@ export class CalendarView extends BaseElement {
     const detailTarget =
       event instanceof CustomEvent ? ((event.detail as BaseEvent | null) ?? null) : null;
     const target = detailTarget ?? (event.target as BaseEvent | null);
-    if (!target) return;
+    if (!target?.eventId) return;
+    const detail: EventUpdateRequestDetail = {
+      eventId: target.eventId,
+      start: target.start?.toString(),
+      end: target.end?.toString(),
+      summary: target.summary,
+      color: target.color,
+      sourceEvent: event,
+    };
     this.dispatchEvent(
-      new CustomEvent("event-modified", {
-        detail: target,
+      new CustomEvent("event-update-requested", {
+        detail,
         bubbles: true,
         composed: true,
       })
@@ -1049,17 +1067,15 @@ export class CalendarView extends BaseElement {
     const detailTarget =
       event instanceof CustomEvent ? ((event.detail as BaseEvent | null) ?? null) : null;
     const target = detailTarget ?? (event.target as BaseEvent | null);
-    if (!target) return;
-    if (target.eventId) {
-      this.#optimisticallyDeletingEventIds.add(target.eventId);
-      this.requestUpdate();
-    }
-
-    // Emit deletion request; parent state confirms/cancels via next `events` update.
+    if (!target?.eventId) return;
+    const detail: EventDeleteRequestDetail = {
+      eventId: target.eventId,
+      sourceEvent: event,
+    };
 
     this.dispatchEvent(
-      new CustomEvent("event-deleted", {
-        detail: target,
+      new CustomEvent("event-delete-requested", {
+        detail,
         bubbles: true,
         composed: true,
       })
@@ -2002,9 +2018,7 @@ export class CalendarView extends BaseElement {
       };
     }
 
-    const visibleEvents = this.#sortedEvents.filter(
-      ([id]) => !this.#optimisticallyDeletingEventIds.has(id)
-    );
+    const visibleEvents = this.#sortedEvents;
     const eventColorsById = new Map(visibleEvents.map(([id, event]) => [id, event.color]));
     const layout = buildAllDayLayout({
       renderedDays: this.days,
@@ -2165,14 +2179,6 @@ export class CalendarView extends BaseElement {
     if (changedProperties.has("days") || changedProperties.has("variant")) {
       this.#syncCompactMonthState();
     }
-    if (!changedProperties.has("events")) {
-      if (changedProperties.has("variant") || changedProperties.has("visibleHours")) {
-        this.#syncTimedHostHeightFactor();
-      }
-      return;
-    }
-    // External state (confirm/cancel) has caught up; reset optimistic delete visuals.
-    this.#optimisticallyDeletingEventIds.clear();
     if (changedProperties.has("variant") || changedProperties.has("visibleHours")) {
       this.#syncTimedHostHeightFactor();
     }

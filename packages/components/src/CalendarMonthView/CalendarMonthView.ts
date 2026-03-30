@@ -1,6 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
+import { ifDefined } from "lit/directives/if-defined.js";
 import "../CalendarView/CalendarView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
@@ -103,17 +104,17 @@ export class CalendarMonthView extends BaseElement {
           days="42"
           variant="all-day"
           .events=${this.events}
-          .locale=${this.locale}
-          .timezone=${this.timezone}
-          .currentTime=${this.currentTime}
+          locale=${ifDefined(this.locale)}
+          timezone=${ifDefined(this.timezone)}
+          current-time=${ifDefined(this.currentTime)}
           .labelsHidden=${false}
           .defaultEventSummary=${this.defaultEventSummary}
           .defaultEventColor=${this.defaultEventColor}
           .defaultSourceId=${this.defaultSourceId}
           @day-selection-requested=${this.#reemit}
           @event-create-requested=${this.#reemit}
-          @event-modified=${this.#reemit}
-          @event-deleted=${this.#reemit}
+          @event-update-requested=${this.#reemit}
+          @event-delete-requested=${this.#reemit}
         ></calendar-view>
       </div>
     `;

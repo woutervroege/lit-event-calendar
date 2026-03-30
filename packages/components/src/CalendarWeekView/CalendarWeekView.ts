@@ -259,8 +259,8 @@ export class CalendarWeekView extends BaseElement {
                 .defaultSourceId=${this.defaultSourceId}
                 @day-selection-requested=${this.#reemit}
                 @event-create-requested=${this.#reemit}
-                @event-modified=${this.#reemit}
-                @event-deleted=${this.#reemit}
+                @event-update-requested=${this.#reemit}
+                @event-delete-requested=${this.#reemit}
               ></calendar-view>
             </section>
           </header>
@@ -294,8 +294,8 @@ export class CalendarWeekView extends BaseElement {
               .defaultEventColor=${this.defaultEventColor}
               .defaultSourceId=${this.defaultSourceId}
               @event-create-requested=${this.#reemit}
-              @event-modified=${this.#reemit}
-              @event-deleted=${this.#reemit}
+              @event-update-requested=${this.#reemit}
+              @event-delete-requested=${this.#reemit}
             ></calendar-view>
           </main>
         </div>

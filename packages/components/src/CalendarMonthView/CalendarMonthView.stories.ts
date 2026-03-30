@@ -1,10 +1,25 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarMonthView.js";
-import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 import { calendarCssProps } from "../calendarCssProps.js";
-import { localeOptions, type CalendarEvent, sampleEvents, timezoneOptions } from "../storyData.js";
+import {
+  localeOptions,
+  type CalendarEvent,
+  sampleEvents,
+  toTemporalDateLike,
+  timezoneOptions,
+} from "../storyData.js";
 
 type StoryCalendarMonthViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
+type EventUpdateRequestDetail = {
+  eventId?: string;
+  start?: string;
+  end?: string;
+  summary?: string;
+  color?: string;
+};
+type EventDeleteRequestDetail = {
+  eventId?: string;
+};
 
 const meta: Meta = {
   title: "CalendarView/CalendarMonthView",
@@ -71,9 +86,9 @@ const meta: Meta = {
     }
     const entries = Array.isArray(args.events) ? args.events : sampleEvents;
     el.events = new Map(entries);
-    el.addEventListener("event-modified", (event: Event) => {
+    el.addEventListener("event-update-requested", (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-      const detail = event.detail as BaseEvent | null;
+      const detail = event.detail as EventUpdateRequestDetail | null;
       if (!detail?.eventId) return;
 
       const current = el.events.get(detail.eventId);
@@ -81,15 +96,15 @@ const meta: Meta = {
 
       el.events = new Map(el.events).set(detail.eventId, {
         ...current,
-        start: detail.start ?? current.start,
-        end: detail.end ?? current.end,
-        summary: detail.summary,
-        color: detail.color,
+        start: detail.start ? toTemporalDateLike(detail.start) : current.start,
+        end: detail.end ? toTemporalDateLike(detail.end) : current.end,
+        summary: detail.summary ?? current.summary,
+        color: detail.color ?? current.color,
       });
     });
-    el.addEventListener("event-deleted", (event: Event) => {
+    el.addEventListener("event-delete-requested", (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-      const detail = event.detail as BaseEvent | null;
+      const detail = event.detail as EventDeleteRequestDetail | null;
       if (!detail?.eventId) return;
       if (!el.events.has(detail.eventId)) return;
 

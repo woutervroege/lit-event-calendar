@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarView.js";
-import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 import {
   type CalendarEvent,
   localeOptions,
@@ -19,6 +18,16 @@ type EventCreateRequestDetail = {
   color?: string;
   sourceId?: string;
   trigger?: string;
+};
+type EventUpdateRequestDetail = {
+  eventId?: string;
+  start?: string;
+  end?: string;
+  summary?: string;
+  color?: string;
+};
+type EventDeleteRequestDetail = {
+  eventId?: string;
 };
 
 const meta: Meta = {
@@ -116,9 +125,9 @@ const meta: Meta = {
         trigger: detail.trigger ?? null,
       });
     });
-    el.addEventListener("event-modified", (event: Event) => {
+    el.addEventListener("event-update-requested", (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-      const detail = event.detail as BaseEvent | null;
+      const detail = event.detail as EventUpdateRequestDetail | null;
       if (!detail?.eventId) return;
 
       const current = el.events.get(detail.eventId);
@@ -126,21 +135,21 @@ const meta: Meta = {
 
       el.events = new Map(el.events).set(detail.eventId, {
         ...current,
-        start: detail.start ?? current.start,
-        end: detail.end ?? current.end,
-        summary: detail.summary,
-        color: detail.color,
+        start: detail.start ? toTemporalDateLike(detail.start) : current.start,
+        end: detail.end ? toTemporalDateLike(detail.end) : current.end,
+        summary: detail.summary ?? current.summary,
+        color: detail.color ?? current.color,
       });
 
-      console.info("event-modified", {
+      console.info("event-update-requested", {
         eventId: detail.eventId,
-        start: detail.start?.toString() ?? null,
-        end: detail.end?.toString() ?? null,
+        start: detail.start ?? null,
+        end: detail.end ?? null,
       });
     });
-    el.addEventListener("event-deleted", (event: Event) => {
+    el.addEventListener("event-delete-requested", (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-      const detail = event.detail as BaseEvent | null;
+      const detail = event.detail as EventDeleteRequestDetail | null;
       if (!detail?.eventId) return;
       if (!el.events.has(detail.eventId)) return;
 
@@ -152,7 +161,7 @@ const meta: Meta = {
       }
       el.events = nextEvents;
 
-      console.info("event-deleted", { eventId: detail.eventId });
+      console.info("event-delete-requested", { eventId: detail.eventId });
     });
     return el;
   },

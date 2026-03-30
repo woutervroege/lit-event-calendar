@@ -263,8 +263,8 @@ export class CalendarViewGroup extends BaseElement {
           .defaultSourceId=${this.defaultSourceId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-create-requested=${this.#reemit}
-          @event-modified=${this.#reemit}
-          @event-deleted=${this.#reemit}
+          @event-update-requested=${this.#reemit}
+          @event-delete-requested=${this.#reemit}
         ></calendar-week-view>
       `;
     }
@@ -283,8 +283,8 @@ export class CalendarViewGroup extends BaseElement {
           .defaultSourceId=${this.defaultSourceId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-create-requested=${this.#reemit}
-          @event-modified=${this.#reemit}
-          @event-deleted=${this.#reemit}
+          @event-update-requested=${this.#reemit}
+          @event-delete-requested=${this.#reemit}
         ></calendar-year-view>
       `;
     }
@@ -303,8 +303,8 @@ export class CalendarViewGroup extends BaseElement {
         .defaultSourceId=${this.defaultSourceId}
         @day-selection-requested=${this.#handleDaySelectionRequested}
         @event-create-requested=${this.#reemit}
-        @event-modified=${this.#reemit}
-        @event-deleted=${this.#reemit}
+        @event-update-requested=${this.#reemit}
+        @event-delete-requested=${this.#reemit}
       ></calendar-month-view>
     `;
   }

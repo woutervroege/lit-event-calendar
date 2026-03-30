@@ -104,8 +104,8 @@ export class CalendarYearView extends BaseElement {
                 .defaultSourceId=${this.defaultSourceId}
                 @day-selection-requested=${this.#reemit}
                 @event-create-requested=${this.#reemit}
-                @event-modified=${this.#reemit}
-                @event-deleted=${this.#reemit}
+                @event-update-requested=${this.#reemit}
+                @event-delete-requested=${this.#reemit}
               ></calendar-month-view>
             </section>
           `

@@ -9,7 +9,6 @@ import {
   toTemporalDateLike,
   timezoneOptions,
 } from "../storyData.js";
-import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
 
 type StoryEventCalendarElement = HTMLElement & { events: Map<string, CalendarEvent> };
 type EventCreateRequestDetail = {
@@ -18,6 +17,16 @@ type EventCreateRequestDetail = {
   summary?: string;
   color?: string;
   sourceId?: string;
+};
+type EventUpdateRequestDetail = {
+  eventId?: string;
+  start?: string;
+  end?: string;
+  summary?: string;
+  color?: string;
+};
+type EventDeleteRequestDetail = {
+  eventId?: string;
 };
 
 function preserveDateOnlyShape(
@@ -175,9 +184,9 @@ const meta: Meta = {
       el.events = nextEvents;
     });
 
-    el.addEventListener("event-modified", (event: Event) => {
+    el.addEventListener("event-update-requested", (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-      const detail = event.detail as BaseEvent | null;
+      const detail = event.detail as EventUpdateRequestDetail | null;
       if (!detail?.eventId) return;
 
       const current = el.events.get(detail.eventId);
@@ -185,16 +194,19 @@ const meta: Meta = {
 
       el.events = new Map(el.events).set(detail.eventId, {
         ...current,
-        start: preserveDateOnlyShape(detail.start, current.start),
-        end: preserveDateOnlyShape(detail.end, current.end),
-        summary: detail.summary,
-        color: detail.color,
+        start: preserveDateOnlyShape(
+          detail.start ? toTemporalDateLike(detail.start) : undefined,
+          current.start
+        ),
+        end: preserveDateOnlyShape(detail.end ? toTemporalDateLike(detail.end) : undefined, current.end),
+        summary: detail.summary ?? current.summary,
+        color: detail.color ?? current.color,
       });
     });
 
-    el.addEventListener("event-deleted", (event: Event) => {
+    el.addEventListener("event-delete-requested", (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-      const detail = event.detail as BaseEvent | null;
+      const detail = event.detail as EventDeleteRequestDetail | null;
       if (!detail?.eventId) return;
       if (!el.events.has(detail.eventId)) return;
 
