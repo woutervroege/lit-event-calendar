@@ -4,6 +4,7 @@ import { customElement } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../EventCard/EventCard.js";
+import { renderCalendarIcon } from "../icons/calendarIcon.js";
 import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
 import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
@@ -82,8 +83,7 @@ export class CalendarAgendaView extends BaseElement {
             `
           : html`
               <div class="agenda-empty">
-                <p class="agenda-empty-title">No events this month</p>
-                <p class="agenda-empty-subtitle">Try another month or add a new event.</p>
+                ${renderCalendarIcon({ className: "agenda-empty-icon" })}
               </div>
             `}
       </div>
@@ -98,6 +98,7 @@ export class CalendarAgendaView extends BaseElement {
       <li class="agenda-event-item">
         <event-card
           layout="flow"
+          .locale=${this.locale}
           summary=${event.summary}
           time=${this.#formatItemTime(item)}
           ?past=${isPast}

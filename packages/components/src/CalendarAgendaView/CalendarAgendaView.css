@@ -78,19 +78,12 @@
   min-height: 180px;
   display: grid;
   place-content: center;
-  text-align: center;
   color: light-dark(rgb(51 65 85), rgb(226 232 240 / 0.9));
   padding: 16px;
 }
 
-.agenda-empty-title {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 650;
-}
-
-.agenda-empty-subtitle {
-  margin: 0;
-  font-size: 13px;
-  opacity: 0.88;
+.agenda-empty-icon {
+  width: 56px;
+  height: 56px;
+  opacity: 0.48;
 }
