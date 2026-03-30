@@ -1,4 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
+import { action } from "storybook/actions";
 import type {
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
@@ -11,6 +12,12 @@ type StoryCalendarElement = HTMLElement & { events: Map<string, CalendarEvent> }
 type AttachRequestHandlersOptions = {
   preserveDateOnlyShape?: boolean;
 };
+
+const logCreateRequested = action("event-create-requested");
+const logCreateCancelled = action("event-create-requested (cancelled)");
+const logUpdateRequested = action("event-update-requested");
+const logDeleteRequested = action("event-delete-requested");
+const logDeleteCancelled = action("event-delete-requested (cancelled)");
 
 function preserveDateOnlyShape(
   nextValue: CalendarEvent["start"] | null | undefined,
@@ -45,6 +52,7 @@ export function attachRequestEventHandlers(
     if (!(event instanceof CustomEvent)) return;
     const detail = event.detail as EventCreateRequestDetail | null;
     if (!detail?.content.start || !detail.content.end) return;
+    logCreateRequested(detail);
 
     const eventId = `event-created-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const optimisticEvents = new Map(el.events);
@@ -62,10 +70,10 @@ export function attachRequestEventHandlers(
     const committedSummary = window.prompt("Event title", detail.content.summary ?? "New event");
     if (committedSummary === null) {
       event.preventDefault();
+      logCreateCancelled(detail);
       const rolledBackEvents = new Map(el.events);
       rolledBackEvents.delete(eventId);
       el.events = rolledBackEvents;
-      console.info("event-create-requested (cancelled)", detail);
       return;
     }
 
@@ -81,13 +89,13 @@ export function attachRequestEventHandlers(
       el.events = committedEvents;
     }, 300);
 
-    console.info("event-create-requested", detail);
   });
 
   el.addEventListener("event-update-requested", (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const detail = event.detail as EventUpdateRequestDetail | null;
     if (!detail?.envelope.eventId) return;
+    logUpdateRequested(detail);
 
     const current = el.events.get(detail.envelope.eventId);
     if (!current) return;
@@ -103,7 +111,6 @@ export function attachRequestEventHandlers(
       isException: detail.envelope.isException ?? current.isException,
     });
 
-    console.info("event-update-requested", detail);
   });
 
   el.addEventListener("event-delete-requested", (event: Event) => {
@@ -112,16 +119,16 @@ export function attachRequestEventHandlers(
     const eventId = detail?.envelope.eventId;
     if (!eventId) return;
     if (!el.events.has(eventId)) return;
+    logDeleteRequested(detail);
 
     const nextEvents = new Map(el.events);
     const doDelete = confirm("Are you sure you want to delete this event?");
     if (!doDelete) {
       event.preventDefault();
-      console.info("event-delete-requested (cancelled)", detail);
+      logDeleteCancelled(detail);
       return;
     }
     nextEvents.delete(eventId);
     el.events = nextEvents;
-    console.info("event-delete-requested", detail);
   });
 }

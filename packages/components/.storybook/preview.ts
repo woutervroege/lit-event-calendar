@@ -26,6 +26,10 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
+    actions: {
+      argTypesRegex: "^on.*",
+      handles: ["event-create-requested", "event-update-requested", "event-delete-requested"],
+    },
     layout: "fullscreen",
   },
   decorators: [
