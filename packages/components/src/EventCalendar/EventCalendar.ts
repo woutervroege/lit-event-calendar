@@ -86,6 +86,7 @@ export class EventCalendar extends BaseElement {
   #daysPerWeek = 7;
   #visibleDays?: number;
   #rangeLabelText = "";
+  #rangeLabelParts: Array<{ text: string; isYear: boolean }> = [];
   weekStart?: WeekdayNumber;
   declare events?: EventsMap;
   locale?: string;
@@ -296,7 +297,11 @@ export class EventCalendar extends BaseElement {
             class="m-0 px-2 truncate text-center text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-left [@container(max-width:54rem)]:text-base"
             aria-live="polite"
           >
-            ${this.#rangeLabelText}
+            ${this.#rangeLabelParts.length
+              ? this.#rangeLabelParts.map((part) =>
+                  part.isYear ? html`<span class="font-normal">${part.text}</span>` : part.text
+                )
+              : this.#rangeLabelText}
           </h2>
           <div class="flex flex-1 justify-end items-center gap-2">
             <tab-switch
@@ -397,6 +402,7 @@ export class EventCalendar extends BaseElement {
     this.currentTime = target.currentTime;
     this.daysPerWeek = target.daysPerWeek;
     this.#rangeLabelText = target.rangeLabel;
+    this.#rangeLabelParts = target.rangeLabelParts;
   }
 
   #reemit = (event: Event) => {
@@ -419,6 +425,7 @@ export class EventCalendar extends BaseElement {
     const nextRangeLabel = viewGroup.rangeLabel;
     if (nextRangeLabel !== this.#rangeLabelText) {
       this.#rangeLabelText = nextRangeLabel;
+      this.#rangeLabelParts = viewGroup.rangeLabelParts;
       this.requestUpdate();
     }
   }
