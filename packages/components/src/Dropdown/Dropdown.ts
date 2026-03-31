@@ -59,6 +59,9 @@ export class Dropdown extends BaseElement {
   @property({ type: Boolean, reflect: true })
   disabled = false;
 
+  @property({ type: Boolean, attribute: "icon-only", reflect: true })
+  iconOnly = false;
+
   static get properties() {
     return {
       value: { type: String, dispatchChangeEvent: { bubbles: true, composed: true } },
@@ -82,6 +85,36 @@ export class Dropdown extends BaseElement {
           text-align: start;
           padding-inline-start: 0.75rem;
           padding-inline-end: 3rem;
+        }
+
+        :host([icon-only]) .lc-dropdown-select {
+          inline-size: 2.5rem;
+          min-inline-size: 2.5rem;
+          padding-inline-start: 0;
+          padding-inline-end: 0;
+          color: transparent;
+          text-indent: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+        }
+
+        @media (pointer: coarse) {
+          :host([icon-only]) .lc-dropdown-select {
+            inline-size: 2.75rem;
+            min-inline-size: 2.75rem;
+          }
+        }
+
+        :host([icon-only]) .lc-dropdown-icon,
+        :host([icon-only]) .lc-dropdown-chevron {
+          inset-inline-start: 50%;
+          inset-inline-end: auto;
+          transform: translate(-50%, -50%);
+        }
+
+        .lc-dropdown-select:focus:not(:focus-visible) {
+          outline: none;
+          box-shadow: none;
         }
 
         .lc-dropdown-select::-ms-expand {

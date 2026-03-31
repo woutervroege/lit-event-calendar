@@ -293,7 +293,7 @@ export class EventCalendar extends BaseElement {
             </lc-button>
           </div>
           <h2
-            class="m-0 px-2 truncate text-center text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-left [@container(max-width:54rem)]:text-sm"
+            class="m-0 px-2 truncate text-center text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-left [@container(max-width:54rem)]:text-base"
             aria-live="polite"
           >
             ${this.#rangeLabelText}
@@ -324,6 +324,7 @@ export class EventCalendar extends BaseElement {
                 .value=${this.view}
                 name="event-calendar-view-dropdown"
                 aria-label="Calendar view"
+                icon-only
                 @value-changed=${this.#handleViewTabChanged}
               >
                 ${renderCalendarIcon({ slot: "icon", className: "h-4 w-4" })}
