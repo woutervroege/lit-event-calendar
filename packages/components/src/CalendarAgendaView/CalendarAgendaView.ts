@@ -95,14 +95,10 @@ export class CalendarAgendaView extends BaseElement {
               ${days.map(
                 ({ date, items }) => html`
                   <section class="agenda-day">
-                    <button
-                      type="button"
-                      class="agenda-day-heading"
-                      @click=${() => this.#requestDaySelection(date)}
-                    >
+                    <div class="agenda-day-heading" aria-label=${this.#formatLongDateLabel(date)}>
                       <span class="agenda-day-weekday">${this.#formatWeekday(date)}</span>
                       <span class="agenda-day-date">${this.#formatDayLabel(date)}</span>
-                    </button>
+                    </div>
                     <ul class="agenda-event-list">
                       ${items.map((item) => this.#renderItem(item))}
                     </ul>
@@ -210,16 +206,6 @@ export class CalendarAgendaView extends BaseElement {
     return a.event.summary.localeCompare(b.event.summary);
   }
 
-  #requestDaySelection(date: Temporal.PlainDate) {
-    this.dispatchEvent(
-      new CustomEvent("day-selection-requested", {
-        detail: { date: date.toString() },
-        bubbles: true,
-        composed: true,
-      })
-    );
-  }
-
   #formatDayLabel(date: Temporal.PlainDate): string {
     return new Intl.DateTimeFormat(this.#resolvedLocale, {
       month: "short",
@@ -231,6 +217,13 @@ export class CalendarAgendaView extends BaseElement {
   #formatWeekday(date: Temporal.PlainDate): string {
     return new Intl.DateTimeFormat(this.#resolvedLocale, {
       weekday: "long",
+      timeZone: "UTC",
+    }).format(this.#toDate(date));
+  }
+
+  #formatLongDateLabel(date: Temporal.PlainDate): string {
+    return new Intl.DateTimeFormat(this.#resolvedLocale, {
+      dateStyle: "full",
       timeZone: "UTC",
     }).format(this.#toDate(date));
   }

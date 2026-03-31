@@ -24,21 +24,13 @@
 }
 
 .agenda-day-heading {
-  all: unset;
   box-sizing: border-box;
   display: flex;
   align-items: baseline;
   gap: 10px;
   width: 100%;
   padding: 4px 6px 10px;
-  cursor: pointer;
   color: light-dark(rgb(15 23 42 / 96%), rgb(255 255 255 / 95%));
-}
-
-.agenda-day-heading:focus-visible {
-  outline: 2px solid var(--_lc-event-focus-ring-light, light-dark(rgb(37 99 235), rgb(147 197 253)));
-  outline-offset: 2px;
-  border-radius: 10px;
 }
 
 .agenda-day-weekday {
