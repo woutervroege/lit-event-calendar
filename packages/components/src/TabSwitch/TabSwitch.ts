@@ -99,9 +99,7 @@ export class TabSwitch extends BaseElement {
         ${normalizedOptions.map((option, index) => {
           const inputId = `${groupName}-${option.value}-${index}`;
           const isChecked = option.value === this.value;
-          const checkedClasses = isChecked
-            ? "text-[var(--_lc-switch-active-color)]"
-            : "";
+          const checkedClasses = isChecked ? "text-[var(--_lc-switch-active-color)]" : "";
           const indicatorClasses = isChecked
             ? "inline-flex h-full items-center -mb-px border-b-2 [border-bottom-color:currentColor]"
             : "inline-flex h-full items-center pb-[2px]";

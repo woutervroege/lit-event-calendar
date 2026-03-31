@@ -294,9 +294,9 @@ export class EventCalendar extends BaseElement {
               ${renderCalendarIcon({ className: "h-[1.1rem] w-[1.1rem]" })}
             </lc-button>
           </div>
-          <div class="flex items-center justify-end gap-2 border-t border-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_12%))] pt-2 [@container(max-width:54rem)]:items-stretch">
+          <div class="flex items-center justify-end gap-2 border-t border-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_12%))] pt-2 [@container(max-width:54rem)]:w-full [@container(max-width:54rem)]:justify-between [@container(max-width:54rem)]:items-stretch">
             <tab-switch
-              class="[@container(max-width:54rem)]:flex-1"
+              class="flex-none"
               .showHotkeys=${false}
               .options=${getViewOptions(this.locale)}
               .value=${this.view}
@@ -305,11 +305,11 @@ export class EventCalendar extends BaseElement {
               @value-changed=${this.#handleViewTabChanged}
             ></tab-switch>
             <span
-              class="mx-1 inline-block h-6 w-px bg-[light-dark(rgb(15_23_42_/_16%),rgb(255_255_255_/_18%))]"
+              class="mx-1 block shrink-0 self-center h-6 w-px bg-[light-dark(rgb(15_23_42_/_16%),rgb(255_255_255_/_18%))]"
               aria-hidden="true"
             ></span>
             <tab-switch
-              class="[@container(max-width:54rem)]:flex-1"
+              class="flex-none"
               compact
               .showHotkeys=${false}
               .options=${getPresentationOptions()}
