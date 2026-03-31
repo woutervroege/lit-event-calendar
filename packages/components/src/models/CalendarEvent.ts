@@ -20,6 +20,7 @@ export type CalendarEventContent = {
   end: CalendarEventDateValue;
   summary: string;
   color: string;
+  location?: string;
 };
 
 export type CalendarEvent = {

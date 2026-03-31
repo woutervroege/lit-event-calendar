@@ -28,6 +28,7 @@ export type DropdownOption = {
 export class Dropdown extends BaseElement {
   #value = "";
   #fallbackSelectId = `lc-dropdown-${Math.random().toString(36).slice(2)}`;
+  #pointerFocus = false;
 
   @property({ type: Array })
   options: Array<DropdownOption | string> = [];
@@ -59,6 +60,9 @@ export class Dropdown extends BaseElement {
   @property({ type: Boolean, reflect: true })
   disabled = false;
 
+  @property({ type: Boolean, attribute: "icon-only", reflect: true })
+  iconOnly = false;
+
   static get properties() {
     return {
       value: { type: String, dispatchChangeEvent: { bubbles: true, composed: true } },
@@ -82,6 +86,36 @@ export class Dropdown extends BaseElement {
           text-align: start;
           padding-inline-start: 0.75rem;
           padding-inline-end: 3rem;
+        }
+
+        :host([icon-only]) .lc-dropdown-select {
+          inline-size: calc(2.75rem + 2px);
+          min-inline-size: calc(2.75rem + 2px);
+          block-size: calc(2.75rem + 2px);
+          min-block-size: calc(2.75rem + 2px);
+          padding-inline-start: 0;
+          padding-inline-end: 0;
+          color: transparent;
+          text-indent: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+        }
+
+        :host([icon-only]) .lc-dropdown-icon,
+        :host([icon-only]) .lc-dropdown-chevron {
+          inset-inline-start: 50%;
+          inset-inline-end: auto;
+          transform: translate(-50%, -50%);
+        }
+
+        .lc-dropdown-select:focus:not(:focus-visible) {
+          outline: none;
+          box-shadow: none;
+        }
+
+        .lc-dropdown-select[data-pointer-focus="true"]:focus-visible {
+          outline: none !important;
+          box-shadow: none !important;
         }
 
         .lc-dropdown-select::-ms-expand {
@@ -161,6 +195,10 @@ export class Dropdown extends BaseElement {
           aria-keyshortcuts=${ownHotkey || nothing}
           ?disabled=${this.disabled}
           .value=${this.value}
+          @pointerdown=${this.#handlePointerDown}
+          @keydown=${this.#handleSelectKeydown}
+          @focus=${this.#handleSelectFocus}
+          @blur=${this.#handleSelectBlur}
           @change=${this.#handleChange}
         >
           ${!hasSelection ? html`<option value="" disabled selected>${this.placeholder}</option>` : nothing}
@@ -199,6 +237,37 @@ export class Dropdown extends BaseElement {
     const target = event.target as HTMLSelectElement | null;
     if (!target) return;
     this.value = target.value;
+  };
+
+  #handlePointerDown = () => {
+    this.#pointerFocus = true;
+  };
+
+  #handleSelectKeydown = (event: KeyboardEvent) => {
+    const key = event.key;
+    if (key === "Tab" || key.startsWith("Arrow") || key === "Enter" || key === " ") {
+      this.#pointerFocus = false;
+      const target = event.currentTarget as HTMLSelectElement | null;
+      if (target) {
+        target.removeAttribute("data-pointer-focus");
+      }
+    }
+  };
+
+  #handleSelectFocus = (event: FocusEvent) => {
+    const target = event.currentTarget as HTMLSelectElement | null;
+    if (!target) return;
+    if (this.#pointerFocus) {
+      target.setAttribute("data-pointer-focus", "true");
+      return;
+    }
+    target.removeAttribute("data-pointer-focus");
+  };
+
+  #handleSelectBlur = (event: FocusEvent) => {
+    const target = event.currentTarget as HTMLSelectElement | null;
+    if (!target) return;
+    target.removeAttribute("data-pointer-focus");
   };
 
   #handleGlobalKeydown = (event: KeyboardEvent) => {

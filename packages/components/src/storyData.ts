@@ -29,6 +29,7 @@ type CalendarEventSeedInput = {
     end: string;
     summary: string;
     color: string;
+    location?: string;
   };
 };
 
@@ -48,6 +49,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
         end: "2025-01-05T09:45:00",
         summary: "Flight to London",
         color: "#4564B5",
+        location: "Schiphol Airport",
       },
     },
   ],
@@ -72,6 +74,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
         end: "2025-01-07T11:15:00",
         summary: "Team Meeting",
         color: "#ff0000",
+        location: "Room Atlas",
       },
     },
   ],
@@ -96,6 +99,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
         end: "2025-01-06T15:00:00",
         summary: "Fiesta",
         color: "#084cb8",
+        location: "Cafe Mercado",
       },
     },
   ],
@@ -113,6 +117,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = ([
         end: "2025-01-08T17:30:00",
         summary: "Drinks",
         color: "#9f3cfa",
+        location: "Bar Noord",
       },
     },
   ],
@@ -437,6 +442,7 @@ function toCalendarEvent(event: CalendarEventSeedInput): CalendarEventRecord {
       end: toTemporalDateLike(event.content.end),
       summary: event.content.summary,
       color: event.content.color,
+        location: event.content.location,
     },
   };
 }

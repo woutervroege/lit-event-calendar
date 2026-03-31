@@ -21,6 +21,14 @@
   --_lc-event-focus-ring-inset-width: 0px;
 }
 
+:host([layout="flow"]) {
+  position: static;
+  width: 100%;
+  display: block;
+  touch-action: auto;
+  container-type: inline-size;
+}
+
 :host > div {
   width: max(
     0px,
@@ -42,6 +50,13 @@
   z-index: var(--_lc-z-index, 1);
   transform: scale(var(--event-card-scale, 1));
   color: var(--_lc-event-card-text-color);
+}
+
+:host([layout="flow"]) > div {
+  width: 100%;
+  margin-inline-start: 0;
+  inset-inline-start: auto;
+  min-height: 0;
 }
 
 :host > div::before {
@@ -71,6 +86,28 @@
   margin-top: 2px;
 }
 
+:host([layout="flow"]) .event-card-heading {
+  position: static;
+  padding: 10px 10px 9px;
+}
+
+@container (min-width: 420px) {
+  :host([layout="flow"]) .event-card-summary-main {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  :host([layout="flow"]) .event-card-location {
+    display: block;
+  }
+}
+
+@container (min-height: 72px) {
+  :host .event-card-location {
+    display: block;
+  }
+}
+
 :host .event-card-compact-label {
   display: none;
 }
@@ -78,6 +115,11 @@
 :host .event-card-compact-time {
   font-weight: 300;
   font-variant-numeric: tabular-nums;
+}
+
+:host .event-card-location {
+  margin-top: 2px;
+  opacity: 0.84;
 }
 
 /* Compact cards: keep summary + time on a single row. */

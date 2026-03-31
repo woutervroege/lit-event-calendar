@@ -1,7 +1,8 @@
-import { html, nothing } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import {
+  sharedButtonCompactVisualClasses,
   sharedButtonHoverTintClasses,
   sharedButtonPeerDisabledClasses,
   sharedButtonPeerFocusRingClasses,
@@ -17,9 +18,10 @@ import {
 let tabSwitchInstanceId = 0;
 
 export type TabSwitchOption = {
-  label: string;
+  label: string | TemplateResult;
   value: string;
   hotkey?: string;
+  ariaLabel?: string;
 };
 
 @customElement("tab-switch")
@@ -47,6 +49,12 @@ export class TabSwitch extends BaseElement {
 
   @property({ type: String, attribute: "group-label" })
   ariaLabel = "Options";
+
+  @property({ type: Boolean, reflect: true })
+  compact = false;
+
+  @property({ type: Boolean, attribute: "show-hotkeys" })
+  showHotkeys = true;
 
   static get properties() {
     return {
@@ -82,10 +90,17 @@ export class TabSwitch extends BaseElement {
     const normalizedOptions = this.options.map((option) => this.#normalizeOption(option));
     const optionClasses = "flex items-center";
     const inputClasses = "sr-only peer";
-    const labelClasses = `${sharedButtonVisualClasses} border-0 border-transparent ${sharedButtonHoverTintClasses} ${sharedButtonPeerFocusRingClasses} ${sharedButtonPeerDisabledClasses}`;
+    const buttonSizeClasses = this.compact ? sharedButtonCompactVisualClasses : sharedButtonVisualClasses;
+    const compactSizeOverrides = this.compact
+      ? "!h-9 !min-w-9 [@media(pointer:coarse)]:!h-9 [@media(pointer:coarse)]:!min-w-9"
+      : "";
+    const labelClasses = `${buttonSizeClasses} ${compactSizeOverrides} border-0 border-transparent ${sharedButtonHoverTintClasses} ${sharedButtonPeerFocusRingClasses} ${sharedButtonPeerDisabledClasses}`;
+    const wrapperClasses = this.compact
+      ? "inline-flex space-x-1 bg-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_10%))] p-1 [--_lc-switch-border-color:light-dark(var(--_lc-grid-line-color,rgb(15_23_42_/_14%)),var(--_lc-grid-line-color,rgb(255_255_255_/_16%)))] border border-solid border-[var(--_lc-switch-border-color)] rounded-lg"
+      : "inline-flex space-x-2 bg-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_10%))] p-1 [--_lc-switch-border-color:light-dark(var(--_lc-grid-line-color,rgb(15_23_42_/_14%)),var(--_lc-grid-line-color,rgb(255_255_255_/_16%)))] border border-solid border-[var(--_lc-switch-border-color)] rounded-lg";
     return html`
       <div
-        class="inline-flex space-x-2 bg-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_10%))] p-1 [--_lc-switch-border-color:light-dark(var(--_lc-grid-line-color,rgb(15_23_42_/_14%)),var(--_lc-grid-line-color,rgb(255_255_255_/_16%)))] border border-solid border-[var(--_lc-switch-border-color)] rounded-lg"
+        class=${wrapperClasses}
         role="radiogroup"
         aria-label=${this.ariaLabel}
       >
@@ -95,7 +110,7 @@ export class TabSwitch extends BaseElement {
           const checkedClasses = isChecked
             ? "bg-[var(--_lc-button-checked-bg,var(--lc-button-checked-bg,var(--_lc-button-checked-bg-default)))] hover:bg-[var(--_lc-button-checked-hover-bg,var(--lc-button-checked-hover-bg,var(--_lc-button-checked-hover-bg-default)))] text-[light-dark(rgb(15_23_42_/_92%),rgb(255_255_255_/_95%))] shadow-[0_1px_2px_light-dark(rgb(15_23_42_/_16%),rgb(0_0_0_/_32%))]"
             : "";
-          const hotkey = option.hotkey?.trim();
+          const hotkey = this.showHotkeys ? option.hotkey?.trim() : "";
           return html`
             <div class=${optionClasses}>
               <input
@@ -111,7 +126,7 @@ export class TabSwitch extends BaseElement {
               <label
                 for=${inputId}
                 class="${labelClasses} ${checkedClasses}"
-                title=${hotkey ? `${option.label} (${hotkey.toUpperCase()})` : option.label}
+                title=${this.#optionTitle(option)}
               >
                 <span class="inline-flex items-center gap-2">
                   <span>${option.label}</span>
@@ -161,5 +176,13 @@ export class TabSwitch extends BaseElement {
       return { label: option, value: option };
     }
     return option;
+  }
+
+  #optionTitle(option: TabSwitchOption): string {
+    const labelText =
+      option.ariaLabel ??
+      (typeof option.label === "string" ? option.label : option.value);
+    const hotkey = option.hotkey?.trim();
+    return hotkey ? `${labelText} (${hotkey.toUpperCase()})` : labelText;
   }
 }

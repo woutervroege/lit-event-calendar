@@ -18,6 +18,10 @@ const meta: Meta = {
       control: "inline-radio",
       options: ["day", "week", "month", "year"],
     },
+    presentation: {
+      control: "inline-radio",
+      options: ["grid", "list"],
+    },
     startDate: { control: "text", description: "Anchor date (YYYY-MM-DD)" },
     weekStart: {
       control: {
@@ -73,6 +77,7 @@ const meta: Meta = {
   },
   args: {
     view: "month",
+    presentation: "grid",
     startDate: "2025-01-15",
     daysPerWeek: 7,
     timezone: "Europe/Amsterdam",
@@ -91,6 +96,7 @@ const meta: Meta = {
     el.style.height = "100%";
 
     el.setAttribute("view", String(args.view ?? "month"));
+    el.setAttribute("presentation", String(args.presentation ?? "grid"));
     if (args.startDate) {
       el.setAttribute("start-date", String(args.startDate));
     }
@@ -163,5 +169,18 @@ export const Day: Story = {
 export const Year: Story = {
   args: {
     view: "year",
+  },
+};
+
+export const MonthList: Story = {
+  args: {
+    presentation: "list",
+  },
+};
+
+export const WeekList: Story = {
+  args: {
+    view: "week",
+    presentation: "list",
   },
 };

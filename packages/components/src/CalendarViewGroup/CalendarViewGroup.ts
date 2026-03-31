@@ -6,16 +6,22 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
+import "../CalendarAgendaView/CalendarAgendaView.js";
 import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 
 export type CalendarViewMode = "day" | "week" | "month" | "year";
+export type CalendarPresentationMode = "grid" | "list";
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type CalendarNavigationDirection = "previous" | "today" | "next";
 
 type EventsMap = Map<string, EventInput>;
 type EventEntry = [id: string, event: EventInput];
+type RangeLabelPart = {
+  text: string;
+  isYear: boolean;
+};
 
 function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
   return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
@@ -24,6 +30,7 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
 @customElement("calendar-view-group")
 export class CalendarViewGroup extends BaseElement {
   #view: CalendarViewMode = "month";
+  #presentation: CalendarPresentationMode = "grid";
   #startDate?: string;
   weekStart?: WeekdayNumber;
   #daysPerWeek = 7;
@@ -42,6 +49,11 @@ export class CalendarViewGroup extends BaseElement {
   static get properties() {
     return {
       view: {
+        type: String,
+        reflect: true,
+        dispatchChangeEvent: { composed: true },
+      },
+      presentation: {
         type: String,
         reflect: true,
         dispatchChangeEvent: { composed: true },
@@ -103,10 +115,16 @@ export class CalendarViewGroup extends BaseElement {
 
   set view(value: CalendarViewMode | string | null | undefined) {
     const nextValue =
-      value === "day" || value === "week" || value === "month" || value === "year"
-        ? value
-        : "month";
+      value === "day" || value === "week" || value === "month" || value === "year" ? value : "month";
     this.#view = nextValue;
+  }
+
+  get presentation(): CalendarPresentationMode {
+    return this.#presentation;
+  }
+
+  set presentation(value: CalendarPresentationMode | string | null | undefined) {
+    this.#presentation = value === "list" ? "list" : "grid";
   }
 
   get daysPerWeek(): number {
@@ -153,31 +171,33 @@ export class CalendarViewGroup extends BaseElement {
   }
 
   get rangeLabel(): string {
+    return this.rangeLabelParts.map((part) => part.text).join("");
+  }
+
+  get rangeLabelParts(): RangeLabelPart[] {
     const locale = resolveLocale(this.locale);
     const anchor = this.#resolvedStartDate;
+    const anchorDate = new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day));
 
     if (this.view === "year") {
-      return new Intl.DateTimeFormat(locale, { year: "numeric" }).format(
-        new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day))
-      );
+      return [{ text: new Intl.DateTimeFormat(locale, { year: "numeric" }).format(anchorDate), isYear: false }];
     }
 
     if (this.view === "month") {
-      return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(
+      return this.#dateLabelParts(
+        new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }),
         new Date(Date.UTC(anchor.year, anchor.month - 1, 1))
       );
     }
 
     if (this.view === "day") {
-      return new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(
-        new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day))
-      );
+      return this.#dateLabelParts(new Intl.DateTimeFormat(locale, { dateStyle: "long" }), anchorDate);
     }
 
     const start = this.#weekStartDate;
     const rangeLengthDays = Math.max(1, Math.min(7, Math.floor(Number(this.daysPerWeek) || 7)));
     const end = start.add({ days: rangeLengthDays - 1 });
-    return this.#weekRangeLabel(start, end, locale);
+    return this.#weekRangeLabelParts(start, end, locale);
   }
 
   get startDate(): Temporal.PlainDate | undefined {
@@ -242,6 +262,20 @@ export class CalendarViewGroup extends BaseElement {
   }
 
   #renderViewFor(view: CalendarViewMode) {
+    if (this.presentation === "list") {
+      return html`
+        <calendar-agenda-view
+          start-date=${this.#agendaRangeStartDate.toString()}
+          .days=${this.#agendaRangeDays}
+          .events=${this.events}
+          .locale=${this.locale}
+          .timezone=${this.timezone}
+          .currentTime=${this.#resolvedCurrentTime}
+          @day-selection-requested=${this.#handleDaySelectionRequested}
+        ></calendar-agenda-view>
+      `;
+    }
+
     if (view === "day" || view === "week") {
       const startDate = view === "day" ? this.#resolvedStartDate : this.#weekStartDate;
       const daysPerWeek = view === "day" ? 1 : this.daysPerWeek;
@@ -355,6 +389,26 @@ export class CalendarViewGroup extends BaseElement {
     return this.#startOfWeekFor(this.#resolvedStartDate, this.#resolvedWeekStart);
   }
 
+  get #agendaRangeStartDate(): Temporal.PlainDate {
+    if (this.view === "day") return this.#resolvedStartDate;
+    if (this.view === "week") return this.#weekStartDate;
+    if (this.view === "year") {
+      return Temporal.PlainDate.from({ year: this.year, month: 1, day: 1 });
+    }
+    return Temporal.PlainDate.from({ year: this.year, month: this.month, day: 1 });
+  }
+
+  get #agendaRangeDays(): number {
+    if (this.view === "day") return 1;
+    if (this.view === "week") return this.daysPerWeek;
+    if (this.view === "year") {
+      const start = Temporal.PlainDate.from({ year: this.year, month: 1, day: 1 });
+      return start.daysInYear;
+    }
+    const start = Temporal.PlainDate.from({ year: this.year, month: this.month, day: 1 });
+    return start.daysInMonth;
+  }
+
   get #resolvedWeekStart(): WeekdayNumber {
     if (isWeekdayNumber(this.weekStart)) return this.weekStart;
     const localeFirstDay = getLocaleWeekInfo(this.locale).firstDay;
@@ -367,13 +421,17 @@ export class CalendarViewGroup extends BaseElement {
     return date.subtract({ days: weekdayOffset });
   }
 
-  #weekRangeLabel(start: Temporal.PlainDate, end: Temporal.PlainDate, locale: string): string {
+  #weekRangeLabelParts(start: Temporal.PlainDate, end: Temporal.PlainDate, locale: string): RangeLabelPart[] {
     const startDate = new Date(Date.UTC(start.year, start.month - 1, start.day));
     const endDate = new Date(Date.UTC(end.year, end.month - 1, end.day));
+    const yearText = new Intl.DateTimeFormat(locale, { year: "numeric" }).format(startDate);
 
     if (start.year === end.year && start.month === end.month) {
       const month = new Intl.DateTimeFormat(locale, { month: "short" }).format(startDate);
-      return `${month} ${start.day}-${end.day}, ${start.year}`;
+      return [
+        { text: `${month} ${start.day}-${end.day}, `, isYear: false },
+        { text: yearText, isYear: true },
+      ];
     }
 
     if (start.year === end.year) {
@@ -383,12 +441,25 @@ export class CalendarViewGroup extends BaseElement {
       const endPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
         endDate
       );
-      return `${startPart} - ${endPart}, ${start.year}`;
+      return [
+        { text: `${startPart} - ${endPart}, `, isYear: false },
+        { text: yearText, isYear: true },
+      ];
     }
 
-    const startPart = new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(startDate);
-    const endPart = new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(endDate);
-    return `${startPart} - ${endPart}`;
+    const mediumDateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
+    return [
+      ...this.#dateLabelParts(mediumDateFormatter, startDate),
+      { text: " - ", isYear: false },
+      ...this.#dateLabelParts(mediumDateFormatter, endDate),
+    ];
+  }
+
+  #dateLabelParts(formatter: Intl.DateTimeFormat, date: Date): RangeLabelPart[] {
+    return formatter.formatToParts(date).map((part) => ({
+      text: part.value,
+      isYear: part.type === "year",
+    }));
   }
 
   #weekNumberFromStartDate(date: Temporal.PlainDate): number {
