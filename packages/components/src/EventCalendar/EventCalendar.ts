@@ -5,8 +5,6 @@ import { ifDefined } from "lit/directives/if-defined.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
-import "../Dropdown/Dropdown.js";
-import type { DropdownOption } from "../Dropdown/Dropdown.js";
 import type {
   CalendarViewGroup,
   CalendarPresentationMode,
@@ -25,8 +23,6 @@ type EventsMap = Map<string, EventInput>;
 
 type ViewUnit = Extract<CalendarViewMode, "day" | "week" | "month" | "year">;
 type PresentationUnit = CalendarPresentationMode;
-type MobileViewValue = ViewUnit | "three-days";
-const THREE_DAYS_OPTION_VALUE: MobileViewValue = "three-days";
 
 const VIEW_OPTIONS_BASE: Array<{ value: ViewUnit; hotkey: string }> = [
   { value: "day", hotkey: "d" },
@@ -62,39 +58,6 @@ function getViewOptions(locale?: string): TabSwitchOption[] {
   }));
 }
 
-function getThreeDaysLabel(locale = globalThis.navigator?.language ?? "en"): string {
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: "unit",
-      unit: "day",
-      unitDisplay: "long",
-    }).format(3);
-  } catch {
-    return "3 days";
-  }
-}
-
-function getMobileViewOptions(locale?: string): DropdownOption[] {
-  const normalizedOptions = getViewOptions(locale).map((option) => ({
-    label: typeof option.label === "string" ? option.label : String(option.value),
-    value: String(option.value),
-    hotkey: option.hotkey,
-  }));
-  const dayOptionIndex = normalizedOptions.findIndex((option) => option.value === "day");
-  const insertIndex = dayOptionIndex >= 0 ? dayOptionIndex + 1 : normalizedOptions.length;
-  const threeDaysOption: DropdownOption = {
-    label: getThreeDaysLabel(locale),
-    value: THREE_DAYS_OPTION_VALUE,
-    hotkey: "3",
-  };
-
-  return [
-    ...normalizedOptions.slice(0, insertIndex),
-    threeDaysOption,
-    ...normalizedOptions.slice(insertIndex),
-  ];
-}
-
 function getPresentationOptions(): TabSwitchOption[] {
   return PRESENTATION_OPTIONS_BASE.map(({ value }) => ({
     label:
@@ -122,7 +85,6 @@ export class EventCalendar extends BaseElement {
   #startDate?: string;
   #daysPerWeek = 7;
   #threeDayRangeEnabled = false;
-  #daysPerWeekBeforeThreeDayRange = 7;
   #rangeLabelText = "";
   #rangeLabelParts: Array<{ text: string; isYear: boolean }> = [];
   weekStart?: WeekdayNumber;
@@ -236,23 +198,10 @@ export class EventCalendar extends BaseElement {
     return this.renderRoot.querySelector("calendar-view-group");
   }
 
-  get #mobileViewValue(): MobileViewValue {
-    if (this.#threeDayRangeEnabled) return THREE_DAYS_OPTION_VALUE;
-    return this.view;
-  }
-
-  #enableThreeDayRange() {
-    if (!this.#threeDayRangeEnabled) {
-      this.#daysPerWeekBeforeThreeDayRange = this.daysPerWeek;
-    }
-    this.#threeDayRangeEnabled = true;
-    this.daysPerWeek = 3;
-  }
-
   #disableThreeDayRange() {
     if (!this.#threeDayRangeEnabled) return;
     this.#threeDayRangeEnabled = false;
-    this.daysPerWeek = this.#daysPerWeekBeforeThreeDayRange || 7;
+    this.daysPerWeek = 7;
   }
 
   goBack() {
@@ -281,66 +230,86 @@ export class EventCalendar extends BaseElement {
     return html`
       <div class="flex h-full min-h-0 flex-col gap-7 [container-type:inline-size] [@media(max-width:54rem)]:gap-4">
         <header
-          class="flex items-center justify-between gap-x-3 rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))]"
+          class="flex flex-col gap-2 rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))]"
           dir=${headerDirection}
         >
           <div
-            class="flex shrink-0 gap-2 [@container(max-width:54rem)]:fixed [@container(max-width:54rem)]:bottom-4 [@container(max-width:54rem)]:right-4 [@container(max-width:54rem)]:z-50 [@container(max-width:54rem)]:[--_lc-button-bg:light-dark(rgb(255_255_255),rgb(255_255_255_/_34%))] [@container(max-width:54rem)]:[--_lc-button-hover-bg:light-dark(rgb(241_245_249),rgb(255_255_255_/_26%))]"
-            dir="ltr"
-            style=${headerDirection === "rtl" ? "left: 1rem; right: auto;" : "right: 1rem; left: auto;"}
+            class="flex items-center gap-2"
+            style="--lc-button-bg: transparent; --lc-button-hover-bg: transparent; --lc-button-border-color: transparent; --_lc-button-border-color: transparent; --_lc-grid-line-color: transparent;"
           >
-            <lc-button
-              compact
-              label="Previous range"
-              hotkey="special+left"
-              @click=${() => (headerDirection === "rtl" ? this.goForward() : this.goBack())}
-              raised
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
+            <div class="flex min-w-0 flex-1 items-center gap-2" dir="ltr">
+              <div class="flex items-center gap-0">
+                <lc-button
+                  compact
+                  label="Previous range"
+                  hotkey="special+left"
+                  @click=${() => (headerDirection === "rtl" ? this.goForward() : this.goBack())}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    aria-hidden="true"
+                    class="block h-[1.1rem] w-[1.1rem]"
+                  >
+                    <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </lc-button>
+                <lc-button
+                  compact
+                  label="Next range"
+                  hotkey="special+right"
+                  @click=${() => (headerDirection === "rtl" ? this.goBack() : this.goForward())}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    aria-hidden="true"
+                    class="block h-[1.1rem] w-[1.1rem]"
+                  >
+                    <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </lc-button>
+              </div>
+              <span
+                class="inline-block h-5 w-px bg-[light-dark(rgb(15_23_42_/_16%),rgb(255_255_255_/_18%))]"
                 aria-hidden="true"
-                class="block h-[1.1rem] w-[1.1rem]"
+              ></span>
+              <h2
+                class="m-0 min-w-0 truncate px-1 text-left text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-base"
+                aria-live="polite"
+                dir=${headerDirection}
               >
-                <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"></path>
-              </svg>
-            </lc-button>
-            <lc-button hotkey="t" @click=${() => this.goToday()} raised>
-              ${getTodayLabel(this.locale)}
-            </lc-button>
-            <lc-button
-              compact
-              label="Next range"
-              hotkey="special+right"
-              @click=${() => (headerDirection === "rtl" ? this.goBack() : this.goForward())}
-              raised
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                aria-hidden="true"
-                class="block h-[1.1rem] w-[1.1rem]"
-              >
-                <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
-              </svg>
+                ${this.#rangeLabelParts.length
+                  ? this.#rangeLabelParts.map((part) =>
+                      part.isYear ? html`<span class="font-normal">${part.text}</span>` : part.text
+                    )
+                  : this.#rangeLabelText}
+              </h2>
+            </div>
+            <lc-button compact label=${getTodayLabel(this.locale)} hotkey="t" @click=${() => this.goToday()}>
+              ${renderCalendarIcon({ className: "h-[1.1rem] w-[1.1rem]" })}
             </lc-button>
           </div>
-          <h2
-            class="m-0 px-2 truncate text-center text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-left [@container(max-width:54rem)]:text-base"
-            aria-live="polite"
-          >
-            ${this.#rangeLabelParts.length
-              ? this.#rangeLabelParts.map((part) =>
-                  part.isYear ? html`<span class="font-normal">${part.text}</span>` : part.text
-                )
-              : this.#rangeLabelText}
-          </h2>
-          <div class="flex flex-1 justify-end items-center gap-2">
+          <div class="flex items-center justify-end gap-2 border-t border-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_12%))] pt-2 [@container(max-width:54rem)]:w-full [@container(max-width:54rem)]:justify-between [@container(max-width:54rem)]:items-stretch">
             <tab-switch
+              class="flex-none"
+              .showHotkeys=${false}
+              .options=${getViewOptions(this.locale)}
+              .value=${this.view}
+              name="event-calendar-view-tabs"
+              group-label="Calendar view"
+              @value-changed=${this.#handleViewTabChanged}
+            ></tab-switch>
+            <span
+              class="mx-1 block shrink-0 self-center h-6 w-px bg-[light-dark(rgb(15_23_42_/_16%),rgb(255_255_255_/_18%))]"
+              aria-hidden="true"
+            ></span>
+            <tab-switch
+              class="flex-none"
               compact
               .showHotkeys=${false}
               .options=${getPresentationOptions()}
@@ -349,29 +318,6 @@ export class EventCalendar extends BaseElement {
               group-label="Calendar layout"
               @value-changed=${this.#handlePresentationChanged}
             ></tab-switch>
-            <div class="[@container(max-width:54rem)]:hidden">
-              <tab-switch
-                .options=${getViewOptions(this.locale)}
-                .value=${this.view}
-                name="event-calendar-view-tabs"
-                group-label="Calendar view"
-                @value-changed=${this.#handleViewTabChanged}
-              ></tab-switch>
-            </div>
-            <div class="hidden [@container(max-width:54rem)]:block">
-
-            <lc-dropdown
-                dir=${headerDirection}
-                .options=${getMobileViewOptions(this.locale)}
-                .value=${this.#mobileViewValue}
-                name="event-calendar-view-dropdown"
-                aria-label="Calendar view"
-                icon-only
-                @value-changed=${this.#handleViewDropdownChanged}
-              >
-                ${renderCalendarIcon({ slot: "icon", className: "h-4 w-4" })}
-              </lc-dropdown>
-            </div>
           </div>
         </header>
         <calendar-view-group
@@ -410,33 +356,6 @@ export class EventCalendar extends BaseElement {
     this.#disableThreeDayRange();
     this.view = nextView;
     const viewGroup = this.#calendarViewGroup;
-    if (!viewGroup) return;
-    viewGroup.view = nextView;
-    viewGroup.daysPerWeek = this.daysPerWeek;
-    this.#syncFromViewGroupElement(viewGroup);
-  };
-
-  #handleViewDropdownChanged = (event: Event) => {
-    const target = event.currentTarget as { value?: string } | null;
-    const nextValue = target?.value as MobileViewValue | undefined;
-    if (!nextValue) return;
-
-    const viewGroup = this.#calendarViewGroup;
-    if (nextValue === THREE_DAYS_OPTION_VALUE) {
-      this.#enableThreeDayRange();
-      this.view = "week";
-      if (viewGroup) {
-        viewGroup.view = "week";
-        viewGroup.daysPerWeek = 3;
-        this.#syncFromViewGroupElement(viewGroup);
-      }
-      return;
-    }
-
-    this.#disableThreeDayRange();
-    const nextView = nextValue as CalendarViewMode;
-    if (nextView === this.view && !this.#threeDayRangeEnabled) return;
-    this.view = nextView;
     if (!viewGroup) return;
     viewGroup.view = nextView;
     viewGroup.daysPerWeek = this.daysPerWeek;

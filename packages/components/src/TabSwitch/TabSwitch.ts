@@ -2,17 +2,13 @@ import { html, nothing, type TemplateResult } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import {
-  sharedButtonCompactVisualClasses,
-  sharedButtonHoverTintClasses,
   sharedButtonPeerDisabledClasses,
   sharedButtonPeerFocusRingClasses,
-  sharedButtonVisualClasses,
 } from "../shared/buttonStyles.js";
 import {
   getPlainCharacterHotkey,
   isEditableEventTarget,
   normalizeHotkey,
-  sharedHotkeyBadgeClasses,
 } from "../shared/hotkey.js";
 
 let tabSwitchInstanceId = 0;
@@ -90,14 +86,10 @@ export class TabSwitch extends BaseElement {
     const normalizedOptions = this.options.map((option) => this.#normalizeOption(option));
     const optionClasses = "flex items-center";
     const inputClasses = "sr-only peer";
-    const buttonSizeClasses = this.compact ? sharedButtonCompactVisualClasses : sharedButtonVisualClasses;
-    const compactSizeOverrides = this.compact
-      ? "!h-9 !min-w-9 [@media(pointer:coarse)]:!h-9 [@media(pointer:coarse)]:!min-w-9"
-      : "";
-    const labelClasses = `${buttonSizeClasses} ${compactSizeOverrides} border-0 border-transparent ${sharedButtonHoverTintClasses} ${sharedButtonPeerFocusRingClasses} ${sharedButtonPeerDisabledClasses}`;
-    const wrapperClasses = this.compact
-      ? "inline-flex space-x-1 bg-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_10%))] p-1 [--_lc-switch-border-color:light-dark(var(--_lc-grid-line-color,rgb(15_23_42_/_14%)),var(--_lc-grid-line-color,rgb(255_255_255_/_16%)))] border border-solid border-[var(--_lc-switch-border-color)] rounded-lg"
-      : "inline-flex space-x-2 bg-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_10%))] p-1 [--_lc-switch-border-color:light-dark(var(--_lc-grid-line-color,rgb(15_23_42_/_14%)),var(--_lc-grid-line-color,rgb(255_255_255_/_16%)))] border border-solid border-[var(--_lc-switch-border-color)] rounded-lg";
+    const sizeClasses = this.compact ? "h-9 min-w-9 px-2" : "h-9 px-3";
+    const labelClasses = `${sizeClasses} inline-flex items-center justify-center border-0 rounded-none bg-transparent text-[light-dark(rgb(15_23_42_/_56%),rgb(255_255_255_/_58%))] hover:text-[var(--_lc-switch-active-color)] transition-colors duration-150 ${sharedButtonPeerFocusRingClasses} ${sharedButtonPeerDisabledClasses}`;
+    const wrapperClasses =
+      "inline-flex items-stretch gap-0 [--_lc-switch-active-color:var(--lc-switch-active-color,light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%)))] [--_lc-switch-border-color:light-dark(var(--_lc-grid-line-color,rgb(15_23_42_/_14%)),var(--_lc-grid-line-color,rgb(255_255_255_/_16%)))] border-0 border-b border-solid border-[var(--_lc-switch-border-color)]";
     return html`
       <div
         class=${wrapperClasses}
@@ -107,9 +99,10 @@ export class TabSwitch extends BaseElement {
         ${normalizedOptions.map((option, index) => {
           const inputId = `${groupName}-${option.value}-${index}`;
           const isChecked = option.value === this.value;
-          const checkedClasses = isChecked
-            ? "bg-[var(--_lc-button-checked-bg,var(--lc-button-checked-bg,var(--_lc-button-checked-bg-default)))] hover:bg-[var(--_lc-button-checked-hover-bg,var(--lc-button-checked-hover-bg,var(--_lc-button-checked-hover-bg-default)))] text-[light-dark(rgb(15_23_42_/_92%),rgb(255_255_255_/_95%))] shadow-[0_1px_2px_light-dark(rgb(15_23_42_/_16%),rgb(0_0_0_/_32%))]"
-            : "";
+          const checkedClasses = isChecked ? "text-[var(--_lc-switch-active-color)]" : "";
+          const indicatorClasses = isChecked
+            ? "inline-flex h-full items-center -mb-px border-b-2 [border-bottom-color:currentColor]"
+            : "inline-flex h-full items-center pb-[2px]";
           const hotkey = this.showHotkeys ? option.hotkey?.trim() : "";
           return html`
             <div class=${optionClasses}>
@@ -128,15 +121,7 @@ export class TabSwitch extends BaseElement {
                 class="${labelClasses} ${checkedClasses}"
                 title=${this.#optionTitle(option)}
               >
-                <span class="inline-flex items-center gap-2">
-                  <span>${option.label}</span>
-                  ${hotkey
-                    ? html`<span
-                        class=${sharedHotkeyBadgeClasses}
-                        >${hotkey.toUpperCase()}</span
-                      >`
-                    : nothing}
-                </span>
+                <span class=${indicatorClasses}>${option.label}</span>
               </label>
             </div>
           `;
@@ -180,8 +165,7 @@ export class TabSwitch extends BaseElement {
 
   #optionTitle(option: TabSwitchOption): string {
     const labelText =
-      option.ariaLabel ??
-      (typeof option.label === "string" ? option.label : option.value);
+      option.ariaLabel ?? (typeof option.label === "string" ? option.label : option.value);
     const hotkey = option.hotkey?.trim();
     return hotkey ? `${labelText} (${hotkey.toUpperCase()})` : labelText;
   }
