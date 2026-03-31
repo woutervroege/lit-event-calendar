@@ -1152,9 +1152,9 @@ export class CalendarView extends BaseElement {
       previousDay === null || previousDay.month !== day.month || previousDay.year !== day.year;
     const monthPrefix =
       startsNewMonth && !compactMonthView
-        ? `${monthFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)))} `
+        ? monthFormatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)))
         : "";
-    const label = `${monthPrefix}${dayFormatter.format(day.day)}`;
+    const dayLabel = dayFormatter.format(day.day);
     const isCurrentDay = Temporal.PlainDate.compare(day, currentDay) === 0;
     const fullDateLabel = fullDateFormatter.format(
       new Date(Date.UTC(day.year, day.month - 1, day.day))
@@ -1187,7 +1187,10 @@ export class CalendarView extends BaseElement {
         @click=${(event: MouseEvent) => this.#handleDayLabelClick(day, dayIndex, event)}
         @keydown=${(event: KeyboardEvent) => this.#handleDayLabelKeyDown(day, dayIndex, event)}
       >
-        <time datetime=${day.toString()}>${label}</time>
+        <time datetime=${day.toString()}>
+          ${monthPrefix ? html`<span class="day-label-month-prefix">${monthPrefix}</span>` : ""}
+          <span class="day-label-day-number">${dayLabel}</span>
+        </time>
       </button>
     `;
   }

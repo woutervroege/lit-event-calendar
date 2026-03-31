@@ -219,6 +219,10 @@ time {
   color: var(--_lc-grid-line-day-color);
 }
 
+.day-label-month-prefix {
+  margin-inline-end: 0.2em;
+}
+
 .day-label:hover:not(:focus-visible):not(.current-day) {
   background-color: var(--_lc-grid-ghost-color);
 }
@@ -261,6 +265,12 @@ time.current-day,
 
 .day-label.current-day time {
   color: inherit;
+}
+
+@container (max-width: 512px) {
+  section:not(.month-view) .day-label-month-prefix {
+    display: none;
+  }
 }
 
 .hour-label {
