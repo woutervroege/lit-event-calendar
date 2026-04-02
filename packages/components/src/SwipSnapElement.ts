@@ -59,6 +59,7 @@ export class SwipeSnapElement extends LitElement {
   #pageWidths: number[] = [1];
   #maxOffsetX = 0;
   #pages: HTMLElement[] = [];
+  #hasVirtualPages = false;
   #maxIndex = 0;
   #snapStopMode: SnapStopMode = "normal";
   #pendingAnimate = false;
@@ -157,14 +158,23 @@ export class SwipeSnapElement extends LitElement {
     const committedByFlick = Math.abs(velocityX) > 0.55 && progress > 0.12;
     const currentLogicalOffset = this.#getLogicalOffsetForIndex(activeIndex);
     const canMoveForward = currentLogicalOffset < this.#maxOffsetX - 0.5;
+    const canMoveBackward = currentLogicalOffset > 0.5;
     let nextIndex = activeIndex;
 
     if (farSwipe || fastSwipe || committedByFlick) {
-      // Native iOS pager feel: commit at most one page per gesture.
-      if (direction > 0 && canMoveForward) {
-        nextIndex = Math.min(this.#maxIndex, activeIndex + 1);
-      } else if (direction < 0) {
-        nextIndex = Math.max(0, activeIndex - 1);
+      const allowMultiStepVirtualSnap = this.#hasVirtualPages && this.#snapStopMode === "normal";
+      if (allowMultiStepVirtualSnap) {
+        const projectedOffset = currentLogicalOffset - distance - velocityX * 220;
+        nextIndex = this.#getNearestIndexForLogicalOffset(projectedOffset, direction);
+      }
+
+      // Keep one-step snap for real children and for virtual pages in "always" mode.
+      if (nextIndex === activeIndex) {
+        if (direction > 0 && canMoveForward) {
+          nextIndex = Math.min(this.#maxIndex, activeIndex + 1);
+        } else if (direction < 0 && canMoveBackward) {
+          nextIndex = Math.max(0, activeIndex - 1);
+        }
       }
     }
 
@@ -243,12 +253,27 @@ export class SwipeSnapElement extends LitElement {
         : pageRect.left - containerRect.left;
       return Math.max(0, offset);
     });
-    const contentWidth = widths.reduce((sum, width) => sum + width, 0);
     const viewportWidth = this.clientWidth || 1;
+    const measuredContentWidth = widths.reduce((sum, width) => sum + width, 0);
+    const scrollContentWidth = this.#container?.scrollWidth ?? measuredContentWidth;
+    const contentWidth = Math.max(measuredContentWidth, scrollContentWidth);
     const maxOffsetX = Math.max(0, contentWidth - viewportWidth);
-    this.#pageWidths = widths.length ? widths : [1];
-    this.#pageOffsets = offsets.length ? offsets : [0];
+    let nextPageWidths = widths.length ? widths : [1];
+    let nextPageOffsets = offsets.length ? offsets : [0];
+
+    // When there is a single wide slotted child, synthesize virtual pages so snapping
+    // can still step by --column-width.
+    this.#hasVirtualPages = this.#pages.length <= 1 && maxOffsetX > 0;
+    if (this.#hasVirtualPages) {
+      const snapStepWidth = this.#resolveColumnWidthPx(viewportWidth);
+      nextPageOffsets = this.#buildVirtualOffsets(maxOffsetX, snapStepWidth);
+      nextPageWidths = nextPageOffsets.map(() => snapStepWidth);
+    }
+
+    this.#pageWidths = nextPageWidths;
+    this.#pageOffsets = nextPageOffsets;
     this.#maxOffsetX = maxOffsetX;
+    this.#maxIndex = Math.max(0, this.#pageOffsets.length - 1);
   }
 
   #isRtl(): boolean {
@@ -257,6 +282,37 @@ export class SwipeSnapElement extends LitElement {
 
   #normalizeSnapStop(value: unknown): SnapStopMode {
     return value === "always" ? "always" : "normal";
+  }
+
+  #resolveColumnWidthPx(viewportWidth: number): number {
+    const raw = getComputedStyle(this).getPropertyValue("--column-width").trim();
+    if (!raw) return Math.max(1, viewportWidth);
+
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.pointerEvents = "none";
+    probe.style.width = raw;
+    this.renderRoot.append(probe);
+    const resolved = probe.getBoundingClientRect().width;
+    probe.remove();
+
+    if (!Number.isFinite(resolved) || resolved <= 0) {
+      return Math.max(1, viewportWidth);
+    }
+    return Math.max(1, resolved);
+  }
+
+  #buildVirtualOffsets(maxOffsetX: number, stepWidth: number): number[] {
+    const safeStep = Math.max(1, stepWidth);
+    const offsets: number[] = [0];
+    for (let offset = safeStep; offset < maxOffsetX - 0.5; offset += safeStep) {
+      offsets.push(offset);
+    }
+    if (Math.abs(offsets[offsets.length - 1] - maxOffsetX) > 0.5) {
+      offsets.push(maxOffsetX);
+    }
+    return offsets;
   }
 
   #getOffsetForIndex(index: number): number {
