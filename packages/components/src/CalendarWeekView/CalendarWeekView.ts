@@ -231,7 +231,7 @@ export class CalendarWeekView extends BaseElement {
         .currentIndex=${0}
         .dir=${direction}
         .scrollSnapStop=${"always"}
-        style=${`--_lc-combined-days: ${this.daysPerWeek}; --column-width: calc((100% - var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px))) / var(--_lc-combined-effective-visible-columns)); scroll-padding-inline-start: var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px)); width: 100%; height: 100%; display: block;`}
+        style=${`--_lc-combined-days: ${this.daysPerWeek}; --column-width: calc((100% - var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px))) / var(--_lc-combined-effective-visible-columns)); scroll-padding-inline-start: var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px)); width: 100%; min-height: 100%; display: block; overflow-x: hidden; overflow-y: visible;`}
       >
         <div
           class="combined-week-grid-canvas"
@@ -272,6 +272,7 @@ export class CalendarWeekView extends BaseElement {
           <main class="combined-week-main">
             <calendar-view
               class="combined-week-timed-view"
+              style="--_lc-host-base-height: 100dvh;"
               start-date=${this.startDate.toString()}
               days=${String(this.daysPerWeek)}
               variant="timed"
