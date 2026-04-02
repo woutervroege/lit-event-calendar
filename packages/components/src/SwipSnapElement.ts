@@ -1,8 +1,7 @@
-import { css, html, LitElement, type PropertyValues } from "lit";
+import { css, html, LitElement, type PropertyValues } from "https://esm.sh/lit@3";
 
 type SwipeIntent = "x" | "y" | null;
 type SnapStopMode = "always" | "normal";
-type RtlScrollType = "default" | "negative" | "reverse";
 
 export class SwipeSnapElement extends LitElement {
   static properties = {
@@ -16,31 +15,25 @@ export class SwipeSnapElement extends LitElement {
       display: block;
       width: 100%;
       height: 100%;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       position: relative;
       touch-action: pan-y;
       user-select: none;
       -webkit-overflow-scrolling: touch;
-
     }
 
     .container {
       display: flex;
       width: 100%;
-      height: 100%;
-      min-height: 100%;
       align-items: flex-start;
-    }
-
-    :host::-webkit-scrollbar {
-      display: none;
+      will-change: transform;
+      transform: translate3d(0, 0, 0);
     }
 
     ::slotted(*) {
-      flex: 0 0 var(--column-width, 100%);
-      width: var(--column-width, 100%);
-      height: 100%;
-      min-height: 100%;
+      flex: 0 0 var(--page-width, 100%);
+      width: var(--page-width, 100%);
       touch-action: pan-y;
     }
   `;
@@ -62,15 +55,12 @@ export class SwipeSnapElement extends LitElement {
   #pageWidths: number[] = [1];
   #maxOffsetX = 0;
   #pages: HTMLElement[] = [];
-  #hasVirtualPages = false;
   #maxIndex = 0;
   #snapStopMode: SnapStopMode = "normal";
   #pendingAnimate = false;
   #swipeCommitDistance = 0.5;
   #swipeCommitVelocity = 0.75;
   #edgeResistance = 0.5;
-  #dragBaseOffset = 0;
-  #rtlScrollType: RtlScrollType | null = null;
 
   constructor() {
     super();
@@ -100,8 +90,8 @@ export class SwipeSnapElement extends LitElement {
     this.#lastT = performance.now();
     this.#velocityX = 0;
     this.#dragX = 0;
-    this.#dragBaseOffset = this.#getViewportLogicalOffset();
     this.#measurePages();
+    if (this.#container) this.#container.style.transition = "none";
   };
 
   #onPointerMove = (e: PointerEvent): void => {
@@ -128,16 +118,16 @@ export class SwipeSnapElement extends LitElement {
     this.#lastT = now;
 
     let nextDrag = dx;
+    const activeIndex = this.#getCurrentIndex();
     const logicalDrag = nextDrag * directionSign;
-    const currentLogicalOffset = this.#dragBaseOffset;
+    const currentLogicalOffset = this.#getLogicalOffsetForIndex(activeIndex);
     const atStartPushingOut = currentLogicalOffset <= 0.5 && logicalDrag > 0;
     const atEndPushingOut = currentLogicalOffset >= this.#maxOffsetX - 0.5 && logicalDrag < 0;
     if (atStartPushingOut || atEndPushingOut) {
       nextDrag = logicalDrag * this.#edgeResistance * directionSign;
     }
     this.#dragX = nextDrag;
-    const dragOffset = currentLogicalOffset - logicalDrag;
-    this.#setViewportLogicalOffset(dragOffset);
+    this.#transformContainer();
   };
 
   #onPointerUp = (e: PointerEvent): void => {
@@ -161,25 +151,16 @@ export class SwipeSnapElement extends LitElement {
     const fastSwipe = Math.abs(velocityX) > this.#swipeCommitVelocity;
     const farSwipe = progress > this.#swipeCommitDistance;
     const committedByFlick = Math.abs(velocityX) > 0.55 && progress > 0.12;
-    const currentLogicalOffset = this.#dragBaseOffset;
+    const currentLogicalOffset = this.#getLogicalOffsetForIndex(activeIndex);
     const canMoveForward = currentLogicalOffset < this.#maxOffsetX - 0.5;
-    const canMoveBackward = currentLogicalOffset > 0.5;
     let nextIndex = activeIndex;
 
     if (farSwipe || fastSwipe || committedByFlick) {
-      const allowMultiStepVirtualSnap = this.#hasVirtualPages && this.#snapStopMode === "normal";
-      if (allowMultiStepVirtualSnap) {
-        const projectedOffset = currentLogicalOffset - distance - velocityX * 220;
-        nextIndex = this.#getNearestIndexForLogicalOffset(projectedOffset, direction);
-      }
-
-      // Keep one-step snap for real children and for virtual pages in "always" mode.
-      if (nextIndex === activeIndex) {
-        if (direction > 0 && canMoveForward) {
-          nextIndex = Math.min(this.#maxIndex, activeIndex + 1);
-        } else if (direction < 0 && canMoveBackward) {
-          nextIndex = Math.max(0, activeIndex - 1);
-        }
+      // Native iOS pager feel: commit at most one page per gesture.
+      if (direction > 0 && canMoveForward) {
+        nextIndex = Math.min(this.#maxIndex, activeIndex + 1);
+      } else if (direction < 0) {
+        nextIndex = Math.max(0, activeIndex - 1);
       }
     }
 
@@ -251,39 +232,19 @@ export class SwipeSnapElement extends LitElement {
     const widths = this.#pages.map((page) => Math.max(1, page.getBoundingClientRect().width));
     const containerRect = this.#container?.getBoundingClientRect() ?? this.getBoundingClientRect();
     const isRtl = this.#isRtl();
-    const viewportWidth = this.clientWidth || 1;
-    const snapPaddingInlineStart = this.#resolveStyleLengthPx(
-      "scroll-padding-inline-start",
-      viewportWidth
-    );
     const offsets = this.#pages.map((page) => {
       const pageRect = page.getBoundingClientRect();
-      const rawOffset = isRtl
+      const offset = isRtl
         ? containerRect.right - pageRect.right
         : pageRect.left - containerRect.left;
-      const offset = rawOffset - snapPaddingInlineStart;
       return Math.max(0, offset);
     });
-    const measuredContentWidth = widths.reduce((sum, width) => sum + width, 0);
-    const scrollContentWidth = this.#container?.scrollWidth ?? measuredContentWidth;
-    const contentWidth = Math.max(measuredContentWidth, scrollContentWidth);
+    const contentWidth = widths.reduce((sum, width) => sum + width, 0);
+    const viewportWidth = this.clientWidth || 1;
     const maxOffsetX = Math.max(0, contentWidth - viewportWidth);
-    let nextPageWidths = widths.length ? widths : [1];
-    let nextPageOffsets = offsets.length ? offsets : [0];
-
-    // When there is a single wide slotted child, synthesize virtual pages so snapping
-    // can still step by --column-width.
-    this.#hasVirtualPages = this.#pages.length <= 1 && maxOffsetX > 0;
-    if (this.#hasVirtualPages) {
-      const snapStepWidth = this.#resolveColumnWidthPx(viewportWidth);
-      nextPageOffsets = this.#buildVirtualOffsets(maxOffsetX, snapStepWidth);
-      nextPageWidths = nextPageOffsets.map(() => snapStepWidth);
-    }
-
-    this.#pageWidths = nextPageWidths;
-    this.#pageOffsets = nextPageOffsets;
+    this.#pageWidths = widths.length ? widths : [1];
+    this.#pageOffsets = offsets.length ? offsets : [0];
     this.#maxOffsetX = maxOffsetX;
-    this.#maxIndex = Math.max(0, this.#pageOffsets.length - 1);
   }
 
   #isRtl(): boolean {
@@ -292,44 +253,6 @@ export class SwipeSnapElement extends LitElement {
 
   #normalizeSnapStop(value: unknown): SnapStopMode {
     return value === "always" ? "always" : "normal";
-  }
-
-  #resolveColumnWidthPx(viewportWidth: number): number {
-    const raw = getComputedStyle(this).getPropertyValue("--column-width").trim();
-    return this.#resolveCssLengthPx(raw, viewportWidth);
-  }
-
-  #resolveStyleLengthPx(propertyName: string, fallbackPx: number): number {
-    const raw = getComputedStyle(this).getPropertyValue(propertyName).trim();
-    return this.#resolveCssLengthPx(raw, fallbackPx);
-  }
-
-  #resolveCssLengthPx(raw: string, fallbackPx: number): number {
-    if (!raw) return Math.max(0, fallbackPx);
-    const probe = document.createElement("div");
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    probe.style.pointerEvents = "none";
-    probe.style.width = raw;
-    this.renderRoot.append(probe);
-    const resolved = probe.getBoundingClientRect().width;
-    probe.remove();
-    if (!Number.isFinite(resolved) || resolved < 0) {
-      return Math.max(0, fallbackPx);
-    }
-    return Math.max(0, resolved);
-  }
-
-  #buildVirtualOffsets(maxOffsetX: number, stepWidth: number): number[] {
-    const safeStep = Math.max(1, stepWidth);
-    const offsets: number[] = [0];
-    for (let offset = safeStep; offset < maxOffsetX - 0.5; offset += safeStep) {
-      offsets.push(offset);
-    }
-    if (Math.abs(offsets[offsets.length - 1] - maxOffsetX) > 0.5) {
-      offsets.push(maxOffsetX);
-    }
-    return offsets;
   }
 
   #getOffsetForIndex(index: number): number {
@@ -385,67 +308,20 @@ export class SwipeSnapElement extends LitElement {
   #applyCurrentIndex(animate: boolean): void {
     const index = this.#getCurrentIndex();
     this.#measurePages();
-    const targetOffset = this.#getOffsetForIndex(index);
-    this.#setViewportLogicalOffset(targetOffset, animate);
+    if (this.#container) {
+      this.#container.style.transition = animate
+        ? "transform 620ms cubic-bezier(0.22, 1, 0.36, 1)"
+        : "none";
+    }
+    this.#transformContainer();
     this.dispatchEvent(new CustomEvent("pagechange", { detail: { index } }));
   }
 
-  #getRtlScrollType(): RtlScrollType {
-    if (this.#rtlScrollType) return this.#rtlScrollType;
-    const probe = document.createElement("div");
-    probe.style.width = "4px";
-    probe.style.height = "1px";
-    probe.style.overflow = "scroll";
-    probe.style.direction = "rtl";
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    const inner = document.createElement("div");
-    inner.style.width = "8px";
-    inner.style.height = "1px";
-    probe.append(inner);
-    document.body.append(probe);
-    probe.scrollLeft = 1;
-    if (probe.scrollLeft === 0) {
-      this.#rtlScrollType = "negative";
-    } else if (probe.scrollLeft === 1) {
-      this.#rtlScrollType = "default";
-    } else {
-      this.#rtlScrollType = "reverse";
-    }
-    probe.remove();
-    return this.#rtlScrollType;
-  }
-
-  #toNativeScrollLeft(logicalOffset: number): number {
-    const clampedOffset = Math.min(this.#maxOffsetX, Math.max(0, logicalOffset));
-    if (!this.#isRtl()) return clampedOffset;
-    const rtlType = this.#getRtlScrollType();
-    if (rtlType === "negative") return clampedOffset - this.#maxOffsetX;
-    if (rtlType === "reverse") return this.#maxOffsetX - clampedOffset;
-    return clampedOffset;
-  }
-
-  #fromNativeScrollLeft(nativeOffset: number): number {
-    if (!this.#isRtl()) return nativeOffset;
-    const rtlType = this.#getRtlScrollType();
-    if (rtlType === "negative") return this.#maxOffsetX + nativeOffset;
-    if (rtlType === "reverse") return this.#maxOffsetX - nativeOffset;
-    return nativeOffset;
-  }
-
-  #getViewportLogicalOffset(): number {
-    const offset = this.#fromNativeScrollLeft(this.scrollLeft);
-    return Math.min(this.#maxOffsetX, Math.max(0, offset));
-  }
-
-  #setViewportLogicalOffset(logicalOffset: number, animate = false): void {
-    const clampedOffset = Math.min(this.#maxOffsetX, Math.max(0, logicalOffset));
-    const nativeOffset = this.#toNativeScrollLeft(clampedOffset);
-    if (animate) {
-      this.scrollTo({ left: nativeOffset, behavior: "smooth" });
-      return;
-    }
-    this.scrollTo({ left: nativeOffset, behavior: "auto" });
+  #transformContainer(): void {
+    if (!this.#container) return;
+    const clampedOffset = this.#getOffsetForIndex(this.#getCurrentIndex());
+    const x = (this.#isRtl() ? clampedOffset : -clampedOffset) + this.#dragX;
+    this.#container.style.transform = `translate3d(${x}px, 0, 0)`;
   }
 }
 
