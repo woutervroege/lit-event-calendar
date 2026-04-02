@@ -2,6 +2,7 @@ import { css, html, LitElement, type PropertyValues } from "lit";
 
 type SwipeIntent = "x" | "y" | null;
 type SnapStopMode = "always" | "normal";
+type RtlScrollType = "default" | "negative" | "reverse";
 
 export class SwipeSnapElement extends LitElement {
   static properties = {
@@ -15,12 +16,13 @@ export class SwipeSnapElement extends LitElement {
       display: block;
       width: 100%;
       height: 100%;
-      overflow-x: hidden;
+      overflow-x: auto;
       overflow-y: auto;
       position: relative;
       touch-action: pan-y;
       user-select: none;
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
 
     .container {
@@ -29,8 +31,10 @@ export class SwipeSnapElement extends LitElement {
       height: 100%;
       min-height: 100%;
       align-items: flex-start;
-      will-change: transform;
-      transform: translate3d(0, 0, 0);
+    }
+
+    :host::-webkit-scrollbar {
+      display: none;
     }
 
     ::slotted(*) {
@@ -66,6 +70,8 @@ export class SwipeSnapElement extends LitElement {
   #swipeCommitDistance = 0.5;
   #swipeCommitVelocity = 0.75;
   #edgeResistance = 0.5;
+  #dragBaseOffset = 0;
+  #rtlScrollType: RtlScrollType | null = null;
 
   constructor() {
     super();
@@ -95,8 +101,8 @@ export class SwipeSnapElement extends LitElement {
     this.#lastT = performance.now();
     this.#velocityX = 0;
     this.#dragX = 0;
+    this.#dragBaseOffset = this.#getViewportLogicalOffset();
     this.#measurePages();
-    if (this.#container) this.#container.style.transition = "none";
   };
 
   #onPointerMove = (e: PointerEvent): void => {
@@ -123,16 +129,16 @@ export class SwipeSnapElement extends LitElement {
     this.#lastT = now;
 
     let nextDrag = dx;
-    const activeIndex = this.#getCurrentIndex();
     const logicalDrag = nextDrag * directionSign;
-    const currentLogicalOffset = this.#getLogicalOffsetForIndex(activeIndex);
+    const currentLogicalOffset = this.#dragBaseOffset;
     const atStartPushingOut = currentLogicalOffset <= 0.5 && logicalDrag > 0;
     const atEndPushingOut = currentLogicalOffset >= this.#maxOffsetX - 0.5 && logicalDrag < 0;
     if (atStartPushingOut || atEndPushingOut) {
       nextDrag = logicalDrag * this.#edgeResistance * directionSign;
     }
     this.#dragX = nextDrag;
-    this.#transformContainer();
+    const dragOffset = currentLogicalOffset - logicalDrag;
+    this.#setViewportLogicalOffset(dragOffset);
   };
 
   #onPointerUp = (e: PointerEvent): void => {
@@ -156,7 +162,7 @@ export class SwipeSnapElement extends LitElement {
     const fastSwipe = Math.abs(velocityX) > this.#swipeCommitVelocity;
     const farSwipe = progress > this.#swipeCommitDistance;
     const committedByFlick = Math.abs(velocityX) > 0.55 && progress > 0.12;
-    const currentLogicalOffset = this.#getLogicalOffsetForIndex(activeIndex);
+    const currentLogicalOffset = this.#dragBaseOffset;
     const canMoveForward = currentLogicalOffset < this.#maxOffsetX - 0.5;
     const canMoveBackward = currentLogicalOffset > 0.5;
     let nextIndex = activeIndex;
@@ -380,20 +386,67 @@ export class SwipeSnapElement extends LitElement {
   #applyCurrentIndex(animate: boolean): void {
     const index = this.#getCurrentIndex();
     this.#measurePages();
-    if (this.#container) {
-      this.#container.style.transition = animate
-        ? "transform 620ms cubic-bezier(0.22, 1, 0.36, 1)"
-        : "none";
-    }
-    this.#transformContainer();
+    const targetOffset = this.#getOffsetForIndex(index);
+    this.#setViewportLogicalOffset(targetOffset, animate);
     this.dispatchEvent(new CustomEvent("pagechange", { detail: { index } }));
   }
 
-  #transformContainer(): void {
-    if (!this.#container) return;
-    const clampedOffset = this.#getOffsetForIndex(this.#getCurrentIndex());
-    const x = (this.#isRtl() ? clampedOffset : -clampedOffset) + this.#dragX;
-    this.#container.style.transform = `translate3d(${x}px, 0, 0)`;
+  #getRtlScrollType(): RtlScrollType {
+    if (this.#rtlScrollType) return this.#rtlScrollType;
+    const probe = document.createElement("div");
+    probe.style.width = "4px";
+    probe.style.height = "1px";
+    probe.style.overflow = "scroll";
+    probe.style.direction = "rtl";
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    const inner = document.createElement("div");
+    inner.style.width = "8px";
+    inner.style.height = "1px";
+    probe.append(inner);
+    document.body.append(probe);
+    probe.scrollLeft = 1;
+    if (probe.scrollLeft === 0) {
+      this.#rtlScrollType = "negative";
+    } else if (probe.scrollLeft === 1) {
+      this.#rtlScrollType = "default";
+    } else {
+      this.#rtlScrollType = "reverse";
+    }
+    probe.remove();
+    return this.#rtlScrollType;
+  }
+
+  #toNativeScrollLeft(logicalOffset: number): number {
+    const clampedOffset = Math.min(this.#maxOffsetX, Math.max(0, logicalOffset));
+    if (!this.#isRtl()) return clampedOffset;
+    const rtlType = this.#getRtlScrollType();
+    if (rtlType === "negative") return clampedOffset - this.#maxOffsetX;
+    if (rtlType === "reverse") return this.#maxOffsetX - clampedOffset;
+    return clampedOffset;
+  }
+
+  #fromNativeScrollLeft(nativeOffset: number): number {
+    if (!this.#isRtl()) return nativeOffset;
+    const rtlType = this.#getRtlScrollType();
+    if (rtlType === "negative") return this.#maxOffsetX + nativeOffset;
+    if (rtlType === "reverse") return this.#maxOffsetX - nativeOffset;
+    return nativeOffset;
+  }
+
+  #getViewportLogicalOffset(): number {
+    const offset = this.#fromNativeScrollLeft(this.scrollLeft);
+    return Math.min(this.#maxOffsetX, Math.max(0, offset));
+  }
+
+  #setViewportLogicalOffset(logicalOffset: number, animate = false): void {
+    const clampedOffset = Math.min(this.#maxOffsetX, Math.max(0, logicalOffset));
+    const nativeOffset = this.#toNativeScrollLeft(clampedOffset);
+    if (animate) {
+      this.scrollTo({ left: nativeOffset, behavior: "smooth" });
+      return;
+    }
+    this.scrollTo({ left: nativeOffset, behavior: "auto" });
   }
 }
 

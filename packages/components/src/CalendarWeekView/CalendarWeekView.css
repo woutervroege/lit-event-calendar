@@ -13,36 +13,6 @@
   );
 }
 
-.combined-week-scroll-root {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  overflow: auto;
-  scroll-snap-type: x proximity;
-  scroll-padding-inline-start: calc(
-    var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px)) +
-    var(--_lc-combined-gap, var(--_lc-time-label-gap, 6px)) +
-    var(--_lc-combined-snap-nudge, -5px)
-  );
-  scroll-padding-block-start: calc(
-    var(
-      --_lc-combined-header-height,
-      calc(var(--_lc-weekday-header-height, 26px) + var(--_lc-all-day-row-height, 120px))
-    ) +
-    var(--_lc-week-section-divider-width, 3px) +
-    var(--_lc-combined-snap-block-nudge, 0px)
-  );
-  overscroll-behavior: contain;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.combined-week-scroll-root::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
-}
-
 .combined-week-grid-canvas {
   --_lc-combined-surface-bg: var(--_lc-surface-bg);
   --_lc-combined-sidebar-width: var(--_lc-time-sidebar-width, 72px);
@@ -59,35 +29,10 @@
   min-width: 100%;
   min-height: 100%;
   height: 100%;
+  flex: 0 0 auto;
   display: grid;
   grid-template-rows: auto 1fr;
   background-color: var(--_lc-combined-surface-bg);
-}
-
-.combined-week-snap-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  opacity: 0;
-  z-index: 0;
-}
-
-.combined-week-snap-grid {
-  display: grid;
-  grid-template-columns:
-    calc(var(--_lc-combined-sidebar-width) + var(--_lc-combined-gap))
-    repeat(var(--_lc-combined-snap-days, 7), minmax(0, 1fr));
-  grid-template-rows: repeat(var(--_lc-combined-snap-rows, 24), minmax(0, 1fr));
-  width: 100%;
-  height: calc(var(--_lc-combined-timed-height-factor, 1) * 100%);
-}
-
-.combined-week-snap-cell {
-  scroll-snap-align: start;
-  scroll-snap-stop: normal;
 }
 
 .combined-week-header {
@@ -101,7 +46,8 @@
 }
 
 .combined-week-header-sidebar {
-  position: static;
+  position: sticky;
+  inset-inline-start: 0;
   z-index: 13;
   color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
   background-color: var(--_lc-combined-surface-bg);
@@ -143,7 +89,9 @@
   height: 100%;
   --_lc-time-sidebar-width: var(--_lc-combined-sidebar-width);
   --_lc-time-label-gap: var(--_lc-combined-gap);
-  --_lc-time-sidebar-position: static;
+  --_lc-time-sidebar-position: sticky;
+  --_lc-time-sidebar-sticky-top: 0px;
+  --_lc-time-sidebar-z-index: 11;
   --_lc-time-sidebar-align-self: start;
   --_lc-time-sidebar-inline-padding: var(--_lc-combined-sidebar-inline-padding);
   --_lc-time-sidebar-bg: var(--_lc-combined-surface-bg);

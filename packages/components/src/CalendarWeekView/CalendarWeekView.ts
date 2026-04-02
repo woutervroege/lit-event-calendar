@@ -223,8 +223,6 @@ export class CalendarWeekView extends BaseElement {
     );
     const timedHeightFactor = 24 / clampedVisibleHours;
     const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
-    const snapPoints = this.daysPerWeek + 1;
-    const snapRows = 24;
     const allDayRowHeight = `calc(var(--_lc-all-day-day-number-space, 36px) + ${this.#allDayVisibleRowCount} * var(--_lc-event-height, 32px))`;
 
     return html`
@@ -232,14 +230,13 @@ export class CalendarWeekView extends BaseElement {
         class="combined-week-swipe-snap-element"
         .currentIndex=${0}
         .dir=${direction}
-        style=${`--_lc-combined-days: ${this.daysPerWeek}; --column-width: calc((100% - var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px))) / var(--_lc-combined-effective-visible-columns)); scroll-padding-inline-start: var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px)); width: 100%; height: 100%; display: block; overflow: hidden;`}
+        style=${`--_lc-combined-days: ${this.daysPerWeek}; --column-width: calc((100% - var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px))) / var(--_lc-combined-effective-visible-columns)); scroll-padding-inline-start: var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px)); width: 100%; height: 100%; display: block;`}
       >
-      <div
-        class="combined-week-scroll-root"
-        dir=${direction}
-        style=${`width: calc(var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px)) + ((100% - var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px))) * var(--_lc-combined-days) / var(--_lc-combined-effective-visible-columns))); flex: 0 0 auto; --_lc-combined-days: ${this.daysPerWeek}; --_lc-combined-timed-height-factor: ${timedHeightFactor}; --_lc-all-day-row-height: ${allDayRowHeight};`}
-      >
-        <div class="combined-week-grid-canvas">
+        <div
+          class="combined-week-grid-canvas"
+          dir=${direction}
+          style=${`width: calc(var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px)) + ((100% - var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px))) * var(--_lc-combined-days) / var(--_lc-combined-effective-visible-columns))); --_lc-combined-days: ${this.daysPerWeek}; --_lc-combined-timed-height-factor: ${timedHeightFactor}; --_lc-all-day-row-height: ${allDayRowHeight};`}
+        >
           <header class="combined-week-header">
             <aside class="combined-week-header-sidebar" aria-hidden="true"></aside>
             <section class="combined-week-header-main">
@@ -272,17 +269,6 @@ export class CalendarWeekView extends BaseElement {
           </header>
 
           <main class="combined-week-main">
-            <div class="combined-week-snap-overlay" aria-hidden="true">
-              <div
-                class="combined-week-snap-grid"
-                style=${`--_lc-combined-snap-days: ${this.daysPerWeek}; --_lc-combined-snap-rows: ${snapRows};`}
-              >
-                ${Array.from(
-                  { length: snapPoints * snapRows },
-                  () => html`<span class="combined-week-snap-cell"></span>`
-                )}
-              </div>
-            </div>
             <calendar-view
               class="combined-week-timed-view"
               start-date=${this.startDate.toString()}
@@ -305,7 +291,6 @@ export class CalendarWeekView extends BaseElement {
             ></calendar-view>
           </main>
         </div>
-      </div>
       </swipe-snap-element>
     `;
   }

@@ -157,6 +157,9 @@ export const VirtualColumnsSingleChild: Story = {
     label.style.background = "rgba(255, 255, 255, 0.85)";
     label.style.padding = "0.25rem 0.5rem";
     label.style.borderRadius = "0.375rem";
+    label.style.position = "sticky";
+    label.style.top = "0";
+    label.style.left = "0";
 
     timeline.append(label);
     el.append(timeline);
