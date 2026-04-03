@@ -401,6 +401,12 @@ export class CalendarWeekView extends BaseElement {
     if (this.daysPerWeek === 1) return;
     const target = event.currentTarget as { currentIndex?: number } | null;
     this.currentDayIndex = target?.currentIndex ?? 0;
+    const activeDate = this.startDate.add({ days: this.currentDayIndex }).toString();
+    this.dispatchEvent(
+      new CustomEvent("active-date-changed", {
+        detail: { date: activeDate, dayIndex: this.currentDayIndex },
+      })
+    );
   };
 
   override updated(changedProperties: Map<PropertyKey, unknown>) {

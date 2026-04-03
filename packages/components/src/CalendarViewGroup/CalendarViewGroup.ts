@@ -274,6 +274,7 @@ export class CalendarViewGroup extends BaseElement {
           .defaultEventSummary=${this.defaultEventSummary}
           .defaultEventColor=${this.defaultEventColor}
           .defaultCalendarId=${this.defaultCalendarId}
+          @active-date-changed=${this.#handleWeekActiveDateChanged}
           @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-create-requested=${this.#reemit}
           @event-selection-requested=${this.#reemit}
@@ -334,6 +335,13 @@ export class CalendarViewGroup extends BaseElement {
     const selectedDate = Temporal.PlainDate.from(detail.date);
     this.startDate = selectedDate;
     this.view = "day";
+  };
+
+  #handleWeekActiveDateChanged = (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const detail = event.detail as { date?: string } | undefined;
+    if (!detail?.date) return;
+    this.startDate = Temporal.PlainDate.from(detail.date);
   };
 
   #goToToday() {
