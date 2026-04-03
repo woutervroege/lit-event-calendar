@@ -10,6 +10,10 @@ import {
 import { attachRequestEventHandlers } from "../storyRequestHandlers.js";
 
 type StoryCalendarViewGroupElement = HTMLElement & { events: Map<string, CalendarEvent> };
+const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => String(index + 1))];
+const VISIBLE_HOUR_MAPPING = Object.fromEntries(
+  VISIBLE_HOUR_OPTIONS.map((option) => [option, option === "auto" ? undefined : Number(option)])
+) as Record<string, number | undefined>;
 
 const meta: Meta = {
   title: "CalendarView/CalendarViewGroup",
@@ -56,7 +60,11 @@ const meta: Meta = {
     },
     currentTime: { control: "text", description: "Current time (ISO string)" },
     snapInterval: { control: { type: "number", min: 5, max: 60, step: 5 } },
-    visibleHours: { control: { type: "number", min: 1, max: 24, step: 1 } },
+    visibleHours: {
+      control: { type: "select" },
+      options: VISIBLE_HOUR_OPTIONS,
+      mapping: VISIBLE_HOUR_MAPPING,
+    },
   },
   args: {
     view: "month",
@@ -94,7 +102,11 @@ const meta: Meta = {
       el.setAttribute("current-time", args.currentTime);
     }
     el.setAttribute("snap-interval", String(args.snapInterval));
-    el.setAttribute("visible-hours", String(args.visibleHours));
+    if (args.visibleHours === "auto" || args.visibleHours === undefined || args.visibleHours === null) {
+      el.removeAttribute("visible-hours");
+    } else {
+      el.setAttribute("visible-hours", String(args.visibleHours));
+    }
 
     const entries = Array.isArray(args.events) ? args.events : sampleEvents;
     el.events = new Map(entries);

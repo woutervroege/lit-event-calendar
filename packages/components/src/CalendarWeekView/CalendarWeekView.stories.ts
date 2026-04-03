@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "./CalendarWeekView.js";
 import { calendarCssProps } from "../calendarCssProps.js";
+import { attachRequestEventHandlers } from "../storyRequestHandlers.js";
 import {
   type CalendarTemporalEvent,
   localeOptions,
@@ -9,6 +10,10 @@ import {
 } from "../storyData.js";
 
 type StoryCalendarWeekViewElement = HTMLElement & { events: Map<string, CalendarTemporalEvent> };
+const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => String(index + 1))];
+const VISIBLE_HOUR_MAPPING = Object.fromEntries(
+  VISIBLE_HOUR_OPTIONS.map((option) => [option, option === "auto" ? undefined : Number(option)])
+) as Record<string, number | undefined>;
 
 const meta: Meta = {
   title: "CalendarView/CalendarWeekView",
@@ -48,7 +53,11 @@ const meta: Meta = {
     },
     currentTime: { control: "text", description: "Current time (ISO string)" },
     snapInterval: { control: { type: "number", min: 5, max: 60, step: 5 } },
-    visibleHours: { control: { type: "number", min: 1, max: 24, step: 1 } },
+    visibleHours: {
+      control: { type: "select" },
+      options: VISIBLE_HOUR_OPTIONS,
+      mapping: VISIBLE_HOUR_MAPPING,
+    },
   },
   args: {
     weekNumber: 2,
@@ -81,9 +90,14 @@ const meta: Meta = {
       el.setAttribute("current-time", args.currentTime);
     }
     el.setAttribute("snap-interval", String(args.snapInterval));
-    el.setAttribute("visible-hours", String(args.visibleHours));
+    if (args.visibleHours === "auto" || args.visibleHours === undefined || args.visibleHours === null) {
+      el.removeAttribute("visible-hours");
+    } else {
+      el.setAttribute("visible-hours", String(args.visibleHours));
+    }
     const entries = Array.isArray(args.events) ? args.events : weekSplitEvents;
     el.events = new Map(entries);
+    attachRequestEventHandlers(el, { preserveDateOnlyShape: true });
     return el;
   },
 };

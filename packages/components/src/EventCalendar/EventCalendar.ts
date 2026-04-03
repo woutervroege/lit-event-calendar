@@ -6,16 +6,16 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
 import type {
-  CalendarViewGroup,
   CalendarPresentationMode,
+  CalendarViewGroup,
   CalendarViewMode,
 } from "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import "../TabSwitch/TabSwitch.js";
-import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
 import { renderCalendarIcon } from "../icons/calendarIcon.js";
 import { renderGridIcon } from "../icons/gridIcon.js";
 import { renderListIcon } from "../icons/listIcon.js";
+import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
 import { getLocaleDirection } from "../utils/Locale.js";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -36,6 +36,13 @@ const PRESENTATION_OPTIONS_BASE: Array<{ value: PresentationUnit; hotkey: string
   { value: "list", hotkey: "l" },
 ];
 
+const VIEW_DATE_TIME_FIELDS: Record<ViewUnit, string> = {
+  day: "day",
+  week: "weekOfYear",
+  month: "month",
+  year: "year",
+};
+
 function capitalizeLabel(value: string, locale = globalThis.navigator?.language ?? "en"): string {
   return value.replace(/^\p{L}/u, (character) => character.toLocaleUpperCase(locale));
 }
@@ -43,7 +50,7 @@ function capitalizeLabel(value: string, locale = globalThis.navigator?.language 
 function getUnitLabel(unit: ViewUnit, locale = globalThis.navigator?.language ?? "en"): string {
   try {
     const displayNames = new Intl.DisplayNames(locale, { type: "dateTimeField" });
-    const label = displayNames.of(unit) ?? unit;
+    const label = displayNames.of(VIEW_DATE_TIME_FIELDS[unit] as Intl.DateTimeField) ?? unit;
     return capitalizeLabel(label, locale);
   } catch {
     return capitalizeLabel(unit, locale);
@@ -93,7 +100,7 @@ export class EventCalendar extends BaseElement {
   timezone?: string;
   currentTime?: string;
   snapInterval = 15;
-  visibleHours = 12;
+  visibleHours?: number;
   rtl = false;
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
@@ -147,7 +154,9 @@ export class EventCalendar extends BaseElement {
       return;
     }
     const nextValue =
-      value === "day" || value === "week" || value === "month" || value === "year" ? value : "month";
+      value === "day" || value === "week" || value === "month" || value === "year"
+        ? value
+        : "month";
     if (this.#view === nextValue) return;
     this.#view = nextValue;
     this.requestUpdate();
@@ -226,24 +235,25 @@ export class EventCalendar extends BaseElement {
   }
 
   render() {
-    const headerDirection = getLocaleDirection(this.locale);
+    const headerDirection = this.rtl || getLocaleDirection(this.locale) === "rtl" ? "rtl" : "ltr";
+    const isHeaderRtl = headerDirection === "rtl";
     return html`
-      <div class="flex h-full min-h-0 flex-col gap-7 [container-type:inline-size] [@media(max-width:54rem)]:gap-4">
+      <div class="flex h-full min-h-0 flex-col gap-7 overflow-hidden [container-type:inline-size] [@media(max-width:54rem)]:gap-4">
         <header
-          class="flex flex-col gap-2 rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))]"
+          class="sticky top-[var(--_lc-event-calendar-sticky-top,0px)] z-[var(--_lc-event-calendar-header-z-index,60)] flex flex-col gap-2 bg-[var(--_lc-surface-bg)] p-4 pb-0"
           dir=${headerDirection}
         >
           <div
             class="flex items-center gap-2"
             style="--lc-button-bg: transparent; --lc-button-hover-bg: transparent; --lc-button-border-color: transparent; --_lc-button-border-color: transparent; --_lc-grid-line-color: transparent;"
           >
-            <div class="flex min-w-0 flex-1 items-center gap-2" dir="ltr">
+            <div class="flex min-w-0 flex-1 items-center gap-2" dir=${headerDirection}>
               <div class="flex items-center gap-0">
                 <lc-button
                   compact
                   label="Previous range"
                   hotkey="special+left"
-                  @click=${() => (headerDirection === "rtl" ? this.goForward() : this.goBack())}
+                  @click=${() => this.goBack()}
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -253,14 +263,18 @@ export class EventCalendar extends BaseElement {
                     aria-hidden="true"
                     class="block h-[1.1rem] w-[1.1rem]"
                   >
-                    <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path
+                      d=${isHeaderRtl ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"}
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></path>
                   </svg>
                 </lc-button>
                 <lc-button
                   compact
                   label="Next range"
                   hotkey="special+right"
-                  @click=${() => (headerDirection === "rtl" ? this.goBack() : this.goForward())}
+                  @click=${() => this.goForward()}
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -270,7 +284,11 @@ export class EventCalendar extends BaseElement {
                     aria-hidden="true"
                     class="block h-[1.1rem] w-[1.1rem]"
                   >
-                    <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path
+                      d=${isHeaderRtl ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"}
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></path>
                   </svg>
                 </lc-button>
               </div>
@@ -279,15 +297,19 @@ export class EventCalendar extends BaseElement {
                 aria-hidden="true"
               ></span>
               <h2
-                class="m-0 min-w-0 truncate px-1 text-left text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-base"
+                class="m-0 min-w-0 truncate px-1 text-start text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-base"
                 aria-live="polite"
                 dir=${headerDirection}
               >
-                ${this.#rangeLabelParts.length
-                  ? this.#rangeLabelParts.map((part) =>
-                      part.isYear ? html`<span class="font-normal">${part.text}</span>` : part.text
-                    )
-                  : this.#rangeLabelText}
+                ${
+                  this.#rangeLabelParts.length
+                    ? this.#rangeLabelParts.map((part) =>
+                        part.isYear
+                          ? html`<span class="font-normal">${part.text}</span>`
+                          : part.text
+                      )
+                    : this.#rangeLabelText
+                }
               </h2>
             </div>
             <lc-button
@@ -326,7 +348,8 @@ export class EventCalendar extends BaseElement {
           </div>
         </header>
         <calendar-view-group
-          class="min-h-0 flex-[1_1_auto]"
+          class="min-h-0 flex-[1_1_auto] overflow-y-auto p-4 pt-0 mb-4"
+          style="--_lc-week-sticky-top: 0px;"
           .view=${this.view}
           .presentation=${this.presentation}
           start-date=${ifDefined(this.#startDate)}

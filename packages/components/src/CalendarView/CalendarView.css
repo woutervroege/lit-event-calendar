@@ -1,7 +1,7 @@
 :host {
   display: block;
   width: 100%;
-  height: calc(var(--_lc-host-height-factor, 1) * 100%);
+  height: calc(var(--_lc-host-height-factor, 1) * var(--_lc-host-base-height, 100%));
   color-scheme: light dark;
   -webkit-user-select: none;
   user-select: none;
@@ -42,8 +42,14 @@
 
 :host([variant="timed"]) section {
   margin-top: var(--_lc-timed-section-top-offset);
-  min-height: calc((var(--_lc-host-height-factor, 1) * 100%) - var(--_lc-timed-section-top-offset));
-  height: calc((var(--_lc-host-height-factor, 1) * 100%) - var(--_lc-timed-section-top-offset));
+  min-height: calc(
+    (var(--_lc-host-height-factor, 1) * var(--_lc-host-base-height, 100%)) -
+      var(--_lc-timed-section-top-offset)
+  );
+  height: calc(
+    (var(--_lc-host-height-factor, 1) * var(--_lc-host-base-height, 100%)) -
+      var(--_lc-timed-section-top-offset)
+  );
 }
 
 @supports (color: color-mix(in srgb, black, white)) {
@@ -73,6 +79,7 @@
 }
 
 section {
+  background-color: var(--_lc-section-bg, transparent);
   background-image:
     linear-gradient(
       to left,
@@ -88,7 +95,7 @@ section {
     linear-gradient(to bottom, var(--_lc-grid-line-color), var(--_lc-grid-line-color));
   background-size:
     calc(100% / var(--_lc-days)) 100%,
-    100% calc(100% / var(--_lc-hours)),
+    100% var(--_lc-hour-cell-height, calc(100% / var(--_lc-hours))),
     100% var(--_lc-grid-line-width),
     var(--_lc-grid-line-width) 100%;
   background-position:
@@ -292,11 +299,18 @@ time.current-day,
   top: var(--_lc-time-sidebar-sticky-top);
   z-index: var(--_lc-time-sidebar-z-index);
   align-self: var(--_lc-time-sidebar-align-self);
-  height: calc((var(--_lc-host-height-factor, 1) * 100%) - var(--_lc-timed-section-top-offset));
+  height: calc(
+    (var(--_lc-host-height-factor, 1) * var(--_lc-host-base-height, 100%)) -
+      var(--_lc-timed-section-top-offset)
+  );
   width: var(--_lc-time-sidebar-width, auto);
-  min-height: calc((var(--_lc-host-height-factor, 1) * 100%) - var(--_lc-timed-section-top-offset));
+  min-height: calc(
+    (var(--_lc-host-height-factor, 1) * var(--_lc-host-base-height, 100%)) -
+      var(--_lc-timed-section-top-offset)
+  );
   color: var(--_lc-grid-line-day-color);
   margin-top: -2px;
+  background: var(--_lc-combined-surface-bg);
   background-color: var(--_lc-time-sidebar-bg);
   padding-inline: var(--_lc-time-sidebar-inline-padding);
 }

@@ -1,164 +1,131 @@
 :host {
   display: block;
   width: 100%;
-  height: 100%;
-  min-height: 0;
+  height: auto;
+  min-height: 100%;
   container-type: inline-size;
 }
 
-.combined-week-scroll-root {
+.week-layout {
+  --_lc-week-time-sidebar-width: var(--_lc-time-sidebar-width, max-content);
+  display: grid;
+  grid-template-columns: var(--_lc-week-time-sidebar-width) minmax(0, 1fr);
   width: 100%;
-  height: 100%;
-  min-height: 0;
-  overflow: auto;
-  scroll-snap-type: x proximity;
-  scroll-padding-inline-start: calc(
-    var(--_lc-combined-sidebar-width, var(--_lc-time-sidebar-width, 72px)) +
-    var(--_lc-combined-gap, var(--_lc-time-label-gap, 6px)) +
-    var(--_lc-combined-snap-nudge, -5px)
-  );
-  scroll-padding-block-start: calc(
-    var(
-      --_lc-combined-header-height,
-      calc(var(--_lc-weekday-header-height, 26px) + var(--_lc-all-day-row-height, 120px))
-    ) +
-    var(--_lc-week-section-divider-width, 3px) +
-    var(--_lc-combined-snap-block-nudge, 0px)
-  );
-  overscroll-behavior: contain;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  height: auto;
+  align-items: start;
 }
 
-.combined-week-scroll-root::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
-}
-
-.combined-week-grid-canvas {
-  --_lc-combined-surface-bg: var(--_lc-surface-bg);
-  --_lc-combined-sidebar-width: var(--_lc-time-sidebar-width, 72px);
-  --_lc-combined-gap: 0px;
-  --_lc-combined-sidebar-inline-padding: 8px;
-  --_lc-combined-all-day-label-top-offset: 32px;
-  --_lc-combined-header-height: calc(
-    var(--_lc-weekday-header-height, 26px) +
-    var(--_lc-all-day-row-height, 120px)
-  );
-  --_lc-combined-visible-columns: 7;
+.week-swipe {
+  grid-column: 2;
+  --_lc-swipe-height: auto;
+  --_lc-swipe-min-height: var(--_lc-week-total-height);
+  --_lc-swipe-overflow-x: clip;
+  --_lc-swipe-overflow-y: visible;
   --_lc-combined-effective-visible-columns: max(
     1,
-    min(var(--_lc-combined-visible-columns), var(--_lc-combined-days, 7))
+    min(var(--_lc-combined-visible-columns, 7), var(--_lc-combined-days, 7))
   );
-  --_lc-combined-available-width: calc(
-    100% -
-    var(--_lc-combined-sidebar-width) -
-    var(--_lc-combined-gap)
+  --column-width: calc(100% / var(--_lc-combined-effective-visible-columns));
+}
+
+.week-stack {
+  min-width: calc(
+    (100% * var(--_lc-combined-days, 7)) /
+    var(--_lc-combined-effective-visible-columns, 7)
   );
-  --_lc-combined-scroll-content-width: calc(
-    var(--_lc-combined-available-width) *
-    (var(--_lc-combined-days, 7) / var(--_lc-combined-effective-visible-columns))
-  );
-
-  position: relative;
-  width: calc(
-    var(--_lc-combined-sidebar-width) +
-    var(--_lc-combined-gap) +
-    var(--_lc-combined-scroll-content-width)
-  );
-  min-width: 100%;
-  min-height: 100%;
-  height: 100%;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  background-color: var(--_lc-combined-surface-bg);
-}
-
-.combined-week-snap-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  opacity: 0;
-  z-index: 0;
-}
-
-.combined-week-snap-grid {
-  display: grid;
-  grid-template-columns:
-    calc(var(--_lc-combined-sidebar-width) + var(--_lc-combined-gap))
-    repeat(var(--_lc-combined-snap-days, 7), minmax(0, 1fr));
-  grid-template-rows: repeat(var(--_lc-combined-snap-rows, 24), minmax(0, 1fr));
-  width: 100%;
-  height: calc(var(--_lc-combined-timed-height-factor, 1) * 100%);
-}
-
-.combined-week-snap-cell {
-  scroll-snap-align: start;
-  scroll-snap-stop: normal;
-}
-
-.combined-week-header {
-  display: grid;
-  grid-template-columns: var(--_lc-combined-sidebar-width) minmax(0, 1fr);
-  column-gap: var(--_lc-combined-gap);
-  position: sticky;
-  top: 0;
-  z-index: 12;
-  background-color: var(--_lc-combined-surface-bg);
-}
-
-.combined-week-header-sidebar {
-  position: static;
-  z-index: 13;
-  color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
-  background-color: var(--_lc-combined-surface-bg);
-  min-height: var(--_lc-combined-header-height);
+  height: auto;
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding-top: var(--_lc-combined-all-day-label-top-offset);
-  padding-bottom: 0;
-  padding-inline: var(--_lc-combined-sidebar-inline-padding);
-  font-size: 12px;
-  line-height: 1;
-  font-weight: 500;
-  white-space: nowrap;
+  flex-direction: column;
+  gap: var(--_lc-week-sections-gap, 8px);
+}
+
+.week-all-day-shell {
+  position: sticky;
+  top: var(--_lc-week-sticky-top, 0px);
+  z-index: var(--_lc-week-sticky-header-z-index, 30);
+  height: var(--_lc-week-all-day-shell-height);
+  min-height: var(--_lc-week-all-day-shell-height);
+  background-color: var(--_lc-surface-bg);
   border-bottom: var(--_lc-week-section-divider-width, 3px) solid
     var(--_lc-week-section-divider-color, light-dark(rgb(15 23 42 / 22%), rgb(255 255 255 / 28%)));
 }
 
-.combined-week-header-main {
-  display: grid;
-  grid-template-rows: var(--_lc-weekday-header-height, 26px) var(--_lc-all-day-row-height, 120px);
-  border-bottom: var(--_lc-week-section-divider-width, 3px) solid
-    var(--_lc-week-section-divider-color, light-dark(rgb(15 23 42 / 22%), rgb(255 255 255 / 28%)));
-}
-
-.combined-week-all-day-view {
-  min-height: var(--_lc-all-day-row-height, 120px);
-  --_lc-time-sidebar-width: var(--_lc-combined-sidebar-width);
-}
-
-.combined-week-main {
-  position: relative;
-  z-index: 1;
-  min-height: 0;
-  height: 100%;
-}
-
-.combined-week-timed-view {
-  height: 100%;
-  --_lc-time-sidebar-width: var(--_lc-combined-sidebar-width);
-  --_lc-time-label-gap: var(--_lc-combined-gap);
-  --_lc-time-sidebar-position: static;
-  --_lc-time-sidebar-align-self: start;
-  --_lc-time-sidebar-inline-padding: var(--_lc-combined-sidebar-inline-padding);
-  --_lc-time-sidebar-bg: var(--_lc-combined-surface-bg);
-  --_lc-timed-section-top-offset: 4px;
+.week-time-sidebar {
+  grid-column: 1;
+  position: sticky;
+  top: var(--_lc-week-sticky-top, 0px);
+  inset-inline-start: 0;
+  z-index: calc(var(--_lc-week-sticky-header-z-index, 30) + 1);
+  height: var(--_lc-week-total-height);
+  min-height: var(--_lc-week-total-height);
+  background-color: var(--lg-background-color);
+  --_lc-time-sidebar-header-height: var(--_lc-week-weekday-header-height);
+  --_lc-time-sidebar-sticky-top-base: var(--_lc-week-sticky-top, 0px);
+  --_lc-time-sidebar-all-day-height: var(--_lc-week-all-day-height);
+  --_lc-time-sidebar-timed-height: var(--_lc-week-timed-content-height);
+  --_lc-time-sidebar-hour-cell-height: var(--_lc-week-hour-cell-height);
+  --_lc-time-sidebar-all-day-divider-width: var(--_lc-week-section-divider-width, 3px);
+  --_lc-time-sidebar-all-day-divider-color: var(
+    --_lc-week-section-divider-color,
+    light-dark(rgb(15 23 42 / 22%), rgb(255 255 255 / 28%))
+  );
+  --_lc-time-sidebar-inline-padding: var(--_lc-week-time-sidebar-inline-padding, 6px);
   --_lc-hour-labels-margin-top: 0px;
+  --_lc-time-sidebar-timed-top-offset: calc(var(--_lc-week-sections-gap, 8px) - 7px);
 }
 
+.week-layout[data-rtl] {
+  direction: rtl;
+}
+
+.week-all-day-view {
+  height: var(--_lc-week-all-day-height);
+  min-height: var(--_lc-week-all-day-height);
+  background-color: transparent;
+}
+
+.week-timed-view {
+  height: var(--_lc-week-timed-content-height);
+  min-height: var(--_lc-week-timed-content-height);
+  --_lc-host-base-height: var(--_lc-week-timed-content-height);
+  --_lc-hour-cell-height: var(--_lc-week-hour-cell-height);
+  --_lc-min-hour-height: 0px;
+}
+
+@container (max-width: 1100px) {
+  .week-swipe {
+    --_lc-combined-visible-columns: 6;
+  }
+}
+
+@container (max-width: 980px) {
+  .week-swipe {
+    --_lc-combined-visible-columns: 5;
+  }
+}
+
+@container (max-width: 840px) {
+  .week-swipe {
+    --_lc-combined-visible-columns: 4;
+  }
+}
+
+@container (max-width: 700px) {
+  .week-swipe {
+    --_lc-combined-visible-columns: 3;
+  }
+}
+
+@container (max-width: 540px) {
+  .week-swipe {
+    --_lc-combined-visible-columns: 2;
+  }
+}
+
+@media (pointer: fine) {
+  .week-swipe {
+    --_lc-combined-visible-columns: var(--_lc-combined-days);
+    --_lc-swipe-overflow-x: visible;
+    --_lc-swipe-overflow-y: visible;
+  }
+}

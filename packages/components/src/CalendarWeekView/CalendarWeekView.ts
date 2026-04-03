@@ -2,13 +2,16 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
+import { styleMap } from "lit/directives/style-map.js";
 import "../CalendarView/CalendarView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
+import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import { type AllDayLayoutItem, buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { getLocaleDirection, getLocaleWeekInfo } from "../utils/Locale.js";
 import componentStyle from "./CalendarWeekView.css?inline";
+import "../SwipeContainer.js";
 
 type EventEntry = [id: string, event: EventInput];
 type EventsMap = Map<string, EventInput>;
@@ -30,7 +33,7 @@ export class CalendarWeekView extends BaseElement {
   timezone?: string;
   currentTime?: string;
   snapInterval = 15;
-  visibleHours = 12;
+  visibleHours?: number;
   rtl = false;
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
@@ -38,6 +41,9 @@ export class CalendarWeekView extends BaseElement {
   #splitEventsSource?: EventsMap;
   #cachedAllDayEvents: EventsMap = new Map();
   #cachedTimedEvents: EventsMap = new Map();
+  #activeInteractionLocks = new Set<string>();
+  #currentDayIndex = 0;
+  #resizeObserver: ResizeObserver | null = null;
 
   static get properties() {
     return {
@@ -111,6 +117,16 @@ export class CalendarWeekView extends BaseElement {
 
   set startDate(value: string | undefined) {
     this.#startDate = value || undefined;
+  }
+
+  get currentDayIndex(): number {
+    if (this.daysPerWeek === 1) return 0;
+    return this.#currentDayIndex;
+  }
+
+  set currentDayIndex(value: number) {
+    const normalized = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+    this.#currentDayIndex = normalized;
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
@@ -215,89 +231,126 @@ export class CalendarWeekView extends BaseElement {
     );
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    this.#startResizeObserver();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.#resizeObserver?.disconnect();
+    this.#resizeObserver = null;
+    // Drag/resize interactions can leave transient locks active if the view unmounts mid-gesture.
+    // Reset so swipe is always re-enabled when returning to this view.
+    this.#activeInteractionLocks.clear();
+  }
+
   render() {
-    const clampedVisibleHours = Math.max(
-      1,
-      Math.min(24, Math.floor(Number(this.visibleHours) || 12))
-    );
-    const timedHeightFactor = 24 / clampedVisibleHours;
+    const hasVisibleHours = Number.isFinite(this.visibleHours);
+    const clampedVisibleHours = hasVisibleHours
+      ? Math.max(1, Math.min(24, Math.floor(Number(this.visibleHours))))
+      : undefined;
+    const weekdayHeaderHeight = "calc(var(--_lc-weekday-header-height, 26px) + 4px)";
+    const allDayHeight = `calc(var(--_lc-all-day-day-number-space, 36px) + ${this.#allDayVisibleRowCount} * var(--_lc-event-height, 32px))`;
+    const timedHeight = "var(--_lc-week-effective-timed-height)";
+    const hourCellHeight = clampedVisibleHours
+      ? `calc(var(--_lc-week-effective-timed-height) / ${clampedVisibleHours})`
+      : "max(var(--_lc-week-min-hour-cell-height, 72px), calc(var(--_lc-week-effective-timed-height) / 24))";
+    const timedContentHeight = clampedVisibleHours
+      ? "var(--_lc-week-effective-timed-height)"
+      : `calc(24 * ${hourCellHeight})`;
     const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
-    const snapPoints = this.daysPerWeek + 1;
-    const snapRows = 24;
-    const allDayRowHeight = `calc(var(--_lc-all-day-day-number-space, 36px) + ${this.#allDayVisibleRowCount} * var(--_lc-event-height, 32px))`;
+    const dayModeWeekStart = isWeekdayNumber(this.startDate.dayOfWeek)
+      ? this.startDate.dayOfWeek
+      : this.weekStart;
+    const headerWeekStart = this.daysPerWeek === 1 ? dayModeWeekStart : this.weekStart;
 
     return html`
       <div
-        class="combined-week-scroll-root"
-        dir=${direction}
-        style=${`--_lc-combined-days: ${this.daysPerWeek}; --_lc-combined-timed-height-factor: ${timedHeightFactor}; --_lc-all-day-row-height: ${allDayRowHeight};`}
+        class="week-layout"
+        ?data-rtl=${direction === "rtl"}
+        style=${styleMap({
+          "--_lc-combined-days": String(this.daysPerWeek),
+          "--_lc-week-weekday-header-height": weekdayHeaderHeight,
+          "--_lc-week-all-day-height": allDayHeight,
+          "--_lc-week-all-day-shell-height": `calc(${weekdayHeaderHeight} + ${allDayHeight})`,
+          "--_lc-week-effective-timed-height":
+            "max(0px, calc(var(--_lc-week-view-height, 100%) - var(--_lc-week-all-day-shell-height)))",
+          "--_lc-week-timed-height": timedHeight,
+          "--_lc-week-timed-content-height": timedContentHeight,
+          "--_lc-week-hour-cell-height": hourCellHeight,
+          "--_lc-week-total-height":
+            "calc(var(--_lc-week-all-day-shell-height) + var(--_lc-week-sections-gap, 8px) + var(--_lc-week-timed-content-height))",
+        })}
       >
-        <div class="combined-week-grid-canvas">
-          <header class="combined-week-header">
-            <aside class="combined-week-header-sidebar" aria-hidden="true"></aside>
-            <section class="combined-week-header-main">
-              <calendar-weekday-header
-                .locale=${this.locale}
-                .weekStart=${this.weekStart}
-                .days=${this.daysPerWeek}
-              ></calendar-weekday-header>
-              <calendar-view
-                class="combined-week-all-day-view"
-                start-date=${this.startDate.toString()}
-                days=${String(this.daysPerWeek)}
-                variant="all-day"
-                .events=${this.#allDayEvents}
-                .rtl=${this.rtl}
-                locale=${ifDefined(this.locale)}
-                timezone=${ifDefined(this.timezone)}
-                current-time=${ifDefined(this.currentTime)}
-                .snapInterval=${this.snapInterval}
-                .labelsHidden=${false}
-                .defaultEventSummary=${this.defaultEventSummary}
-                .defaultEventColor=${this.defaultEventColor}
-                .defaultCalendarId=${this.defaultCalendarId}
-                @day-selection-requested=${this.#reemit}
-                @event-create-requested=${this.#reemit}
-                @event-update-requested=${this.#reemit}
-                @event-delete-requested=${this.#reemit}
-              ></calendar-view>
-            </section>
-          </header>
+        <calendar-time-sidebar
+          class="week-time-sidebar"
+          .locale=${this.locale}
+          .hours=${24}
+        ></calendar-time-sidebar>
 
-          <main class="combined-week-main">
-            <div class="combined-week-snap-overlay" aria-hidden="true">
-              <div
-                class="combined-week-snap-grid"
-                style=${`--_lc-combined-snap-days: ${this.daysPerWeek}; --_lc-combined-snap-rows: ${snapRows};`}
-              >
-                ${Array.from(
-                  { length: snapPoints * snapRows },
-                  () => html`<span class="combined-week-snap-cell"></span>`
-                )}
-              </div>
-            </div>
+        <swipe-container
+          class="week-swipe"
+          .currentIndex=${this.currentDayIndex}
+          scroll-snap-stop="normal"
+          .disabled=${this.#activeInteractionLocks.size > 0 || this.daysPerWeek === 1}
+          @change=${this.#handleSwipeIndexChange}
+          dir=${direction}
+        >
+          <div class="week-stack">
+          <div class="week-all-day-shell">
+            <calendar-weekday-header
+              class="week-weekday-header"
+              .locale=${this.locale}
+              .weekStart=${headerWeekStart}
+              .days=${this.daysPerWeek}
+            ></calendar-weekday-header>
             <calendar-view
-              class="combined-week-timed-view"
-              start-date=${this.startDate.toString()}
+              class="week-all-day-view"
+              .startDate=${this.startDate}
               days=${String(this.daysPerWeek)}
-              variant="timed"
-              .events=${this.#timedEvents}
+              variant="all-day"
+              .events=${this.#allDayEvents}
               .rtl=${this.rtl}
               locale=${ifDefined(this.locale)}
               timezone=${ifDefined(this.timezone)}
               current-time=${ifDefined(this.currentTime)}
               .snapInterval=${this.snapInterval}
-              .visibleHours=${this.visibleHours}
               .labelsHidden=${false}
-              .defaultEventSummary=${this.defaultEventSummary}
-              .defaultEventColor=${this.defaultEventColor}
-              .defaultCalendarId=${this.defaultCalendarId}
+              style=${styleMap({
+                "--_lc-section-bg":
+                  "var(--lg-background-color, var(--_lc-surface-bg, light-dark(#fff, #222)))",
+              })}
               @event-create-requested=${this.#reemit}
               @event-update-requested=${this.#reemit}
               @event-delete-requested=${this.#reemit}
-            ></calendar-view>
-          </main>
+              @day-selection-requested=${this.#reemit}
+              @interaction-lock-change=${this.#handleInteractionLockChange}
+            >
+            </calendar-view>
+          </div>
+
+          <calendar-view
+            class="week-timed-view"
+            .startDate=${this.startDate}
+            days=${String(this.daysPerWeek)}
+            variant="timed"
+            .events=${this.#timedEvents}
+            .visibleHours=${clampedVisibleHours ?? 24}
+            .rtl=${this.rtl}
+            locale=${ifDefined(this.locale)}
+            timezone=${ifDefined(this.timezone)}
+            current-time=${ifDefined(this.currentTime)}
+            .snapInterval=${this.snapInterval}
+            @event-create-requested=${this.#reemit}
+            @event-update-requested=${this.#reemit}
+            @event-delete-requested=${this.#reemit}
+            @day-selection-requested=${this.#reemit}
+            @interaction-lock-change=${this.#handleInteractionLockChange}
+          >
+          </calendar-view>
         </div>
+        </swipe-container>
       </div>
     `;
   }
@@ -313,4 +366,53 @@ export class CalendarWeekView extends BaseElement {
       event.preventDefault();
     }
   };
+
+  #handleInteractionLockChange = (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const detail = event.detail as
+      | { active?: boolean; kind?: string; interactionId?: string }
+      | undefined;
+    if (!detail?.kind || !detail.interactionId) return;
+
+    const source = event.currentTarget as Element | null;
+    const sourceLabel = source?.classList.contains("week-all-day-view")
+      ? "all-day"
+      : source?.classList.contains("week-timed-view")
+        ? "timed"
+        : "unknown";
+    const lockKey = `${sourceLabel}:${detail.kind}:${detail.interactionId}`;
+
+    if (detail.active) {
+      this.#activeInteractionLocks.add(lockKey);
+    } else {
+      this.#activeInteractionLocks.delete(lockKey);
+    }
+    this.requestUpdate();
+  };
+
+  #handleSwipeIndexChange = (event: Event) => {
+    if (this.daysPerWeek === 1) return;
+    const target = event.currentTarget as { currentIndex?: number } | null;
+    this.currentDayIndex = target?.currentIndex ?? 0;
+  };
+
+  override updated(changedProperties: Map<PropertyKey, unknown>) {
+    super.updated(changedProperties);
+    this.#syncWeekViewHeight();
+  }
+
+  #startResizeObserver() {
+    if (typeof ResizeObserver === "undefined" || this.#resizeObserver) return;
+    this.#resizeObserver = new ResizeObserver(() => this.#syncWeekViewHeight());
+    this.#resizeObserver.observe(this);
+  }
+
+  #syncWeekViewHeight() {
+    const weekLayout = this.renderRoot.querySelector(".week-layout") as HTMLElement | null;
+    if (!weekLayout) return;
+    const hostHeightPx = this.getBoundingClientRect().height;
+    if (Number.isFinite(hostHeightPx) && hostHeightPx > 0) {
+      weekLayout.style.setProperty("--_lc-week-view-height", `${hostHeightPx}px`);
+    }
+  }
 }

@@ -12,13 +12,15 @@ const globalStyles = `
     color-scheme: light dark;
     background-color: var(--lg-background-color, light-dark(#fff, #222));
   }
-  #storybook-root, #storybook-docs {
-    position: fixed;
-    inset: 1rem;
+
+  #storybook-root > * {
+    position: absolute;
+    inset: 0;
   }
 `;
 
-const storybookViewportContent = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0";
+const storybookViewportContent =
+  "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0";
 
 const preview: Preview = {
   parameters: {
