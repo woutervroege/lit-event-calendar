@@ -43,6 +43,7 @@ export class CalendarWeekView extends BaseElement {
   #cachedTimedEvents: EventsMap = new Map();
   #activeInteractionLocks = new Set<string>();
   #currentDayIndex = 0;
+  #resizeObserver: ResizeObserver | null = null;
 
   static get properties() {
     return {
@@ -230,8 +231,15 @@ export class CalendarWeekView extends BaseElement {
     );
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    this.#startResizeObserver();
+  }
+
   disconnectedCallback() {
     super.disconnectedCallback();
+    this.#resizeObserver?.disconnect();
+    this.#resizeObserver = null;
     // Drag/resize interactions can leave transient locks active if the view unmounts mid-gesture.
     // Reset so swipe is always re-enabled when returning to this view.
     this.#activeInteractionLocks.clear();
@@ -390,6 +398,16 @@ export class CalendarWeekView extends BaseElement {
 
   override updated(changedProperties: Map<PropertyKey, unknown>) {
     super.updated(changedProperties);
+    this.#syncWeekViewHeight();
+  }
+
+  #startResizeObserver() {
+    if (typeof ResizeObserver === "undefined" || this.#resizeObserver) return;
+    this.#resizeObserver = new ResizeObserver(() => this.#syncWeekViewHeight());
+    this.#resizeObserver.observe(this);
+  }
+
+  #syncWeekViewHeight() {
     const weekLayout = this.renderRoot.querySelector(".week-layout") as HTMLElement | null;
     if (!weekLayout) return;
     const hostHeightPx = this.getBoundingClientRect().height;
