@@ -235,7 +235,8 @@ export class EventCalendar extends BaseElement {
   }
 
   render() {
-    const headerDirection = getLocaleDirection(this.locale);
+    const headerDirection = this.rtl || getLocaleDirection(this.locale) === "rtl" ? "rtl" : "ltr";
+    const isHeaderRtl = headerDirection === "rtl";
     return html`
       <div class="flex h-full min-h-0 flex-col gap-7 [container-type:inline-size] [@media(max-width:54rem)]:gap-4">
         <header
@@ -246,13 +247,13 @@ export class EventCalendar extends BaseElement {
             class="flex items-center gap-2"
             style="--lc-button-bg: transparent; --lc-button-hover-bg: transparent; --lc-button-border-color: transparent; --_lc-button-border-color: transparent; --_lc-grid-line-color: transparent;"
           >
-            <div class="flex min-w-0 flex-1 items-center gap-2" dir="ltr">
+            <div class="flex min-w-0 flex-1 items-center gap-2" dir=${headerDirection}>
               <div class="flex items-center gap-0">
                 <lc-button
                   compact
                   label="Previous range"
                   hotkey="special+left"
-                  @click=${() => (headerDirection === "rtl" ? this.goForward() : this.goBack())}
+                  @click=${() => this.goBack()}
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -262,14 +263,18 @@ export class EventCalendar extends BaseElement {
                     aria-hidden="true"
                     class="block h-[1.1rem] w-[1.1rem]"
                   >
-                    <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path
+                      d=${isHeaderRtl ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"}
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></path>
                   </svg>
                 </lc-button>
                 <lc-button
                   compact
                   label="Next range"
                   hotkey="special+right"
-                  @click=${() => (headerDirection === "rtl" ? this.goBack() : this.goForward())}
+                  @click=${() => this.goForward()}
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -279,7 +284,11 @@ export class EventCalendar extends BaseElement {
                     aria-hidden="true"
                     class="block h-[1.1rem] w-[1.1rem]"
                   >
-                    <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path
+                      d=${isHeaderRtl ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"}
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></path>
                   </svg>
                 </lc-button>
               </div>
@@ -288,7 +297,7 @@ export class EventCalendar extends BaseElement {
                 aria-hidden="true"
               ></span>
               <h2
-                class="m-0 min-w-0 truncate px-1 text-left text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-base"
+                class="m-0 min-w-0 truncate px-1 text-start text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-base"
                 aria-live="polite"
                 dir=${headerDirection}
               >

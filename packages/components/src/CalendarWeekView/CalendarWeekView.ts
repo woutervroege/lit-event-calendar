@@ -232,6 +232,7 @@ export class CalendarWeekView extends BaseElement {
     return html`
       <div
         class="week-layout"
+        ?data-rtl=${direction === "rtl"}
         style=${styleMap({
           "--_lc-combined-days": String(this.daysPerWeek),
           "--_lc-week-weekday-header-height": weekdayHeaderHeight,
