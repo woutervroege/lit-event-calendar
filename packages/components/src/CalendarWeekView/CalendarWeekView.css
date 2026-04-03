@@ -18,6 +18,15 @@
 
 .week-swipe {
   grid-column: 2;
+  width: calc(100% + 1px);
+  margin-inline-start: -1px;
+  position: relative;
+  --_lc-grid-line-color: color-mix(
+    in srgb,
+    var(--_lc-grid-base-color, light-dark(rgb(15 23 42), rgb(255 255 255))) 14%,
+    var(--_lc-surface-bg, light-dark(#fff, #222))
+  );
+  --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
   --_lc-swipe-height: auto;
   --_lc-swipe-min-height: var(--_lc-week-total-height);
   --_lc-swipe-overflow-x: clip;
@@ -27,6 +36,18 @@
     min(var(--_lc-combined-visible-columns, 7), var(--_lc-combined-days, 7))
   );
   --column-width: calc(100% / var(--_lc-combined-effective-visible-columns));
+}
+
+.week-swipe::before {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(var(--_lc-week-all-day-shell-height) + var(--_lc-week-sections-gap, 8px));
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  width: var(--_lc-grid-line-width, 1px);
+  background: var(--_lc-grid-line-color, light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)));
+  pointer-events: none;
+  z-index: 2;
 }
 
 .week-stack {
@@ -83,6 +104,12 @@
   height: var(--_lc-week-all-day-height);
   min-height: var(--_lc-week-all-day-height);
   background-color: transparent;
+  --_lc-grid-line-color: color-mix(
+    in srgb,
+    var(--_lc-grid-base-color, light-dark(rgb(15 23 42), rgb(255 255 255))) 14%,
+    var(--_lc-surface-bg, light-dark(#fff, #222))
+  );
+  --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
 }
 
 .week-timed-view {
@@ -91,6 +118,12 @@
   --_lc-host-base-height: var(--_lc-week-timed-content-height);
   --_lc-hour-cell-height: var(--_lc-week-hour-cell-height);
   --_lc-min-hour-height: 0px;
+  --_lc-grid-line-color: color-mix(
+    in srgb,
+    var(--_lc-grid-base-color, light-dark(rgb(15 23 42), rgb(255 255 255))) 14%,
+    var(--_lc-surface-bg, light-dark(#fff, #222))
+  );
+  --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
 }
 
 @container (max-width: 1100px) {

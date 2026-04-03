@@ -14,11 +14,12 @@
   --_lc-event-height: var(--lc-event-height, var(--_lc-default-event-height));
   --_lc-days-per-row: var(--lc-days-per-row, 7);
   --_lc-grid-base-color: var(--lc-grid-base-color, light-dark(#222, #fff));
+  --_lc-grid-bg-color: var(--_lc-surface-bg, light-dark(#fff, #222));
   --_lc-min-hour-height: var(--lc-min-hour-height, 54px);
 
   /* Internal implementation tokens (`--_lc-*`). */
   --_lc-grid-line-width: 1px;
-  --_lc-grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));
+  --_lc-grid-line-color: light-dark(rgb(221 226 233), rgb(74 81 93));
   --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
   --_lc-grid-line-day-color: light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%));
   --_lc-outside-month-day-color: light-dark(rgb(15 23 42 / 42%), rgb(255 255 255 / 46%));
@@ -38,7 +39,7 @@
 }
 
 :host([variant="timed"]) {
-  --_lc-grid-line-color-horizontal: light-dark(rgb(15 23 42 / 8%), rgb(255 255 255 / 10%));
+  --_lc-grid-line-color-horizontal: light-dark(rgb(231 235 241), rgb(84 90 101));
 }
 
 @media (pointer: fine) {
@@ -61,7 +62,7 @@
 
 @supports (color: color-mix(in srgb, black, white)) {
   :host {
-    --_lc-grid-line-color: color-mix(in srgb, var(--_lc-grid-base-color) 14%, transparent);
+    --_lc-grid-line-color: color-mix(in srgb, var(--_lc-grid-base-color) 14%, var(--_lc-grid-bg-color));
     --_lc-grid-line-color-horizontal: var(--_lc-grid-line-color);
     --_lc-grid-line-day-color: color-mix(in srgb, var(--_lc-grid-base-color) 72%, transparent);
     --_lc-outside-month-day-color: color-mix(in srgb, var(--_lc-grid-base-color) 42%, transparent);
@@ -70,11 +71,7 @@
   }
 
   :host([variant="timed"]) {
-    --_lc-grid-line-color-horizontal: color-mix(
-      in srgb,
-      var(--_lc-grid-base-color) 8%,
-      transparent
-    );
+    --_lc-grid-line-color-horizontal: color-mix(in srgb, var(--_lc-grid-base-color) 8%, var(--_lc-grid-bg-color));
   }
 }
 
