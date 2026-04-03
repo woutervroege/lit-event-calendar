@@ -5,10 +5,7 @@ import { type CalendarEvent, localeOptions, sampleEvents, timezoneOptions } from
 import { attachRequestEventHandlers } from "../storyRequestHandlers.js";
 
 type StoryEventCalendarElement = HTMLElement & { events: Map<string, CalendarEvent> };
-const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => String(index + 1))];
-const VISIBLE_HOUR_MAPPING = Object.fromEntries(
-  VISIBLE_HOUR_OPTIONS.map((option) => [option, option === "auto" ? undefined : Number(option)])
-) as Record<string, number | undefined>;
+const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => index + 1)];
 
 const meta: Meta = {
   title: "CalendarView/EventCalendar",
@@ -58,7 +55,6 @@ const meta: Meta = {
     visibleHours: {
       control: { type: "select" },
       options: VISIBLE_HOUR_OPTIONS,
-      mapping: VISIBLE_HOUR_MAPPING,
     },
     defaultEventSummary: { control: "text", description: "Default created event summary" },
     defaultEventColor: { control: "color", description: "Default created event color" },
