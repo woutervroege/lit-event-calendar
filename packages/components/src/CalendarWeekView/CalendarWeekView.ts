@@ -252,6 +252,10 @@ export class CalendarWeekView extends BaseElement {
           style=${styleMap({
             "--_lc-week-all-day-height": allDayHeight,
           })}
+          @event-create-requested=${this.#reemit}
+          @event-update-requested=${this.#reemit}
+          @event-delete-requested=${this.#reemit}
+          @day-selection-requested=${this.#reemit}
         >
         </calendar-view>
         
@@ -270,6 +274,10 @@ export class CalendarWeekView extends BaseElement {
           style=${styleMap({
             "--_lc-week-timed-height": timedHeight,
           })}
+          @event-create-requested=${this.#reemit}
+          @event-update-requested=${this.#reemit}
+          @event-delete-requested=${this.#reemit}
+          @day-selection-requested=${this.#reemit}
       >
       </calendar-view>
 
