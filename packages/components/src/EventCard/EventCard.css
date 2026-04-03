@@ -76,13 +76,13 @@
 }
 
 :host([segment-direction="horizontal"]) h6.sticky {
-  left: var(--_lc-time-sidebar-width);
+  left: 0;
   right: auto;
 }
 
 :host([segment-direction="horizontal"]) > div[dir="rtl"] h6.sticky {
   left: auto;
-  right: var(--_lc-time-sidebar-width);
+  right: 0;
 }
 
 /* Taller cards: stack summary over time for readability. */
