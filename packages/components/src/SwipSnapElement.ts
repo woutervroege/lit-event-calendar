@@ -7,6 +7,7 @@ export class SwipeSnapElement extends LitElement {
   static properties = {
     currentIndex: { type: Number, attribute: "current-index" },
     scrollSnapStop: { type: String, attribute: "scroll-snap-stop" },
+    swipeLocked: { type: Boolean, attribute: "swipe-locked", reflect: true },
     dir: { type: String, reflect: true },
   };
 
@@ -41,6 +42,7 @@ export class SwipeSnapElement extends LitElement {
 
   declare currentIndex: number;
   declare scrollSnapStop: SnapStopMode;
+  declare swipeLocked: boolean;
   declare dir: string;
 
   #container: HTMLDivElement | null = null;
@@ -57,7 +59,6 @@ export class SwipeSnapElement extends LitElement {
   #maxOffsetX = 0;
   #pages: HTMLElement[] = [];
   #maxIndex = 0;
-  #snapStopMode: SnapStopMode = "normal";
   #pendingAnimate = false;
   #swipeCommitDistance = 0.5;
   #swipeCommitVelocity = 0.75;
@@ -67,6 +68,7 @@ export class SwipeSnapElement extends LitElement {
     super();
     this.currentIndex = 0;
     this.scrollSnapStop = "normal";
+    this.swipeLocked = false;
     this.dir = "";
   }
 
@@ -81,8 +83,8 @@ export class SwipeSnapElement extends LitElement {
   };
 
   #onPointerDown = (e: PointerEvent): void => {
+    if (this.swipeLocked) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    this.#snapStopMode = this.#normalizeSnapStop(this.scrollSnapStop);
     this.#pointerId = e.pointerId;
     this.#intent = null;
     this.#startX = e.clientX;
@@ -96,6 +98,10 @@ export class SwipeSnapElement extends LitElement {
   };
 
   #onPointerMove = (e: PointerEvent): void => {
+    if (this.swipeLocked) {
+      this.#cancelActiveSwipe();
+      return;
+    }
     if (e.pointerId !== this.#pointerId) return;
     const dx = e.clientX - this.#startX;
     const dy = e.clientY - this.#startY;
@@ -132,6 +138,10 @@ export class SwipeSnapElement extends LitElement {
   };
 
   #onPointerUp = (e: PointerEvent): void => {
+    if (this.swipeLocked) {
+      this.#cancelActiveSwipe();
+      return;
+    }
     if (e.pointerId !== this.#pointerId) return;
     this.#pointerId = null;
 
@@ -177,7 +187,6 @@ export class SwipeSnapElement extends LitElement {
     this.#container = this.renderRoot.querySelector(".container");
     this.currentIndex = this.currentIndex;
     this.scrollSnapStop = this.scrollSnapStop;
-    this.#snapStopMode = this.scrollSnapStop;
 
     this.addEventListener("pointerdown", this.#onPointerDown, { passive: true });
     this.addEventListener("pointermove", this.#onPointerMove, { passive: false });
@@ -190,13 +199,16 @@ export class SwipeSnapElement extends LitElement {
   }
 
   updated(changedProperties: PropertyValues<this>): void {
+    if (changedProperties.has("swipeLocked") && this.swipeLocked) {
+      this.#cancelActiveSwipe();
+    }
+
     if (changedProperties.has("scrollSnapStop")) {
       const normalizedSnapStop = this.#normalizeSnapStop(this.scrollSnapStop);
       if (normalizedSnapStop !== this.scrollSnapStop) {
         this.scrollSnapStop = normalizedSnapStop;
         return;
       }
-      this.#snapStopMode = normalizedSnapStop;
     }
 
     if (changedProperties.has("dir")) {
@@ -293,6 +305,18 @@ export class SwipeSnapElement extends LitElement {
     return value === "always" ? "always" : "normal";
   }
 
+  #cancelActiveSwipe(): void {
+    if (this.#pointerId === null && this.#dragX === 0) return;
+    this.#pointerId = null;
+    this.#intent = null;
+    this.#dragX = 0;
+    this.#velocityX = 0;
+    if (this.#container) {
+      this.#container.style.transition = "none";
+    }
+    this.#transformContainer();
+  }
+
   #getOffsetForIndex(index: number): number {
     const baseOffset = this.#pageOffsets[index] || 0;
     return Math.min(this.#maxOffsetX, Math.max(0, baseOffset));
@@ -300,28 +324,6 @@ export class SwipeSnapElement extends LitElement {
 
   #getLogicalOffsetForIndex(index: number): number {
     return this.#getOffsetForIndex(index);
-  }
-
-  #getNearestIndexForLogicalOffset(targetOffset: number, direction = 0): number {
-    let nearestIndex = 0;
-    let bestDistance = Number.POSITIVE_INFINITY;
-    const clampedTarget = Math.min(this.#maxOffsetX, Math.max(0, targetOffset));
-
-    this.#pageOffsets.forEach((_, idx) => {
-      const offset = this.#getLogicalOffsetForIndex(idx);
-      const diff = Math.abs(offset - clampedTarget);
-      const isBetter = diff < bestDistance;
-      const isDirectionalTie =
-        diff === bestDistance &&
-        ((direction > 0 && idx > nearestIndex) || (direction < 0 && idx < nearestIndex));
-
-      if (isBetter || isDirectionalTie) {
-        bestDistance = diff;
-        nearestIndex = idx;
-      }
-    });
-
-    return nearestIndex;
   }
 
   #normalizeIndex(index: number): number {

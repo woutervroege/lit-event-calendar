@@ -41,6 +41,7 @@ export class CalendarWeekView extends BaseElement {
   #splitEventsSource?: EventsMap;
   #cachedAllDayEvents: EventsMap = new Map();
   #cachedTimedEvents: EventsMap = new Map();
+  #activeInteractionLocks = new Set<string>();
 
   static get properties() {
     return {
@@ -254,6 +255,7 @@ export class CalendarWeekView extends BaseElement {
           class="week-swipe"
           current-index="0"
           scroll-snap-stop="normal"
+          .swipeLocked=${this.#activeInteractionLocks.size > 0}
           dir=${direction}
         >
           <div class="week-stack">
@@ -284,6 +286,7 @@ export class CalendarWeekView extends BaseElement {
               @event-update-requested=${this.#reemit}
               @event-delete-requested=${this.#reemit}
               @day-selection-requested=${this.#reemit}
+              @interaction-lock-change=${this.#handleInteractionLockChange}
             >
             </calendar-view>
           </div>
@@ -303,6 +306,7 @@ export class CalendarWeekView extends BaseElement {
             @event-update-requested=${this.#reemit}
             @event-delete-requested=${this.#reemit}
             @day-selection-requested=${this.#reemit}
+            @interaction-lock-change=${this.#handleInteractionLockChange}
           >
           </calendar-view>
         </div>
@@ -321,5 +325,28 @@ export class CalendarWeekView extends BaseElement {
     if (!notCancelled && event.cancelable) {
       event.preventDefault();
     }
+  };
+
+  #handleInteractionLockChange = (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const detail = event.detail as
+      | { active?: boolean; kind?: string; interactionId?: string }
+      | undefined;
+    if (!detail?.kind || !detail.interactionId) return;
+
+    const source = event.currentTarget as Element | null;
+    const sourceLabel = source?.classList.contains("week-all-day-view")
+      ? "all-day"
+      : source?.classList.contains("week-timed-view")
+        ? "timed"
+        : "unknown";
+    const lockKey = `${sourceLabel}:${detail.kind}:${detail.interactionId}`;
+
+    if (detail.active) {
+      this.#activeInteractionLocks.add(lockKey);
+    } else {
+      this.#activeInteractionLocks.delete(lockKey);
+    }
+    this.requestUpdate();
   };
 }

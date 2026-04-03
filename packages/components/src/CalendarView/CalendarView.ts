@@ -114,6 +114,7 @@ export class CalendarView extends BaseElement {
   #cachedEventEntries: EventEntry[] = [];
   #instanceToken = Math.random().toString(36).slice(2, 10);
   #activeOverflowPopoverId: string | null = null;
+  #createInteractionLockActive = false;
   #createTouchMoveBlocker = (event: TouchEvent) => {
     const pending = this.#pendingCreatePointer;
     if (!pending || pending.pointerType !== "touch" || !pending.longPressActivated) return;
@@ -662,6 +663,7 @@ export class CalendarView extends BaseElement {
                 .gridRows=${this.#isMonthView ? this.gridRows : 1}
                 .maxVisibleRows=${allDayOverflow.maxVisibleRows}
                 .maxVisibleRowsByDay=${allDayOverflow.maxVisibleRowsByDay}
+                @interaction-drag-state=${this.#handleEventInteractionDragState}
                 @update=${this.#handleEventUpdate}
                 @delete=${this.#handleEventDelete}
               ></all-day-event>
@@ -674,6 +676,7 @@ export class CalendarView extends BaseElement {
                 summary=${event.summary}
                 color=${event.color}
                 .renderedDays=${this.days as unknown as never[]}
+                @interaction-drag-state=${this.#handleEventInteractionDragState}
                 @update=${this.#handleEventUpdate}
                 @delete=${this.#handleEventDelete}
               ></timed-event>
@@ -1231,6 +1234,7 @@ export class CalendarView extends BaseElement {
           return;
         pending.longPressActivated = true;
         pending.dragActivated = true;
+        this.#setCreateInteractionLockActive(true);
         pending.currentDateTime =
           this.variant === "timed"
             ? this.#defaultCreateEndDateTime(pending.startDateTime)
@@ -1295,6 +1299,7 @@ export class CalendarView extends BaseElement {
 
     if (!pending.dragActivated && pointerDistance >= CREATE_DRAG_ACTIVATION_DISTANCE_PX) {
       pending.dragActivated = true;
+      this.#setCreateInteractionLockActive(true);
     }
     if (!pending.dragActivated) return;
 
@@ -1433,11 +1438,43 @@ export class CalendarView extends BaseElement {
       }
     }
     this.#pendingCreatePointer = null;
+    this.#setCreateInteractionLockActive(false);
     if (this.#dragHoverDayIndex !== null || this.#dragHoverTime !== null) {
       this.#dragHoverDayIndex = null;
       this.#dragHoverTime = null;
       this.requestUpdate();
     }
+  }
+
+  #setCreateInteractionLockActive(active: boolean) {
+    if (this.#createInteractionLockActive === active) return;
+    this.#createInteractionLockActive = active;
+    this.#emitInteractionLockChange({
+      active,
+      kind: "create",
+      interactionId: `create:${this.variant}`,
+    });
+  }
+
+  #handleEventInteractionDragState = (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const target = event.currentTarget as BaseEvent | null;
+    const interactionId = target?.eventId || "unknown";
+    this.#emitInteractionLockChange({
+      active: Boolean(event.detail?.isDragging),
+      kind: "drag",
+      interactionId: `drag:${interactionId}`,
+    });
+  };
+
+  #emitInteractionLockChange(input: { active: boolean; kind: "create" | "drag"; interactionId: string }) {
+    this.dispatchEvent(
+      new CustomEvent("interaction-lock-change", {
+        detail: input,
+        bubbles: true,
+        composed: true,
+      })
+    );
   }
 
   #isCreateEligibleTarget(target: EventTarget | null): boolean {
