@@ -54,10 +54,18 @@ export class SwipeContainer extends LitElement {
         scroll-snap-type: x mandatory;
         scroll-behavior: smooth;
         touch-action: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
       }
 
       :host([disabled]) {
         overflow-x: hidden;
+      }
+
+      :host::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+        display: none;
       }
 
       .container {
