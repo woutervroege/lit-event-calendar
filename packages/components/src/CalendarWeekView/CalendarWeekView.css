@@ -42,7 +42,7 @@
 .week-all-day-shell {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--_lc-week-sticky-header-z-index, 30);
   height: var(--_lc-week-all-day-shell-height);
   min-height: var(--_lc-week-all-day-shell-height);
   background-color: var(--_lc-surface-bg);
@@ -55,7 +55,7 @@
   position: sticky;
   top: 0;
   inset-inline-start: 0;
-  z-index: 11;
+  z-index: calc(var(--_lc-week-sticky-header-z-index, 30) + 1);
   height: var(--_lc-week-total-height);
   min-height: var(--_lc-week-total-height);
   background-color: var(--lg-background-color);
