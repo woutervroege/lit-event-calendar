@@ -242,7 +242,7 @@ export class CalendarWeekView extends BaseElement {
           "--_lc-week-timed-height": timedHeight,
           "--_lc-week-timed-content-height": timedContentHeight,
           "--_lc-week-total-height":
-            "calc(var(--_lc-week-all-day-shell-height) + var(--_lc-week-timed-content-height))",
+            "calc(var(--_lc-week-all-day-shell-height) + var(--_lc-week-sections-gap, 8px) + var(--_lc-week-timed-content-height))",
         })}
       >
         <calendar-time-sidebar

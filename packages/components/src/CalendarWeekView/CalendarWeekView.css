@@ -36,6 +36,7 @@
   height: auto;
   display: flex;
   flex-direction: column;
+  gap: var(--_lc-week-sections-gap, 8px);
 }
 
 .week-all-day-shell {
@@ -70,6 +71,7 @@
   );
   --_lc-time-sidebar-inline-padding: var(--_lc-week-time-sidebar-inline-padding, 6px);
   --_lc-hour-labels-margin-top: 0px;
+  --_lc-time-sidebar-timed-top-offset: calc(var(--_lc-week-sections-gap, 8px) - 7px);
 }
 
 .week-layout[data-rtl] {

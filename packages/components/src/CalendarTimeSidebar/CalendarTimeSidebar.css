@@ -48,7 +48,7 @@
   overflow: hidden;
   position: relative;
   z-index: 1;
-  top: -7px;
+  top: var(--_lc-time-sidebar-timed-top-offset, -7px);
 }
 
 .hour-labels {
