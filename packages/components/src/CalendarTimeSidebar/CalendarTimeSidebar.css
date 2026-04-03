@@ -25,14 +25,16 @@
 .weekday-header-slot {
   min-height: 0;
   position: sticky;
-  top: 0;
+  top: var(--_lc-time-sidebar-sticky-top-base, 0px);
   z-index: 3;
   background-color: var(--_lc-time-sidebar-layer-bg);
 }
 
 .all-day-slot {
   position: sticky;
-  top: var(--_lc-time-sidebar-header-height, 0px);
+  top: calc(
+    var(--_lc-time-sidebar-sticky-top-base, 0px) + var(--_lc-time-sidebar-header-height, 0px)
+  );
   z-index: 2;
   background-color: var(--_lc-time-sidebar-layer-bg);
   border-bottom: var(--_lc-time-sidebar-all-day-divider-width, 0px) solid

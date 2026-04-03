@@ -2,6 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html } from "lit";
 import { customElement } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
+import { styleMap } from "lit/directives/style-map.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
@@ -94,6 +95,8 @@ export class EventCalendar extends BaseElement {
   #threeDayRangeEnabled = false;
   #rangeLabelText = "";
   #rangeLabelParts: Array<{ text: string; isYear: boolean }> = [];
+  #headerHeight = 0;
+  #headerResizeObserver?: ResizeObserver;
   weekStart?: WeekdayNumber;
   declare events?: EventsMap;
   locale?: string;
@@ -238,9 +241,16 @@ export class EventCalendar extends BaseElement {
     const headerDirection = this.rtl || getLocaleDirection(this.locale) === "rtl" ? "rtl" : "ltr";
     const isHeaderRtl = headerDirection === "rtl";
     return html`
-      <div class="flex h-full min-h-0 flex-col gap-7 [container-type:inline-size] [@media(max-width:54rem)]:gap-4">
+      <div
+        class="flex h-full min-h-0 flex-col gap-7 [container-type:inline-size] [@media(max-width:54rem)]:gap-4"
+        style=${styleMap({
+          "--_lc-event-calendar-header-height": `${this.#headerHeight}px`,
+          "--_lc-event-calendar-sticky-stack-offset": `calc(var(--_lc-event-calendar-sticky-top, 0px) + ${this.#headerHeight}px)`,
+        })}
+      >
         <header
-          class="flex flex-col gap-2 rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))]"
+          data-event-calendar-header
+          class="sticky top-[var(--_lc-event-calendar-sticky-top,0px)] z-[var(--_lc-event-calendar-header-z-index,60)] flex flex-col gap-2 rounded-md border border-[light-dark(rgb(15_23_42_/_14%),rgb(255_255_255_/_16%))] bg-[var(--_lc-surface-bg)]"
           dir=${headerDirection}
         >
           <div
@@ -349,6 +359,7 @@ export class EventCalendar extends BaseElement {
         </header>
         <calendar-view-group
           class="min-h-0 flex-[1_1_auto]"
+          style="--_lc-week-sticky-top: var(--_lc-event-calendar-sticky-stack-offset);"
           .view=${this.view}
           .presentation=${this.presentation}
           start-date=${ifDefined(this.#startDate)}
@@ -432,6 +443,8 @@ export class EventCalendar extends BaseElement {
 
   override updated(changedProperties: Map<PropertyKey, unknown>): void {
     super.updated(changedProperties);
+    this.#attachHeaderResizeObserver();
+    this.#syncHeaderHeight();
     const viewGroup = this.#calendarViewGroup;
     if (!viewGroup) return;
     const nextRangeLabel = viewGroup.rangeLabel;
@@ -440,5 +453,32 @@ export class EventCalendar extends BaseElement {
       this.#rangeLabelParts = viewGroup.rangeLabelParts;
       this.requestUpdate();
     }
+  }
+
+  override disconnectedCallback(): void {
+    this.#headerResizeObserver?.disconnect();
+    this.#headerResizeObserver = undefined;
+    super.disconnectedCallback();
+  }
+
+  #attachHeaderResizeObserver() {
+    if (this.#headerResizeObserver) return;
+    const header = this.#headerElement;
+    if (!header) return;
+    this.#headerResizeObserver = new ResizeObserver(() => this.#syncHeaderHeight());
+    this.#headerResizeObserver.observe(header);
+  }
+
+  get #headerElement(): HTMLElement | null {
+    return this.renderRoot.querySelector<HTMLElement>("[data-event-calendar-header]");
+  }
+
+  #syncHeaderHeight() {
+    const header = this.#headerElement;
+    if (!header) return;
+    const nextHeight = Math.ceil(header.getBoundingClientRect().height);
+    if (nextHeight === this.#headerHeight) return;
+    this.#headerHeight = nextHeight;
+    this.requestUpdate();
   }
 }

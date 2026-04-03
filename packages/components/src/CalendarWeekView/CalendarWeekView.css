@@ -41,7 +41,7 @@
 
 .week-all-day-shell {
   position: sticky;
-  top: 0;
+  top: var(--_lc-week-sticky-top, 0px);
   z-index: var(--_lc-week-sticky-header-z-index, 30);
   height: var(--_lc-week-all-day-shell-height);
   min-height: var(--_lc-week-all-day-shell-height);
@@ -53,7 +53,7 @@
 .week-time-sidebar {
   grid-column: 1;
   position: sticky;
-  top: 0;
+  top: var(--_lc-week-sticky-top, 0px);
   inset-inline-start: 0;
   z-index: calc(var(--_lc-week-sticky-header-z-index, 30) + 1);
   height: var(--_lc-week-total-height);
@@ -62,6 +62,7 @@
   border-inline-end: var(--_lc-grid-line-width, 1px) solid
     var(--_lc-grid-line-color, light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)));
   --_lc-time-sidebar-header-height: var(--_lc-week-weekday-header-height);
+  --_lc-time-sidebar-sticky-top-base: var(--_lc-week-sticky-top, 0px);
   --_lc-time-sidebar-all-day-height: var(--_lc-week-all-day-height);
   --_lc-time-sidebar-timed-height: var(--_lc-week-timed-content-height);
   --_lc-time-sidebar-all-day-divider-width: var(--_lc-week-section-divider-width, 3px);
