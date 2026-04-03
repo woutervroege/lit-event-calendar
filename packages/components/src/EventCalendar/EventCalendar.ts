@@ -36,6 +36,13 @@ const PRESENTATION_OPTIONS_BASE: Array<{ value: PresentationUnit; hotkey: string
   { value: "list", hotkey: "l" },
 ];
 
+const VIEW_DATE_TIME_FIELDS: Record<ViewUnit, string> = {
+  day: "day",
+  week: "weekOfYear",
+  month: "month",
+  year: "year",
+};
+
 function capitalizeLabel(value: string, locale = globalThis.navigator?.language ?? "en"): string {
   return value.replace(/^\p{L}/u, (character) => character.toLocaleUpperCase(locale));
 }
@@ -43,7 +50,7 @@ function capitalizeLabel(value: string, locale = globalThis.navigator?.language 
 function getUnitLabel(unit: ViewUnit, locale = globalThis.navigator?.language ?? "en"): string {
   try {
     const displayNames = new Intl.DisplayNames(locale, { type: "dateTimeField" });
-    const label = displayNames.of(unit) ?? unit;
+    const label = displayNames.of(VIEW_DATE_TIME_FIELDS[unit] as Intl.DateTimeField) ?? unit;
     return capitalizeLabel(label, locale);
   } catch {
     return capitalizeLabel(unit, locale);
