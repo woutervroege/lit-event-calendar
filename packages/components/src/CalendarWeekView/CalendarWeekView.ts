@@ -253,9 +253,9 @@ export class CalendarWeekView extends BaseElement {
 
         <swipe-container
           class="week-swipe"
-          current-index="0"
+          .currentIndex=${0}
           scroll-snap-stop="normal"
-          .disabled=${this.#activeInteractionLocks.size > 0}
+          .disabled=${this.#activeInteractionLocks.size > 0 || this.daysPerWeek === 1}
           dir=${direction}
         >
           <div class="week-stack">
