@@ -121,3 +121,11 @@
     --_lc-combined-visible-columns: 2;
   }
 }
+
+@media (pointer: fine) {
+  .week-swipe {
+    --_lc-combined-visible-columns: var(--_lc-combined-days);
+    --_lc-swipe-overflow-x: visible;
+    --_lc-swipe-overflow-y: visible;
+  }
+}

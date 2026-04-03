@@ -8,9 +8,6 @@ export class SwipeContainer extends LitElement {
     currentIndex: { type: Number, attribute: "current-index" },
     scrollSnapStop: { type: String, attribute: "scroll-snap-stop" },
     disabled: { type: Boolean, attribute: "disabled", reflect: true },
-    virtualSnap: { type: Boolean, attribute: false },
-    virtualSnapOffsets: { type: Array, attribute: false },
-    virtualContentWidth: { type: Number, attribute: false },
     dir: { type: String, reflect: true },
   };
 
@@ -37,11 +34,6 @@ export class SwipeContainer extends LitElement {
       position: relative;
     }
 
-    .snap-points,
-    .snap-point {
-      display: none;
-    }
-
     ::slotted(*) {
       flex: 0 0 var(--page-width, 100%);
       width: var(--page-width, 100%);
@@ -50,56 +42,9 @@ export class SwipeContainer extends LitElement {
 
     @media (pointer: fine) {
       :host {
-        overflow-x: auto;
-        scroll-snap-type: x mandatory;
-        scroll-behavior: smooth;
+        overflow-x: visible;
+        overflow-y: visible;
         touch-action: auto;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-      }
-
-      :host([disabled]) {
-        overflow-x: hidden;
-      }
-
-      :host::-webkit-scrollbar {
-        width: 0;
-        height: 0;
-        display: none;
-      }
-
-      .container {
-        width: max-content;
-        min-width: 100%;
-        will-change: auto;
-        transform: none !important;
-        transition: none !important;
-      }
-
-      ::slotted(*) {
-        scroll-snap-align: start;
-        scroll-snap-stop: var(--_lc-swipe-snap-stop, normal);
-      }
-
-      .snap-points {
-        display: block;
-        position: absolute;
-        inset-block-start: 0;
-        inset-inline-start: 0;
-        width: var(--_lc-virtual-track-width, 0px);
-        height: 1px;
-        pointer-events: none;
-      }
-
-      .snap-point {
-        display: block;
-        position: absolute;
-        inset-block-start: 0;
-        inset-inline-start: var(--_lc-virtual-snap-offset, 0px);
-        width: 1px;
-        height: 1px;
-        scroll-snap-align: start;
-        scroll-snap-stop: var(--_lc-swipe-snap-stop, normal);
       }
     }
   `;
@@ -107,9 +52,6 @@ export class SwipeContainer extends LitElement {
   #currentIndex = 0;
   declare scrollSnapStop: SnapStopMode;
   declare disabled: boolean;
-  declare virtualSnap: boolean;
-  declare virtualSnapOffsets: number[];
-  declare virtualContentWidth: number;
   declare dir: string;
 
   #container: HTMLDivElement | null = null;
@@ -137,9 +79,6 @@ export class SwipeContainer extends LitElement {
     super();
     this.scrollSnapStop = "normal";
     this.disabled = false;
-    this.virtualSnap = false;
-    this.virtualSnapOffsets = [];
-    this.virtualContentWidth = 0;
     this.dir = "";
   }
 
@@ -262,24 +201,7 @@ export class SwipeContainer extends LitElement {
   };
 
   render() {
-    return html`
-      ${this.virtualSnap
-        ? html`
-            <div
-              class="snap-points"
-              style=${`--_lc-virtual-track-width:${this.virtualContentWidth}px`}
-              aria-hidden="true"
-            >
-              ${this.virtualSnapOffsets.map(
-                (offset) => html`<i class="snap-point" style=${`--_lc-virtual-snap-offset:${offset}px`}></i>`
-              )}
-            </div>
-          `
-        : null}
-      <div class="container">
-        <slot @slotchange=${this.#onSlotChange}></slot>
-      </div>
-    `;
+    return html`<div class="container"><slot @slotchange=${this.#onSlotChange}></slot></div>`;
   }
 
   connectedCallback(): void {
@@ -403,15 +325,9 @@ export class SwipeContainer extends LitElement {
       }
       this.#pageOffsets = virtualOffsets;
       this.#pageWidths = virtualWidths;
-      this.virtualSnap = true;
-      this.virtualSnapOffsets = virtualOffsets;
-      this.virtualContentWidth = contentWidth;
     } else {
       this.#pageWidths = widths.length ? widths : [1];
       this.#pageOffsets = offsets.length ? offsets : [0];
-      this.virtualSnap = false;
-      this.virtualSnapOffsets = [];
-      this.virtualContentWidth = 0;
     }
     this.#maxOffsetX = maxOffsetX;
     this.#maxIndex = Math.max(0, this.#pageOffsets.length - 1);
