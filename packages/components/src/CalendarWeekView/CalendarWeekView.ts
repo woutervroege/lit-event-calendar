@@ -126,7 +126,9 @@ export class CalendarWeekView extends BaseElement {
 
   set currentDayIndex(value: number) {
     const normalized = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+    if (this.#currentDayIndex === normalized) return;
     this.#currentDayIndex = normalized;
+    this.requestUpdate();
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
@@ -146,8 +148,15 @@ export class CalendarWeekView extends BaseElement {
 
   get #renderedDays(): Temporal.PlainDate[] {
     return Array.from({ length: this.daysPerWeek }, (_, dayOffset) =>
-      this.startDate.add({ days: dayOffset })
+      this.#gridStartDate.add({ days: dayOffset })
     );
+  }
+
+  get #gridStartDate(): Temporal.PlainDate {
+    if (this.daysPerWeek === 7) {
+      return this.#startOfWeekFor(this.startDate, this.#resolvedWeekStart);
+    }
+    return this.startDate;
   }
 
   get #allDayVisibleRowCount(): number {
@@ -245,6 +254,18 @@ export class CalendarWeekView extends BaseElement {
     this.#activeInteractionLocks.clear();
   }
 
+  override willUpdate(changedProperties: Map<PropertyKey, unknown>) {
+    super.willUpdate(changedProperties);
+    if (
+      this.daysPerWeek > 1 &&
+      (changedProperties.has("startDate") || changedProperties.has("weekStart") || changedProperties.has("daysPerWeek"))
+    ) {
+      const dayOffset = this.#gridStartDate.until(this.startDate, { largestUnit: "day" }).days;
+      const maxIndex = Math.max(0, this.daysPerWeek - 1);
+      this.#currentDayIndex = Math.max(0, Math.min(maxIndex, Math.floor(dayOffset)));
+    }
+  }
+
   render() {
     const hasVisibleHours = Number.isFinite(this.visibleHours);
     const clampedVisibleHours = hasVisibleHours
@@ -312,7 +333,7 @@ export class CalendarWeekView extends BaseElement {
             ></calendar-weekday-header>
             <calendar-view
               class="week-all-day-view"
-              .startDate=${this.startDate}
+              .startDate=${this.#gridStartDate}
               days=${String(this.daysPerWeek)}
               variant="all-day"
               .events=${this.#allDayEvents}
@@ -338,7 +359,7 @@ export class CalendarWeekView extends BaseElement {
 
           <calendar-view
             class="week-timed-view"
-            .startDate=${this.startDate}
+            .startDate=${this.#gridStartDate}
             days=${String(this.daysPerWeek)}
             variant="timed"
             .events=${this.#timedEvents}
@@ -401,7 +422,7 @@ export class CalendarWeekView extends BaseElement {
     if (this.daysPerWeek === 1) return;
     const target = event.currentTarget as { currentIndex?: number } | null;
     this.currentDayIndex = target?.currentIndex ?? 0;
-    const activeDate = this.startDate.add({ days: this.currentDayIndex }).toString();
+    const activeDate = this.#gridStartDate.add({ days: this.currentDayIndex }).toString();
     this.dispatchEvent(
       new CustomEvent("active-date-changed", {
         detail: { date: activeDate, dayIndex: this.currentDayIndex },

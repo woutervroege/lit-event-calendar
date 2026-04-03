@@ -257,7 +257,7 @@ export class CalendarViewGroup extends BaseElement {
     }
 
     if (view === "day" || view === "week") {
-      const startDate = view === "day" ? this.#resolvedStartDate : this.#weekRangeStartDate;
+      const startDate = this.#resolvedStartDate;
       const daysPerWeek = view === "day" ? 1 : this.daysPerWeek;
       return html`
         <calendar-week-view
