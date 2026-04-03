@@ -3,7 +3,6 @@ import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { styleMap } from "lit/directives/style-map.js";
-import type { PropertyValues } from "lit";
 import "../CalendarView/CalendarView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
@@ -34,7 +33,7 @@ export class CalendarWeekView extends BaseElement {
   timezone?: string;
   currentTime?: string;
   snapInterval = 15;
-  visibleHours = 12;
+  visibleHours?: number;
   rtl = false;
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
@@ -239,15 +238,19 @@ export class CalendarWeekView extends BaseElement {
   }
 
   render() {
-    const clampedVisibleHours = Math.max(
-      1,
-      Math.min(24, Math.floor(Number(this.visibleHours) || 12))
-    );
+    const hasVisibleHours = Number.isFinite(this.visibleHours);
+    const clampedVisibleHours = hasVisibleHours
+      ? Math.max(1, Math.min(24, Math.floor(Number(this.visibleHours))))
+      : undefined;
     const weekdayHeaderHeight = "calc(var(--_lc-weekday-header-height, 26px) + 4px)";
     const allDayHeight = `calc(var(--_lc-all-day-day-number-space, 36px) + ${this.#allDayVisibleRowCount} * var(--_lc-event-height, 32px))`;
     const timedHeight = "var(--_lc-week-effective-timed-height)";
-    const hourCellHeight = `calc(var(--_lc-week-effective-timed-height) / ${clampedVisibleHours})`;
-    const timedContentHeight = "var(--_lc-week-effective-timed-height)";
+    const hourCellHeight = clampedVisibleHours
+      ? `calc(var(--_lc-week-effective-timed-height) / ${clampedVisibleHours})`
+      : "var(--_lc-week-min-hour-cell-height, 144px)";
+    const timedContentHeight = clampedVisibleHours
+      ? "var(--_lc-week-effective-timed-height)"
+      : `calc(24 * ${hourCellHeight})`;
     const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
     const dayModeWeekStart = isWeekdayNumber(this.startDate.dayOfWeek)
       ? this.startDate.dayOfWeek
@@ -269,7 +272,7 @@ export class CalendarWeekView extends BaseElement {
           "--_lc-week-timed-content-height": timedContentHeight,
           "--_lc-week-hour-cell-height": hourCellHeight,
           "--_lc-week-total-height":
-            "calc(var(--_lc-week-all-day-shell-height) + var(--_lc-week-sections-gap, 8px) + var(--_lc-week-effective-timed-height))",
+            "calc(var(--_lc-week-all-day-shell-height) + var(--_lc-week-sections-gap, 8px) + var(--_lc-week-timed-content-height))",
         })}
       >
         <calendar-time-sidebar
@@ -325,7 +328,7 @@ export class CalendarWeekView extends BaseElement {
             days=${String(this.daysPerWeek)}
             variant="timed"
             .events=${this.#timedEvents}
-            .visibleHours=${clampedVisibleHours}
+            .visibleHours=${clampedVisibleHours ?? 24}
             .rtl=${this.rtl}
             locale=${ifDefined(this.locale)}
             timezone=${ifDefined(this.timezone)}
@@ -385,7 +388,7 @@ export class CalendarWeekView extends BaseElement {
     this.currentDayIndex = target?.currentIndex ?? 0;
   };
 
-  override updated(changedProperties: PropertyValues<this>) {
+  override updated(changedProperties: Map<PropertyKey, unknown>) {
     super.updated(changedProperties);
     const weekLayout = this.renderRoot.querySelector(".week-layout") as HTMLElement | null;
     if (!weekLayout) return;
@@ -393,23 +396,5 @@ export class CalendarWeekView extends BaseElement {
     if (Number.isFinite(hostHeightPx) && hostHeightPx > 0) {
       weekLayout.style.setProperty("--_lc-week-view-height", `${hostHeightPx}px`);
     }
-    const styles = getComputedStyle(weekLayout);
-    const effectiveTimedHeightExpr = styles.getPropertyValue("--_lc-week-effective-timed-height").trim();
-
-    const probe = document.createElement("div");
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    probe.style.pointerEvents = "none";
-    probe.style.height = "var(--_lc-week-effective-timed-height)";
-    weekLayout.appendChild(probe);
-    const effectiveTimedHeightPx = getComputedStyle(probe).height;
-    probe.remove();
-
-    console.log(
-      "[calendar-week-view] --_lc-week-effective-timed-height:",
-      effectiveTimedHeightExpr,
-      "=>",
-      effectiveTimedHeightPx
-    );
   }
 }

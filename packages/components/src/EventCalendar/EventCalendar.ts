@@ -100,7 +100,7 @@ export class EventCalendar extends BaseElement {
   timezone?: string;
   currentTime?: string;
   snapInterval = 15;
-  visibleHours = 12;
+  visibleHours?: number;
   rtl = false;
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";

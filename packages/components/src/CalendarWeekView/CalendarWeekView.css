@@ -62,7 +62,7 @@
   --_lc-time-sidebar-header-height: var(--_lc-week-weekday-header-height);
   --_lc-time-sidebar-sticky-top-base: var(--_lc-week-sticky-top, 0px);
   --_lc-time-sidebar-all-day-height: var(--_lc-week-all-day-height);
-  --_lc-time-sidebar-timed-height: var(--_lc-week-effective-timed-height);
+  --_lc-time-sidebar-timed-height: var(--_lc-week-timed-content-height);
   --_lc-time-sidebar-hour-cell-height: var(--_lc-week-hour-cell-height);
   --_lc-time-sidebar-all-day-divider-width: var(--_lc-week-section-divider-width, 3px);
   --_lc-time-sidebar-all-day-divider-color: var(
@@ -85,8 +85,8 @@
 }
 
 .week-timed-view {
-  height: var(--_lc-week-effective-timed-height);
-  min-height: var(--_lc-week-effective-timed-height);
+  height: var(--_lc-week-timed-content-height);
+  min-height: var(--_lc-week-timed-content-height);
   --_lc-hour-cell-height: var(--_lc-week-hour-cell-height);
   --_lc-min-hour-height: 0px;
 }
