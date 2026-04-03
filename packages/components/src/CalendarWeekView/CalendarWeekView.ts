@@ -3,6 +3,7 @@ import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { styleMap } from "lit/directives/style-map.js";
+import type { PropertyValues } from "lit";
 import "../CalendarView/CalendarView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
@@ -244,9 +245,9 @@ export class CalendarWeekView extends BaseElement {
     );
     const weekdayHeaderHeight = "calc(var(--_lc-weekday-header-height, 26px) + 4px)";
     const allDayHeight = `calc(var(--_lc-all-day-day-number-space, 36px) + ${this.#allDayVisibleRowCount} * var(--_lc-event-height, 32px))`;
-    const timedHeight = `calc(${clampedVisibleHours} * var(--_lc-min-hour-height, var(--lc-min-hour-height, 54px)))`;
-    const timedContentHeight = `calc(${24 / clampedVisibleHours} * ${timedHeight})`;
-    const hourCellHeight = `calc(${timedContentHeight} / 24)`;
+    const timedHeight = "var(--_lc-week-effective-timed-height)";
+    const hourCellHeight = `calc(var(--_lc-week-effective-timed-height) / ${clampedVisibleHours})`;
+    const timedContentHeight = `calc(24 * ${hourCellHeight})`;
     const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
     const dayModeWeekStart = isWeekdayNumber(this.startDate.dayOfWeek)
       ? this.startDate.dayOfWeek
@@ -262,6 +263,8 @@ export class CalendarWeekView extends BaseElement {
           "--_lc-week-weekday-header-height": weekdayHeaderHeight,
           "--_lc-week-all-day-height": allDayHeight,
           "--_lc-week-all-day-shell-height": `calc(${weekdayHeaderHeight} + ${allDayHeight})`,
+          "--_lc-week-effective-timed-height":
+            "max(0px, calc(var(--_lc-week-view-height, 100%) - var(--_lc-week-all-day-shell-height)))",
           "--_lc-week-timed-height": timedHeight,
           "--_lc-week-timed-content-height": timedContentHeight,
           "--_lc-week-hour-cell-height": hourCellHeight,
@@ -380,4 +383,32 @@ export class CalendarWeekView extends BaseElement {
     const target = event.currentTarget as { currentIndex?: number } | null;
     this.currentDayIndex = target?.currentIndex ?? 0;
   };
+
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+    const weekLayout = this.renderRoot.querySelector(".week-layout") as HTMLElement | null;
+    if (!weekLayout) return;
+    const hostHeightPx = this.getBoundingClientRect().height;
+    if (Number.isFinite(hostHeightPx) && hostHeightPx > 0) {
+      weekLayout.style.setProperty("--_lc-week-view-height", `${hostHeightPx}px`);
+    }
+    const styles = getComputedStyle(weekLayout);
+    const effectiveTimedHeightExpr = styles.getPropertyValue("--_lc-week-effective-timed-height").trim();
+
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.pointerEvents = "none";
+    probe.style.height = "var(--_lc-week-effective-timed-height)";
+    weekLayout.appendChild(probe);
+    const effectiveTimedHeightPx = getComputedStyle(probe).height;
+    probe.remove();
+
+    console.log(
+      "[calendar-week-view] --_lc-week-effective-timed-height:",
+      effectiveTimedHeightExpr,
+      "=>",
+      effectiveTimedHeightPx
+    );
+  }
 }
