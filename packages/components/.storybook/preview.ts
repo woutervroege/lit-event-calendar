@@ -15,10 +15,12 @@ const globalStyles = `
   #storybook-root, #storybook-docs {
     position: fixed;
     inset: 1rem;
+    overflow: auto;
   }
 `;
 
-const storybookViewportContent = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0";
+const storybookViewportContent =
+  "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0";
 
 const preview: Preview = {
   parameters: {

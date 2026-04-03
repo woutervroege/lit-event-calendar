@@ -16,8 +16,10 @@
 
 .week-swipe {
   grid-column: 2;
-  height: var(--_lc-week-total-height);
-  min-height: var(--_lc-week-total-height);
+  --_lc-swipe-height: auto;
+  --_lc-swipe-min-height: var(--_lc-week-total-height);
+  --_lc-swipe-overflow-x: clip;
+  --_lc-swipe-overflow-y: visible;
   --_lc-combined-effective-visible-columns: max(
     1,
     min(var(--_lc-combined-visible-columns, 7), var(--_lc-combined-days, 7))

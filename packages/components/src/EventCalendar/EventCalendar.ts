@@ -6,16 +6,16 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
 import type {
-  CalendarViewGroup,
   CalendarPresentationMode,
+  CalendarViewGroup,
   CalendarViewMode,
 } from "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import "../TabSwitch/TabSwitch.js";
-import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
 import { renderCalendarIcon } from "../icons/calendarIcon.js";
 import { renderGridIcon } from "../icons/gridIcon.js";
 import { renderListIcon } from "../icons/listIcon.js";
+import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
 import { getLocaleDirection } from "../utils/Locale.js";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -154,7 +154,9 @@ export class EventCalendar extends BaseElement {
       return;
     }
     const nextValue =
-      value === "day" || value === "week" || value === "month" || value === "year" ? value : "month";
+      value === "day" || value === "week" || value === "month" || value === "year"
+        ? value
+        : "month";
     if (this.#view === nextValue) return;
     this.#view = nextValue;
     this.requestUpdate();
@@ -290,11 +292,15 @@ export class EventCalendar extends BaseElement {
                 aria-live="polite"
                 dir=${headerDirection}
               >
-                ${this.#rangeLabelParts.length
-                  ? this.#rangeLabelParts.map((part) =>
-                      part.isYear ? html`<span class="font-normal">${part.text}</span>` : part.text
-                    )
-                  : this.#rangeLabelText}
+                ${
+                  this.#rangeLabelParts.length
+                    ? this.#rangeLabelParts.map((part) =>
+                        part.isYear
+                          ? html`<span class="font-normal">${part.text}</span>`
+                          : part.text
+                      )
+                    : this.#rangeLabelText
+                }
               </h2>
             </div>
             <lc-button

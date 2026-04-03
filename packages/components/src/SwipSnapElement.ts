@@ -14,9 +14,10 @@ export class SwipeSnapElement extends LitElement {
     :host {
       display: block;
       width: 100%;
-      height: 100%;
-      overflow-x: hidden;
-      overflow-y: auto;
+      height: var(--_lc-swipe-height, 100%);
+      min-height: var(--_lc-swipe-min-height, 0);
+      overflow-x: var(--_lc-swipe-overflow-x, hidden);
+      overflow-y: var(--_lc-swipe-overflow-y, auto);
       position: relative;
       touch-action: pan-y;
       user-select: none;
