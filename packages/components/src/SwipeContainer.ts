@@ -8,6 +8,9 @@ export class SwipeContainer extends LitElement {
     currentIndex: { type: Number, attribute: "current-index" },
     scrollSnapStop: { type: String, attribute: "scroll-snap-stop" },
     disabled: { type: Boolean, attribute: "disabled", reflect: true },
+    virtualSnap: { type: Boolean, attribute: false },
+    virtualSnapOffsets: { type: Array, attribute: false },
+    virtualContentWidth: { type: Number, attribute: false },
     dir: { type: String, reflect: true },
   };
 
@@ -31,6 +34,12 @@ export class SwipeContainer extends LitElement {
       align-items: flex-start;
       will-change: transform;
       transform: translate3d(0, 0, 0);
+      position: relative;
+    }
+
+    .snap-points,
+    .snap-point {
+      display: none;
     }
 
     ::slotted(*) {
@@ -38,11 +47,61 @@ export class SwipeContainer extends LitElement {
       width: var(--page-width, 100%);
       touch-action: pan-y;
     }
+
+    @media (pointer: fine) {
+      :host {
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        touch-action: auto;
+      }
+
+      :host([disabled]) {
+        overflow-x: hidden;
+      }
+
+      .container {
+        width: max-content;
+        min-width: 100%;
+        will-change: auto;
+        transform: none !important;
+        transition: none !important;
+      }
+
+      ::slotted(*) {
+        scroll-snap-align: start;
+        scroll-snap-stop: var(--_lc-swipe-snap-stop, normal);
+      }
+
+      .snap-points {
+        display: block;
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        width: var(--_lc-virtual-track-width, 0px);
+        height: 1px;
+        pointer-events: none;
+      }
+
+      .snap-point {
+        display: block;
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: var(--_lc-virtual-snap-offset, 0px);
+        width: 1px;
+        height: 1px;
+        scroll-snap-align: start;
+        scroll-snap-stop: var(--_lc-swipe-snap-stop, normal);
+      }
+    }
   `;
 
   #currentIndex = 0;
   declare scrollSnapStop: SnapStopMode;
   declare disabled: boolean;
+  declare virtualSnap: boolean;
+  declare virtualSnapOffsets: number[];
+  declare virtualContentWidth: number;
   declare dir: string;
 
   #container: HTMLDivElement | null = null;
@@ -70,6 +129,9 @@ export class SwipeContainer extends LitElement {
     super();
     this.scrollSnapStop = "normal";
     this.disabled = false;
+    this.virtualSnap = false;
+    this.virtualSnapOffsets = [];
+    this.virtualContentWidth = 0;
     this.dir = "";
   }
 
@@ -96,8 +158,7 @@ export class SwipeContainer extends LitElement {
   };
 
   #onPointerDown = (e: PointerEvent): void => {
-    if (this.disabled) return;
-    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (this.disabled || e.pointerType !== "touch") return;
     this.#pointerId = e.pointerId;
     this.#intent = null;
     this.#startX = e.clientX;
@@ -193,7 +254,24 @@ export class SwipeContainer extends LitElement {
   };
 
   render() {
-    return html`<div class="container"><slot @slotchange=${this.#onSlotChange}></slot></div>`;
+    return html`
+      ${this.virtualSnap
+        ? html`
+            <div
+              class="snap-points"
+              style=${`--_lc-virtual-track-width:${this.virtualContentWidth}px`}
+              aria-hidden="true"
+            >
+              ${this.virtualSnapOffsets.map(
+                (offset) => html`<i class="snap-point" style=${`--_lc-virtual-snap-offset:${offset}px`}></i>`
+              )}
+            </div>
+          `
+        : null}
+      <div class="container">
+        <slot @slotchange=${this.#onSlotChange}></slot>
+      </div>
+    `;
   }
 
   connectedCallback(): void {
@@ -239,6 +317,7 @@ export class SwipeContainer extends LitElement {
         this.scrollSnapStop = normalizedSnapStop;
         return;
       }
+      this.style.setProperty("--_lc-swipe-snap-stop", this.scrollSnapStop);
     }
 
     if (changedProperties.has("dir")) {
@@ -316,9 +395,15 @@ export class SwipeContainer extends LitElement {
       }
       this.#pageOffsets = virtualOffsets;
       this.#pageWidths = virtualWidths;
+      this.virtualSnap = true;
+      this.virtualSnapOffsets = virtualOffsets;
+      this.virtualContentWidth = contentWidth;
     } else {
       this.#pageWidths = widths.length ? widths : [1];
       this.#pageOffsets = offsets.length ? offsets : [0];
+      this.virtualSnap = false;
+      this.virtualSnapOffsets = [];
+      this.virtualContentWidth = 0;
     }
     this.#maxOffsetX = maxOffsetX;
     this.#maxIndex = Math.max(0, this.#pageOffsets.length - 1);
