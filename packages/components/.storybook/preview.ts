@@ -12,15 +12,11 @@ const globalStyles = `
     color-scheme: light dark;
     background-color: var(--lg-background-color, light-dark(#fff, #222));
   }
-  #storybook-root, #storybook-docs {
-    min-height: 100dvh;
-    min-width: 100dvw;
-    overflow: auto;
-  }
 
   #storybook-root > * {
-  padding: 1rem;
-  max-width: calc(100dvw - 2rem);
+    padding: 1rem;
+    max-width: calc(100dvw - 2rem);
+    position: absolute;
   }
 `;
 
