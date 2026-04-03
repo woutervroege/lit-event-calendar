@@ -18,3 +18,14 @@ export type EventUpdateRequestDetail = {
 export type EventDeleteRequestDetail = {
   envelope: Pick<CalendarEventEnvelope, "calendarId" | "eventId" | "recurrenceId" | "isRecurring">;
 };
+
+export type EventSelectionRequestDetail = {
+  envelope: Pick<
+    CalendarEventEnvelope,
+    "eventId" | "calendarId" | "recurrenceId" | "isException" | "isRecurring"
+  >;
+  content: CalendarEventContent;
+  trigger: "click" | "keyboard";
+  pointerType: string;
+  sourceEvent: Event;
+};

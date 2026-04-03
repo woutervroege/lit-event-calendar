@@ -14,6 +14,7 @@ type EventEntry = [id: string, event: EventInput];
 type EventsMap = Map<string, EventInput>;
 
 type AgendaItem = {
+  id: string;
   event: EventInput;
   start: Temporal.PlainDateTime;
   end: Temporal.PlainDateTime;
@@ -120,7 +121,10 @@ export class CalendarAgendaView extends BaseElement {
     const isPast = Temporal.PlainDateTime.compare(item.end, this.#now) <= 0;
     const colorStyles = getEventColorStyles(event.color);
     return html`
-      <li class="agenda-event-item">
+      <li
+        class="agenda-event-item"
+        @click=${(clickEvent: MouseEvent) => this.#handleEventClick(item, clickEvent)}
+      >
         <event-card
           layout="flow"
           .locale=${this.locale}
@@ -137,12 +141,38 @@ export class CalendarAgendaView extends BaseElement {
     `;
   }
 
+  #handleEventClick(item: AgendaItem, sourceEvent: MouseEvent) {
+    this.dispatchEvent(
+      new CustomEvent("event-selection-requested", {
+        detail: {
+          envelope: {
+            eventId: item.event.eventId ?? item.id,
+            calendarId: item.event.calendarId,
+            recurrenceId: item.event.recurrenceId,
+            isException: item.event.isException,
+            isRecurring: item.event.isRecurring,
+          },
+          content: {
+            start: item.event.start,
+            end: item.event.end,
+            summary: item.event.summary,
+            color: item.event.color,
+            location: item.event.location,
+          },
+          trigger: sourceEvent.detail === 0 ? "keyboard" : "click",
+          pointerType: sourceEvent.detail === 0 ? "keyboard" : "mouse",
+          sourceEvent,
+        },
+      })
+    );
+  }
+
   get #agendaDays(): AgendaDay[] {
     const grouped = new Map<string, AgendaItem[]>();
     const rangeStart = this.startDate;
     const rangeEndExclusive = rangeStart.add({ days: this.days });
 
-    for (const [, event] of this.#eventsAsEntries) {
+    for (const [id, event] of this.#eventsAsEntries) {
       if (event.isRemoved) continue;
       const start = this.#toPlainDateTime(event.start);
       const end = this.#toPlainDateTime(event.end);
@@ -164,6 +194,7 @@ export class CalendarAgendaView extends BaseElement {
         const key = displayDate.toString();
         const dayItems = grouped.get(key) ?? [];
         dayItems.push({
+          id,
           event,
           start,
           end,

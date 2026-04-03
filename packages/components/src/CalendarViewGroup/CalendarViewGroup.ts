@@ -251,6 +251,7 @@ export class CalendarViewGroup extends BaseElement {
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
           @day-selection-requested=${this.#handleDaySelectionRequested}
+          @event-selection-requested=${this.#reemit}
         ></calendar-agenda-view>
       `;
     }
@@ -275,6 +276,7 @@ export class CalendarViewGroup extends BaseElement {
           .defaultCalendarId=${this.defaultCalendarId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-create-requested=${this.#reemit}
+          @event-selection-requested=${this.#reemit}
           @event-update-requested=${this.#reemit}
           @event-delete-requested=${this.#reemit}
         ></calendar-week-view>
@@ -295,6 +297,7 @@ export class CalendarViewGroup extends BaseElement {
           .defaultCalendarId=${this.defaultCalendarId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-create-requested=${this.#reemit}
+          @event-selection-requested=${this.#reemit}
           @event-update-requested=${this.#reemit}
           @event-delete-requested=${this.#reemit}
         ></calendar-year-view>
@@ -315,6 +318,7 @@ export class CalendarViewGroup extends BaseElement {
         .defaultCalendarId=${this.defaultCalendarId}
         @day-selection-requested=${this.#handleDaySelectionRequested}
         @event-create-requested=${this.#reemit}
+        @event-selection-requested=${this.#reemit}
         @event-update-requested=${this.#reemit}
         @event-delete-requested=${this.#reemit}
       ></calendar-month-view>

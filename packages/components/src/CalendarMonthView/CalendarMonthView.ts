@@ -113,6 +113,7 @@ export class CalendarMonthView extends BaseElement {
           .defaultCalendarId=${this.defaultCalendarId}
           @day-selection-requested=${this.#reemit}
           @event-create-requested=${this.#reemit}
+          @event-selection-requested=${this.#reemit}
           @event-update-requested=${this.#reemit}
           @event-delete-requested=${this.#reemit}
         ></calendar-view>
