@@ -65,6 +65,8 @@ export abstract class BaseEvent extends BaseElement {
   connectedCallback() {
     super.connectedCallback();
     void this.#calendarViewConsumer;
+    this.addEventListener("click", this.#handleSelectClick as EventListener);
+    this.addEventListener("keydown", this.#handleSelectKeydown as EventListener);
     this.addEventListener(
       "interaction-drag-state",
       this.#handleInteractionDragState as EventListener
@@ -81,6 +83,8 @@ export abstract class BaseEvent extends BaseElement {
 
   disconnectedCallback() {
     if (this.#justDroppedTimeout) clearTimeout(this.#justDroppedTimeout);
+    this.removeEventListener("click", this.#handleSelectClick as EventListener);
+    this.removeEventListener("keydown", this.#handleSelectKeydown as EventListener);
     this.removeEventListener(
       "interaction-drag-state",
       this.#handleInteractionDragState as EventListener
@@ -296,6 +300,60 @@ export abstract class BaseEvent extends BaseElement {
       this.removeAttribute("data-touch-interacting");
     }
     this.requestUpdate();
+  };
+
+  #handleSelectClick = (event: Event) => {
+    if (!(event instanceof MouseEvent)) return;
+    if (this.hasAttribute("data-suppress-next-select-click")) {
+      this.removeAttribute("data-suppress-next-select-click");
+      return;
+    }
+    if (this.interactionController.isDragging || this.hasAttribute("data-just-dropped")) return;
+    const path = event.composedPath();
+    if (
+      path.some(
+        (target) => target instanceof HTMLElement && target.tagName === "RESIZE-HANDLE"
+      )
+    ) {
+      return;
+    }
+    this.dispatchEvent(
+      new CustomEvent("select", {
+        detail: {
+          trigger: event.detail === 0 ? "keyboard" : "click",
+          pointerType: event.detail === 0 ? "keyboard" : "mouse",
+          sourceEvent: event,
+        },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  };
+
+  #handleSelectKeydown = (event: Event) => {
+    if (!(event instanceof KeyboardEvent)) return;
+    if (event.defaultPrevented) return;
+    if (this.interactionController.isDragging || this.hasAttribute("data-just-dropped")) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const target = event.target as EventTarget | null;
+    if (target instanceof HTMLElement) {
+      if (target.isContentEditable) return;
+      const tagName = target.tagName;
+      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") return;
+    }
+    event.preventDefault();
+    this.dispatchEvent(
+      new CustomEvent("select", {
+        detail: {
+          trigger: "keyboard",
+          pointerType: "keyboard",
+          sourceEvent: event,
+        },
+        bubbles: true,
+        composed: true,
+      })
+    );
   };
 
   #toPlainDateTimeOrNull(value: string | undefined): Temporal.PlainDateTime | null {

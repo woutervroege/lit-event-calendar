@@ -108,6 +108,7 @@ export class DayOverflowPopover extends BaseElement {
               .daysPerRow=${1}
               .gridRows=${1}
               .maxVisibleRows=${Number.POSITIVE_INFINITY}
+              @select=${this.#reemit}
               @update=${this.#reemit}
               @delete=${this.#reemit}
             ></all-day-event>

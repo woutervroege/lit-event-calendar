@@ -55,6 +55,7 @@ export class TimedEventInteractionController {
     startClientY: number;
     activationTimeoutId: number;
   } | null = null;
+  #clearSuppressClickTimerId: number | null = null;
   static snapInterval: number = 5;
   static renderedDayCount: number = 7;
 
@@ -108,7 +109,13 @@ export class TimedEventInteractionController {
 
   readonly pointerUpHandler = (e: PointerEvent) => {
     if (this.#pendingTouchInteraction?.pointerId === e.pointerId) {
+      const pendingOperation = this.#pendingTouchInteraction.operation;
       this.#cancelPendingTouchInteraction();
+      if (pendingOperation === "move") {
+        if (e.cancelable) e.preventDefault();
+        this.#markSuppressNextClick();
+        this.#dispatchSelect("click", "touch", e);
+      }
       return;
     }
 
@@ -146,6 +153,13 @@ export class TimedEventInteractionController {
   };
 
   readonly keydownHandler = (e: KeyboardEvent) => {
+    if (this.#isSelectKey(e)) {
+      if (this.#shouldIgnoreSelectShortcut(e)) return;
+      e.preventDefault();
+      this.#dispatchSelect("keyboard", "keyboard", e);
+      return;
+    }
+
     if (this.#isDeleteKey(e)) {
       if (this.#shouldIgnoreDeleteShortcut(e)) return;
       e.preventDefault();
@@ -198,6 +212,20 @@ export class TimedEventInteractionController {
 
   #isDeleteKey(e: KeyboardEvent): boolean {
     return e.key === "Delete" || e.key === "Backspace";
+  }
+
+  #isSelectKey(e: KeyboardEvent): boolean {
+    return e.key === "Enter" || e.key === " ";
+  }
+
+  #shouldIgnoreSelectShortcut(e: KeyboardEvent): boolean {
+    if (this.#isDragging) return true;
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return true;
+    const target = e.target as EventTarget | null;
+    if (!(target instanceof HTMLElement)) return false;
+    if (target.isContentEditable) return true;
+    const tagName = target.tagName;
+    return tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
   }
 
   #shouldIgnoreDeleteShortcut(e: KeyboardEvent): boolean {
@@ -1020,6 +1048,31 @@ export class TimedEventInteractionController {
         composed: false,
       })
     );
+  }
+
+  #dispatchSelect(trigger: "click" | "keyboard", pointerType: string, sourceEvent: Event) {
+    this.#host.dispatchEvent(
+      new CustomEvent("select", {
+        detail: {
+          trigger,
+          pointerType,
+          sourceEvent,
+        },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  #markSuppressNextClick() {
+    this.#host.setAttribute("data-suppress-next-select-click", "");
+    if (this.#clearSuppressClickTimerId !== null) {
+      window.clearTimeout(this.#clearSuppressClickTimerId);
+    }
+    this.#clearSuppressClickTimerId = window.setTimeout(() => {
+      this.#host.removeAttribute("data-suppress-next-select-click");
+      this.#clearSuppressClickTimerId = null;
+    }, 400);
   }
 
   get dragOffset(): { x: number; y: number } {

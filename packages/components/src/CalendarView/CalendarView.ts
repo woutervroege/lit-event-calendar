@@ -29,6 +29,7 @@ import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js
 import type {
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
+  EventSelectionRequestDetail,
   EventUpdateRequestDetail,
 } from "../models/CalendarEventRequests.js";
 
@@ -668,6 +669,7 @@ export class CalendarView extends BaseElement {
                 .maxVisibleRows=${allDayOverflow.maxVisibleRows}
                 .maxVisibleRowsByDay=${allDayOverflow.maxVisibleRowsByDay}
                 @interaction-drag-state=${this.#handleEventInteractionDragState}
+                @select=${this.#handleEventSelect}
                 @update=${this.#handleEventUpdate}
                 @delete=${this.#handleEventDelete}
               ></all-day-event>
@@ -681,6 +683,7 @@ export class CalendarView extends BaseElement {
                 color=${event.color}
                 .renderedDays=${this.days as unknown as never[]}
                 @interaction-drag-state=${this.#handleEventInteractionDragState}
+                @select=${this.#handleEventSelect}
                 @update=${this.#handleEventUpdate}
                 @delete=${this.#handleEventDelete}
               ></timed-event>
@@ -1046,11 +1049,57 @@ export class CalendarView extends BaseElement {
         ?is-weekend=${this.#weekendDays.has(day.dayOfWeek)}
         .events=${popoverEvents}
         @toggle=${this.#handleOverflowPopoverToggle}
+        @select=${this.#handleEventSelect}
         @update=${this.#handleEventUpdate}
         @delete=${this.#handleEventDelete}
       ></day-overflow-popover>
     `;
   }
+
+  #handleEventSelect = (event: Event) => {
+    const selectDetail =
+      event instanceof CustomEvent &&
+      event.detail &&
+      typeof event.detail === "object" &&
+      "trigger" in event.detail
+        ? (event.detail as
+            | { trigger?: "click" | "keyboard"; pointerType?: string; sourceEvent?: Event }
+            | undefined)
+        : undefined;
+    const detailTarget =
+      event instanceof CustomEvent &&
+      event.detail &&
+      typeof event.detail === "object" &&
+      "eventId" in event.detail
+        ? (event.detail as BaseEvent)
+        : null;
+    const target = detailTarget ?? (event.currentTarget as BaseEvent | null);
+    if (!target?.eventId || !target.start || !target.end) return;
+    const current = this.events?.get(target.eventId);
+    const detail: EventSelectionRequestDetail = {
+      envelope: {
+        eventId: current?.eventId ?? target.eventId,
+        calendarId: current?.calendarId,
+        recurrenceId: current?.recurrenceId,
+        isException: current?.isException,
+        isRecurring: current?.isRecurring,
+      },
+      content: {
+        start: current?.start ?? target.start,
+        end: current?.end ?? target.end,
+        summary: current?.summary ?? target.summary,
+        color: current?.color ?? target.color,
+      },
+      trigger: selectDetail?.trigger ?? "click",
+      pointerType: selectDetail?.pointerType ?? "mouse",
+      sourceEvent: selectDetail?.sourceEvent ?? event,
+    };
+    this.dispatchEvent(
+      new CustomEvent("event-selection-requested", {
+        detail,
+      })
+    );
+  };
 
   #handleEventUpdate = (event: Event) => {
     const updateSource =

@@ -327,6 +327,7 @@ export class CalendarWeekView extends BaseElement {
                   "var(--lg-background-color, var(--_lc-surface-bg, light-dark(#fff, #222)))",
               })}
               @event-create-requested=${this.#reemit}
+              @event-selection-requested=${this.#reemit}
               @event-update-requested=${this.#reemit}
               @event-delete-requested=${this.#reemit}
               @day-selection-requested=${this.#reemit}
@@ -348,6 +349,7 @@ export class CalendarWeekView extends BaseElement {
             current-time=${ifDefined(this.currentTime)}
             .snapInterval=${this.snapInterval}
             @event-create-requested=${this.#reemit}
+            @event-selection-requested=${this.#reemit}
             @event-update-requested=${this.#reemit}
             @event-delete-requested=${this.#reemit}
             @day-selection-requested=${this.#reemit}

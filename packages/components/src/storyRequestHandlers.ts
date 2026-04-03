@@ -3,6 +3,7 @@ import { action } from "storybook/actions";
 import type {
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
+  EventSelectionRequestDetail,
   EventUpdateRequestDetail,
 } from "./models/CalendarEventRequests.js";
 import type { CalendarEvent } from "./storyData.js";
@@ -22,6 +23,7 @@ const logDeleteRequested = action("event-delete-requested");
 const logDeleteCommittedInstance = action("event-delete-committed-instance");
 const logDeleteCommittedSeries = action("event-delete-committed-series");
 const logDeleteCancelled = action("event-delete-requested (cancelled)");
+const logSelectionRequested = action("event-selection-requested");
 
 function resolveEventMapKey(
   events: Map<string, CalendarEvent>,
@@ -113,6 +115,14 @@ export function attachRequestEventHandlers(
   options: AttachRequestHandlersOptions = {}
 ) {
   const preserveDateOnly = options.preserveDateOnlyShape ?? false;
+
+  el.addEventListener("event-selection-requested", (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const detail = event.detail as EventSelectionRequestDetail | null;
+    if (!detail?.envelope.eventId) return;
+    logSelectionRequested(detail);
+    console.info("event-selection-requested", detail);
+  });
 
   el.addEventListener("event-create-requested", (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
