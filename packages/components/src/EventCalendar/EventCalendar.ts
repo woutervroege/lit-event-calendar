@@ -240,7 +240,7 @@ export class EventCalendar extends BaseElement {
     return html`
       <div class="flex h-full min-h-0 flex-col gap-7 overflow-hidden [container-type:inline-size] [@media(max-width:54rem)]:gap-4">
         <header
-          class="sticky top-[var(--_lc-event-calendar-sticky-top,0px)] z-[var(--_lc-event-calendar-header-z-index,60)] flex flex-col gap-2 bg-[var(--_lc-surface-bg)]"
+          class="sticky top-[var(--_lc-event-calendar-sticky-top,0px)] z-[var(--_lc-event-calendar-header-z-index,60)] flex flex-col gap-2 bg-[var(--_lc-surface-bg)] p-4 pb-0"
           dir=${headerDirection}
         >
           <div
@@ -348,7 +348,7 @@ export class EventCalendar extends BaseElement {
           </div>
         </header>
         <calendar-view-group
-          class="min-h-0 flex-[1_1_auto] overflow-y-auto"
+          class="min-h-0 flex-[1_1_auto] overflow-y-auto p-4 pt-0 mb-4"
           style="--_lc-week-sticky-top: 0px;"
           .view=${this.view}
           .presentation=${this.presentation}
