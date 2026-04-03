@@ -223,8 +223,10 @@ export class CalendarWeekView extends BaseElement {
       1,
       Math.min(24, Math.floor(Number(this.visibleHours) || 12))
     );
+    const weekdayHeaderHeight = "calc(var(--_lc-weekday-header-height, 26px) + 4px)";
     const allDayHeight = `calc(var(--_lc-all-day-day-number-space, 36px) + ${this.#allDayVisibleRowCount} * var(--_lc-event-height, 32px))`;
     const timedHeight = `calc(${clampedVisibleHours} * var(--_lc-min-hour-height, var(--lc-min-hour-height, 54px)))`;
+    const timedContentHeight = `calc(${24 / clampedVisibleHours} * ${timedHeight})`;
     const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
 
     return html`
@@ -232,8 +234,13 @@ export class CalendarWeekView extends BaseElement {
         class="week-layout"
         style=${styleMap({
           "--_lc-combined-days": String(this.daysPerWeek),
+          "--_lc-week-weekday-header-height": weekdayHeaderHeight,
           "--_lc-week-all-day-height": allDayHeight,
+          "--_lc-week-all-day-shell-height": `calc(${weekdayHeaderHeight} + ${allDayHeight})`,
           "--_lc-week-timed-height": timedHeight,
+          "--_lc-week-timed-content-height": timedContentHeight,
+          "--_lc-week-total-height":
+            "calc(var(--_lc-week-all-day-shell-height) + var(--_lc-week-timed-content-height))",
         })}
       >
         <calendar-time-sidebar

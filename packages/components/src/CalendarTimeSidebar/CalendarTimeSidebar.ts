@@ -36,6 +36,7 @@ export class CalendarTimeSidebar extends BaseElement {
 
     return html`
       <div class="time-sidebar" dir=${direction}>
+        <div class="weekday-header-slot" aria-hidden="true"></div>
         <div class="all-day-slot" aria-hidden="true"></div>
         <div class="timed-slot">
           <div class="hour-labels">
