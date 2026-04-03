@@ -7,7 +7,7 @@
 }
 
 .week-layout {
-  --_lc-week-time-sidebar-width: var(--_lc-time-sidebar-width, 56px);
+  --_lc-week-time-sidebar-width: var(--_lc-time-sidebar-width, max-content);
   display: grid;
   grid-template-columns: var(--_lc-week-time-sidebar-width) minmax(0, 1fr);
   width: 100%;
@@ -71,6 +71,7 @@
     --_lc-week-section-divider-color,
     light-dark(rgb(15 23 42 / 22%), rgb(255 255 255 / 28%))
   );
+  --_lc-time-sidebar-inline-padding: var(--_lc-week-time-sidebar-inline-padding, 6px);
 }
 
 .week-all-day-view {

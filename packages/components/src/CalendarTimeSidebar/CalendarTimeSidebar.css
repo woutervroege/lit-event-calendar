@@ -1,6 +1,7 @@
 :host {
   display: block;
-  width: var(--_lc-time-sidebar-width, 56px);
+  width: var(--_lc-time-sidebar-width, max-content);
+  min-width: max-content;
   height: 100%;
   color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
 }
@@ -15,13 +16,26 @@
   min-height: 0;
   background-color: var(--_lc-time-sidebar-bg, transparent);
   padding-inline: var(--_lc-time-sidebar-inline-padding, 0);
+  position: relative;
+  --_lc-time-sidebar-layer-bg: var(
+    --_lc-time-sidebar-bg,
+    var(--lg-background-color, var(--_lc-surface-bg, light-dark(#fff, #222)))
+  );
 }
 
 .weekday-header-slot {
   min-height: 0;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background-color: var(--_lc-time-sidebar-layer-bg);
 }
 
 .all-day-slot {
+  position: sticky;
+  top: var(--_lc-time-sidebar-header-height, 0px);
+  z-index: 2;
+  background-color: var(--_lc-time-sidebar-layer-bg);
   border-bottom: var(--_lc-time-sidebar-all-day-divider-width, 0px) solid
     var(--_lc-time-sidebar-all-day-divider-color, transparent);
 }
@@ -31,6 +45,9 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .hour-labels {
