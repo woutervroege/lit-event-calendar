@@ -1,5 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { html } from "lit";
+import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
@@ -14,6 +14,7 @@ import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import { renderGridIcon } from "../icons/GridIcon.js";
 import { renderListIcon } from "../icons/ListIcon.js";
 import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
+import componentStyle from "./EventCalendar.css?inline";
 
 type ViewUnit = Extract<CalendarViewMode, "day" | "week" | "month" | "year">;
 type PresentationUnit = CalendarPresentationMode;
@@ -65,8 +66,8 @@ function getPresentationOptions(): TabSwitchOption[] {
   return PRESENTATION_OPTIONS_BASE.map(({ value }) => ({
     label:
       value === "list"
-        ? renderListIcon({ className: "h-4 w-4" })
-        : renderGridIcon({ className: "h-4 w-4" }),
+        ? renderListIcon({ className: "event-calendar-presentation-icon" })
+        : renderGridIcon({ className: "event-calendar-presentation-icon" }),
     ariaLabel: value === "list" ? "List" : "Grid",
     value,
   }));
@@ -102,6 +103,10 @@ export class EventCalendar extends BaseElement {
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
   defaultCalendarId?: string;
+
+  static get styles() {
+    return [...BaseElement.styles, unsafeCSS(componentStyle)];
+  }
 
   static get properties() {
     return {
@@ -222,17 +227,17 @@ export class EventCalendar extends BaseElement {
     const headerDirection = this.rtl || getLocaleDirection(this.lang) === "rtl" ? "rtl" : "ltr";
     const isHeaderRtl = headerDirection === "rtl";
     return html`
-      <div class="flex h-full min-h-0 flex-col gap-7 overflow-hidden [container-type:inline-size] [@media(max-width:54rem)]:gap-4">
+      <div class="event-calendar-shell">
         <header
-          class="sticky top-[var(--_lc-event-calendar-sticky-top,0px)] z-[var(--_lc-event-calendar-header-z-index,60)] flex flex-col gap-2 bg-[var(--_lc-surface-bg)] p-4 pb-0"
+          class="event-calendar-header"
           dir=${headerDirection}
         >
           <div
-            class="flex items-center gap-2"
+            class="event-calendar-toolbar"
             style="--lc-button-bg: transparent; --lc-button-hover-bg: transparent; --lc-button-border-color: transparent; --_lc-button-border-color: transparent; --_lc-grid-line-color: transparent;"
           >
-            <div class="flex min-w-0 flex-1 items-center gap-2" dir=${headerDirection}>
-              <div class="flex items-center gap-0">
+            <div class="event-calendar-heading-row" dir=${headerDirection}>
+              <div class="event-calendar-nav-buttons">
                 <lc-button
                   compact
                   label="Previous range"
@@ -245,7 +250,7 @@ export class EventCalendar extends BaseElement {
                     stroke="currentColor"
                     stroke-width="2.5"
                     aria-hidden="true"
-                    class="block h-[1.1rem] w-[1.1rem]"
+                    class="event-calendar-nav-icon"
                   >
                     <path
                       d=${isHeaderRtl ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"}
@@ -266,7 +271,7 @@ export class EventCalendar extends BaseElement {
                     stroke="currentColor"
                     stroke-width="2.5"
                     aria-hidden="true"
-                    class="block h-[1.1rem] w-[1.1rem]"
+                    class="event-calendar-nav-icon"
                   >
                     <path
                       d=${isHeaderRtl ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"}
@@ -277,11 +282,11 @@ export class EventCalendar extends BaseElement {
                 </lc-button>
               </div>
               <span
-                class="inline-block h-5 w-px bg-[light-dark(rgb(15_23_42_/_16%),rgb(255_255_255_/_18%))]"
+                class="event-calendar-divider"
                 aria-hidden="true"
               ></span>
               <h2
-                class="m-0 min-w-0 truncate px-1 text-start text-xl font-bold text-[light-dark(rgb(15_23_42_/_95%),rgb(255_255_255_/_98%))] [@container(max-width:54rem)]:text-base"
+                class="event-calendar-range-label"
                 aria-live="polite"
                 dir=${headerDirection}
               >
@@ -289,7 +294,7 @@ export class EventCalendar extends BaseElement {
                   this.#rangeLabelParts.length
                     ? this.#rangeLabelParts.map((part) =>
                         part.isYear
-                          ? html`<span class="font-normal">${part.text}</span>`
+                          ? html`<span class="event-calendar-range-year">${part.text}</span>`
                           : part.text
                       )
                     : this.#rangeLabelText
@@ -301,13 +306,13 @@ export class EventCalendar extends BaseElement {
               style="--_lc-grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --_lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));"
               @click=${() => this.goToday()}
             >
-              ${renderCalendarIcon({ className: "h-[1.1rem] w-[1.1rem]" })}
-              <span class="[@container(max-width:54rem)]:hidden">${getTodayLabel(this.lang)}</span>
+              ${renderCalendarIcon({ className: "event-calendar-nav-icon" })}
+              <span class="event-calendar-today-label">${getTodayLabel(this.lang)}</span>
             </lc-button>
           </div>
-          <div class="flex items-center justify-end gap-0 border-t border-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_12%))] pt-2 [@container(max-width:34rem)]:w-full [@container(max-width:34rem)]:justify-between [@container(max-width:34rem)]:gap-2 [@container(max-width:34rem)]:items-stretch">
+          <div class="event-calendar-controls-row">
             <tab-switch
-              class="flex-none"
+              class="event-calendar-switch"
               .showHotkeys=${false}
               .options=${getViewOptions(this.lang)}
               .value=${this.view}
@@ -316,11 +321,11 @@ export class EventCalendar extends BaseElement {
               @value-changed=${this.#handleViewTabChanged}
             ></tab-switch>
             <span
-              class="mx-1 block shrink-0 self-center h-6 w-px bg-[light-dark(rgb(15_23_42_/_16%),rgb(255_255_255_/_18%))]"
+              class="event-calendar-divider event-calendar-divider--controls"
               aria-hidden="true"
             ></span>
             <tab-switch
-              class="flex-none"
+              class="event-calendar-switch"
               compact
               .showHotkeys=${false}
               .options=${getPresentationOptions()}
@@ -332,7 +337,7 @@ export class EventCalendar extends BaseElement {
           </div>
         </header>
         <calendar-grid-view-group
-          class="min-h-0 flex-[1_1_auto] overflow-y-auto p-4 pt-0 mb-4"
+          class="event-calendar-content"
           style="--_lc-week-sticky-top: 0px;"
           .view=${this.view}
           .presentation=${this.presentation}

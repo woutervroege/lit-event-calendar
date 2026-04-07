@@ -15,7 +15,6 @@ import {
 } from "../context/CalendarViewContext.js";
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController.js";
 import type { EventBase } from "../EventBase/EventBase.js";
-import { sharedFocusRingColorClasses } from "../shared/buttonStyles.js";
 import { buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { clampGridDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
@@ -23,15 +22,16 @@ import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/L
 import "../EventCard/EventCard.js";
 import type {
   AllDayLayoutItem,
-  CalendarEventViewEntry as EventEntry,
-  CalendarEventViewMap as EventsMap,
   DayOverflowPopoverEvent,
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
+  CalendarEventViewEntry as EventEntry,
   CalendarEventView as EventInput,
   EventSelectionRequestDetail,
+  CalendarEventViewMap as EventsMap,
   EventUpdateRequestDetail,
 } from "../types/index.js";
+
 type AllDayOverflowLayout = {
   maxVisibleRows: number;
   maxVisibleRowsByDay: Map<number, number>;
@@ -626,9 +626,9 @@ export class CalendarGridView extends BaseElement {
     const allDayOverflow = this.#getAllDayOverflowLayout();
 
     return html`
-      <div class="calendar-layout flex h-full min-h-0">
+      <div class="calendar-layout">
         <section
-          class="min-w-0 flex-1 relative flex-row h-full text-[0px] ${sharedFocusRingColorClasses} ${this.#isMonthView ? "month-view" : ""} ${compactMonthView ? "compact-month-view" : ""}"
+          class="calendar-grid-section ${this.#isMonthView ? "month-view" : ""} ${compactMonthView ? "compact-month-view" : ""}"
           dir=${this.#isRtl ? "rtl" : "ltr"}
           style=${styleMap({ ...this.sectionStyle, ...hoverStyle })}
           ?data-drag-hover=${this.#dragHoverDayIndex !== null}
@@ -993,7 +993,7 @@ export class CalendarGridView extends BaseElement {
       return html`
         <button
           type="button"
-          class="day-label day-overflow-button absolute z-[3] p-0 text-sm font-medium rounded-sm flex items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis ${sharedFocusRingColorClasses}"
+          class="day-label day-overflow-button"
           style=${styleMap(buttonStyle)}
           .ariaLabel=${accessibilityLabel}
           tabindex="0"
@@ -1009,7 +1009,7 @@ export class CalendarGridView extends BaseElement {
       <div class="day-overflow-indicator-anchor">
         <button
           type="button"
-          class="day-label day-overflow-button day-overflow-toggle absolute z-[3] p-0 text-sm font-medium rounded-sm flex items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis ${sharedFocusRingColorClasses}"
+          class="day-label day-overflow-button day-overflow-toggle"
           style=${styleMap(buttonStyle)}
           .ariaLabel=${accessibilityLabel}
           aria-haspopup="dialog"
@@ -1249,11 +1249,7 @@ export class CalendarGridView extends BaseElement {
     return html`
       <button
         type="button"
-        class="day-label absolute p-1 text-sm z-0 font-medium rounded-full flex justify-center items-center cursor-pointer border-0 bg-transparent text-inherit leading-none ${sharedFocusRingColorClasses} ${
-          compactMonthView ? "" : "mt-2"
-        } ${monthPrefix ? "min-w-6 px-2" : "w-6"} h-6 ${isCurrentDay ? "current-day" : ""} ${
-          outsideVisibleMonth ? "outside-month-day-label" : ""
-        }"
+        class="day-label day-grid-label ${compactMonthView ? "is-compact" : "is-standard"} ${monthPrefix ? "has-month-prefix" : "no-month-prefix"} ${isCurrentDay ? "current-day" : ""} ${outsideVisibleMonth ? "outside-month-day-label" : ""}"
         .ariaLabel=${fullDateLabel}
         .ariaCurrent=${isCurrentDay ? "date" : null}
         style=${styleMap(startOffsetStyle)}
@@ -2036,7 +2032,7 @@ export class CalendarGridView extends BaseElement {
 
     return html`
       <div
-        class="current-time-indicator absolute z-[20] m-0 pointer-events-none before:content-[''] before:absolute before:left-0 before:top-0 before:rounded-full before:-translate-x-[2px] before:-translate-y-1/2 before:[width:var(--_lc-current-time-dot-size)] before:[height:var(--_lc-current-time-dot-size)] before:[background-color:var(--_lc-current-day-color)]"
+        class="current-time-indicator"
         style=${styleMap({
           top: `${top}%`,
           left: `${left}%`,

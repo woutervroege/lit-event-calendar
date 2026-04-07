@@ -87,6 +87,13 @@
   @apply flex h-full min-h-0 [container-type:inline-size];
 }
 
+.calendar-grid-section {
+  @apply min-w-0 flex-1 relative h-full [font-size:0];
+  --_lc-focus-outline-color: light-dark(rgb(15 23 42 / 92%), rgb(255 255 255 / 96%));
+  --_lc-focus-ring-color: light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%));
+  --_lc-focus-ring-offset-color: light-dark(rgb(255 255 255), rgb(2 6 23));
+}
+
 section {
   @apply relative h-full;
   background-color: var(--_lc-section-bg, transparent);
@@ -226,10 +233,29 @@ time {
 
 .day-label {
   color: var(--_lc-grid-line-day-color);
+  --_lc-focus-outline-color: light-dark(rgb(15 23 42 / 92%), rgb(255 255 255 / 96%));
+  --_lc-focus-ring-color: light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%));
+  --_lc-focus-ring-offset-color: light-dark(rgb(255 255 255), rgb(2 6 23));
 }
 
 .day-label-month-prefix {
   @apply [margin-inline-end:0.2em];
+}
+
+.day-grid-label {
+  @apply absolute p-1 text-sm z-0 font-medium rounded-full flex justify-center items-center cursor-pointer border-0 bg-transparent text-inherit leading-none h-6;
+}
+
+.day-grid-label.is-standard {
+  @apply mt-2;
+}
+
+.day-grid-label.has-month-prefix {
+  @apply min-w-6 px-2;
+}
+
+.day-grid-label.no-month-prefix {
+  @apply w-6;
 }
 
 .day-label:hover:not(:focus-visible):not(.current-day) {
@@ -250,7 +276,7 @@ time {
 }
 
 .day-overflow-button {
-  @apply justify-start [padding-inline:8px];
+  @apply absolute z-[3] p-0 text-sm font-medium rounded-sm flex items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis justify-start [padding-inline:8px];
 }
 
 .day-overflow-dot {
@@ -276,6 +302,18 @@ time.current-day,
 .hour-label {
   @apply block text-xs leading-none font-medium whitespace-nowrap text-end tabular-nums;
   color: var(--_lc-grid-line-day-color);
+}
+
+.current-time-indicator {
+  @apply absolute z-[20] m-0 pointer-events-none;
+}
+
+.current-time-indicator::before {
+  content: "";
+  @apply absolute left-0 top-0 rounded-full -translate-x-[2px] -translate-y-1/2;
+  width: var(--_lc-current-time-dot-size);
+  height: var(--_lc-current-time-dot-size);
+  background-color: var(--_lc-current-day-color);
 }
 
 .time-sidebar {

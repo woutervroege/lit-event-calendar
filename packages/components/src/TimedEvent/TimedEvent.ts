@@ -1,16 +1,21 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { html } from "lit";
+import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { getEventColorStyles } from "../utils/EventColor";
 import "../EventCard/EventCard";
 import "../ResizeHandle/ResizeHandle";
 import { EventBase } from "../EventBase/EventBase.js";
+import componentStyle from "./TimedEvent.css?inline";
 
 @customElement("timed-event")
 export class TimedEvent extends EventBase {
   #previewRange: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime } | null = null;
   #keyboardHintId = `timed-event-kbd-${Math.random().toString(36).slice(2, 9)}`;
+
+  static get styles() {
+    return [...EventBase.styles, unsafeCSS(componentStyle)];
+  }
 
   get siblings(): TimedEvent[] {
     return super.siblings as TimedEvent[];
@@ -381,7 +386,7 @@ export class TimedEvent extends EventBase {
 
     return html`
       <div
-        class="interaction-surface m-0 text-0 relative w-full h-full border-none bg-none outline-none p-0"
+        class="interaction-surface"
         role="group"
         tabindex="0"
         aria-label=${this.#interactionLabel}
@@ -400,7 +405,7 @@ export class TimedEvent extends EventBase {
       >
         <span
           id=${this.#keyboardHintId}
-          class="sr-only"
+          class="keyboard-hint"
         >
           Use Control Command and arrow keys to move this event. Use Control Shift and up or down
           arrow keys to resize the end time.

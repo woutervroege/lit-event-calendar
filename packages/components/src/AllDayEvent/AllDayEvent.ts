@@ -1,12 +1,13 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type { PropertyValues } from "lit";
-import { html } from "lit";
+import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { getEventColorStyles } from "../utils/EventColor";
 import "../EventCard/EventCard";
 import "../ResizeHandle/ResizeHandle";
 import { EventBase } from "../EventBase/EventBase.js";
+import componentStyle from "./AllDayEvent.css?inline";
 
 @customElement("all-day-event")
 export class AllDayEvent extends EventBase {
@@ -33,6 +34,10 @@ export class AllDayEvent extends EventBase {
 
   constructor() {
     super({ mode: "all-day" });
+  }
+
+  static get styles() {
+    return [...EventBase.styles, unsafeCSS(componentStyle)];
   }
 
   connectedCallback() {
@@ -435,7 +440,7 @@ export class AllDayEvent extends EventBase {
 
     return html`
       <div
-        class="interaction-surface m-0 text-0 relative w-full h-full border-none bg-none outline-none p-0"
+        class="interaction-surface"
         role="group"
         tabindex=${isFocusable ? "0" : "-1"}
         aria-hidden=${isFocusable ? "false" : "true"}
@@ -464,7 +469,7 @@ export class AllDayEvent extends EventBase {
       >
         <span
           id=${this.#keyboardHintId}
-          class="sr-only"
+          class="keyboard-hint"
         >
           Use Control Command and arrow keys to move this event. Use Control Shift and up or down
           arrow keys to resize the end date.

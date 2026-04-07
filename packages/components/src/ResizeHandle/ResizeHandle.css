@@ -27,3 +27,15 @@
 :host([axis="horizontal"][position="end"]) {
   @apply [inset-inline-end:0];
 }
+
+:host > div {
+  @apply relative z-10 opacity-80 transition-opacity duration-200 ease-in-out hover:opacity-100;
+}
+
+:host([axis="vertical"]) > div {
+  @apply w-full h-2 cursor-ns-resize;
+}
+
+:host([axis="horizontal"]) > div {
+  @apply h-full w-2 cursor-ew-resize;
+}
