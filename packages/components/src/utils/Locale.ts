@@ -1,4 +1,4 @@
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+import type { WeekdayNumber } from "../types/Weekday.js";
 
 const DEFAULT_LOCALE = "en-US";
 
@@ -23,9 +23,10 @@ export function getLocaleWeekInfo(locale: string | null | undefined): {
       weekInfo?: { firstDay?: number; weekend?: number[] };
     };
     const weekInfo = localeInfo.getWeekInfo?.() ?? localeInfo.weekInfo;
+    const weekendDays = weekInfo?.weekend;
     const firstDay = isWeekdayNumber(weekInfo?.firstDay) ? weekInfo?.firstDay : undefined;
-    const weekend = Array.isArray(weekInfo?.weekend)
-      ? weekInfo.weekend.filter((day): day is WeekdayNumber => isWeekdayNumber(day))
+    const weekend = Array.isArray(weekendDays)
+      ? weekendDays.filter((day): day is WeekdayNumber => isWeekdayNumber(day))
       : [];
     return { firstDay, weekend };
   } catch {

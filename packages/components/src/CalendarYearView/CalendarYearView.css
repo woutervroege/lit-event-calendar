@@ -23,6 +23,11 @@
   grid-template-rows: auto 1fr;
 }
 
+.month-card calendar-month-view {
+  aspect-ratio: 1 / 1;
+  height: auto;
+}
+
 .month-title {
   margin: 0;
   padding-block: 0 14px;
@@ -44,20 +49,10 @@
   .year-grid {
     --_lc-year-grid-effective-columns: 2;
   }
-
-  .month-card calendar-month-view {
-    aspect-ratio: 1 / 1;
-    height: auto;
-  }
 }
 
 @container (max-width: 520px) {
   .year-grid {
     --_lc-year-grid-effective-columns: 1;
-  }
-
-  .month-card calendar-month-view {
-    aspect-ratio: 1 / 1;
-    height: auto;
   }
 }

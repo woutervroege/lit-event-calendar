@@ -1,43 +1,33 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
-import { customElement } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
+import { customElement, property } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
-import "../CalendarView/CalendarView.js";
+import "../CalendarGridView/CalendarGridView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
-import { BaseElement } from "../BaseElement/BaseElement.js";
-import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
-import { type AllDayLayoutItem, buildAllDayLayout } from "../utils/AllDayLayout.js";
-import { getLocaleDirection, getLocaleWeekInfo } from "../utils/Locale.js";
+import { CalendarViewBase, isWeekdayNumber } from "../CalendarViewBase/CalendarViewBase.js";
+import type { AllDayLayoutItem } from "../types/AllDayLayout.js";
+import type {
+  CalendarEventView as EventInput,
+  CalendarEventViewEntry as EventEntry,
+  CalendarEventViewMap as EventsMap,
+} from "../types/CalendarEvent.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
+import { buildAllDayLayout } from "../utils/AllDayLayout.js";
+import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import componentStyle from "./CalendarWeekView.css?inline";
-import "../SwipeContainer.js";
-
-type EventEntry = [id: string, event: EventInput];
-type EventsMap = Map<string, EventInput>;
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
-  return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
-}
+import "../SwipeContainer/SwipeContainer.js";
 
 @customElement("calendar-week-view")
-export class CalendarWeekView extends BaseElement {
+export class CalendarWeekView extends CalendarViewBase {
   #startDate?: string;
   weekNumber = Temporal.Now.plainDateISO().weekOfYear;
   year = Temporal.Now.plainDateISO().year;
-  weekStart?: WeekdayNumber;
-  daysPerWeek = 7;
-  declare events?: EventsMap;
-  locale?: string;
-  timezone?: string;
-  currentTime?: string;
+  weekStart?: number;
+  #daysPerWeekStored = 7;
   snapInterval = 15;
   visibleHours?: number;
   rtl = false;
-  defaultEventSummary = "New event";
-  defaultEventColor = "#0ea5e9";
-  defaultCalendarId?: string;
   #splitEventsSource?: EventsMap;
   #cachedAllDayEvents: EventsMap = new Map();
   #cachedTimedEvents: EventsMap = new Map();
@@ -47,56 +37,32 @@ export class CalendarWeekView extends BaseElement {
 
   static get properties() {
     return {
+      ...CalendarViewBase.properties,
       startDate: { type: String, attribute: "start-date" },
       weekNumber: { type: Number, attribute: "week-number" },
       year: { type: Number },
-      weekStart: {
-        type: Number,
-        attribute: "week-start",
-        reflect: true,
-        converter: {
-          fromAttribute: (v: string | null): WeekdayNumber | undefined => {
-            if (v === null) return undefined;
-            const day = Number(v);
-            return isWeekdayNumber(day) ? day : undefined;
-          },
-          toAttribute: (v: number | undefined): string | null => (v ? String(v) : null),
-        },
-      },
-      daysPerWeek: {
-        type: Number,
-        attribute: "days-per-week",
-        reflect: true,
-        converter: {
-          fromAttribute: (v: string | null): number => {
-            const n = Number(v);
-            if (!Number.isFinite(n)) return 7;
-            return Math.max(1, Math.min(7, Math.floor(n)));
-          },
-          toAttribute: (v: number): string => String(v),
-        },
-      },
-      events: {
-        type: Object,
-        converter: {
-          fromAttribute: (value: string | null): EventsMap =>
-            new Map(JSON.parse(value || "[]") as EventEntry[]),
-        },
-      },
-      locale: { type: String },
-      timezone: { type: String },
-      currentTime: { type: String, attribute: "current-time" },
+      weekStart: { type: Number, attribute: "week-start", reflect: true },
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
-      defaultEventSummary: { type: String, attribute: "default-event-summary" },
-      defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultCalendarId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
+  @property({ type: Number, attribute: "days-per-week", reflect: true })
+  get daysPerWeek(): number {
+    return clampDaysPerWeek(this.#daysPerWeekStored);
+  }
+
+  set daysPerWeek(value: number | string | null | undefined) {
+    const next = daysPerWeekFromInput(value);
+    if (Object.is(next, this.#daysPerWeekStored)) return;
+    const previous = this.#daysPerWeekStored;
+    this.#daysPerWeekStored = next;
+    this.requestUpdate("daysPerWeek", previous);
+  }
+
   static get styles() {
-    return [...BaseElement.styles, unsafeCSS(componentStyle)];
+    return [...CalendarViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   get startDate(): Temporal.PlainDate {
@@ -132,8 +98,7 @@ export class CalendarWeekView extends BaseElement {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
-    return this.#weekStartFromLocale(this.locale);
+    return this.resolveWeekStart(this.weekStart, this.lang);
   }
 
   get #allDayEvents(): EventsMap {
@@ -146,7 +111,7 @@ export class CalendarWeekView extends BaseElement {
     return this.#cachedTimedEvents;
   }
 
-  get #renderedDays(): Temporal.PlainDate[] {
+  get #viewDays(): Temporal.PlainDate[] {
     return Array.from({ length: this.daysPerWeek }, (_, dayOffset) =>
       this.#gridStartDate.add({ days: dayOffset })
     );
@@ -160,10 +125,10 @@ export class CalendarWeekView extends BaseElement {
   }
 
   get #allDayVisibleRowCount(): number {
-    const renderedDays = this.#renderedDays;
+    const viewDays = this.#viewDays;
     const layout = buildAllDayLayout({
-      renderedDays,
-      daysPerRow: renderedDays.length,
+      viewDays,
+      daysPerRow: viewDays.length,
       items: this.#allDayLayoutItems,
     });
     return Math.max(1, layout.maxEventsOnAnyDay);
@@ -222,12 +187,6 @@ export class CalendarWeekView extends BaseElement {
     return date.subtract({ days: weekdayOffset });
   }
 
-  #weekStartFromLocale(locale: string | undefined): WeekdayNumber {
-    const firstDay = getLocaleWeekInfo(locale).firstDay;
-    if (isWeekdayNumber(firstDay)) return firstDay;
-    return 1;
-  }
-
   #syncSplitEventsCache() {
     if (this.events === this.#splitEventsSource) return;
     this.#splitEventsSource = this.events;
@@ -258,7 +217,9 @@ export class CalendarWeekView extends BaseElement {
     super.willUpdate(changedProperties);
     if (
       this.daysPerWeek > 1 &&
-      (changedProperties.has("startDate") || changedProperties.has("weekStart") || changedProperties.has("daysPerWeek"))
+      (changedProperties.has("startDate") ||
+        changedProperties.has("weekStart") ||
+        changedProperties.has("daysPerWeek"))
     ) {
       const dayOffset = this.#gridStartDate.until(this.startDate, { largestUnit: "day" }).days;
       const maxIndex = Math.max(0, this.daysPerWeek - 1);
@@ -284,7 +245,7 @@ export class CalendarWeekView extends BaseElement {
     const timedRenderedContentHeight = clampedVisibleHours
       ? `calc(var(--_lc-week-effective-timed-height) * ${24 / clampedVisibleHours})`
       : timedContentHeight;
-    const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
+    const direction = this.resolveDirection(this.rtl);
     const dayModeWeekStart = isWeekdayNumber(this.startDate.dayOfWeek)
       ? this.startDate.dayOfWeek
       : this.weekStart;
@@ -311,7 +272,7 @@ export class CalendarWeekView extends BaseElement {
       >
         <calendar-time-sidebar
           class="week-time-sidebar"
-          .locale=${this.locale}
+          .lang=${this.lang}
           .hours=${24}
         ></calendar-time-sidebar>
 
@@ -327,73 +288,61 @@ export class CalendarWeekView extends BaseElement {
           <div class="week-all-day-shell">
             <calendar-weekday-header
               class="week-weekday-header"
-              .locale=${this.locale}
+              .lang=${this.lang}
               .weekStart=${headerWeekStart}
-              .days=${this.daysPerWeek}
+              .daysPerWeek=${this.daysPerWeek}
             ></calendar-weekday-header>
-            <calendar-view
+            <calendar-grid-view
               class="week-all-day-view"
               .startDate=${this.#gridStartDate}
-              days=${String(this.daysPerWeek)}
+              .daysPerWeek=${this.daysPerWeek}
               variant="all-day"
               .events=${this.#allDayEvents}
               .rtl=${this.rtl}
-              locale=${ifDefined(this.locale)}
-              timezone=${ifDefined(this.timezone)}
-              current-time=${ifDefined(this.currentTime)}
+              .lang=${this.lang}
+              .timezone=${this.timezone}
+              current-time=${this.currentTime}
               .snapInterval=${this.snapInterval}
               .labelsHidden=${false}
               style=${styleMap({
                 "--_lc-section-bg":
                   "var(--lg-background-color, var(--_lc-surface-bg, light-dark(#fff, #222)))",
               })}
-              @event-create-requested=${this.#reemit}
-              @event-selection-requested=${this.#reemit}
-              @event-update-requested=${this.#reemit}
-              @event-delete-requested=${this.#reemit}
-              @day-selection-requested=${this.#reemit}
+              @event-create-requested=${this.forwardCalendarEvent}
+              @event-selection-requested=${this.forwardCalendarEvent}
+              @event-update-requested=${this.forwardCalendarEvent}
+              @event-delete-requested=${this.forwardCalendarEvent}
+              @day-selection-requested=${this.forwardCalendarEvent}
               @interaction-lock-change=${this.#handleInteractionLockChange}
             >
-            </calendar-view>
+            </calendar-grid-view>
           </div>
 
-          <calendar-view
+          <calendar-grid-view
             class="week-timed-view"
             .startDate=${this.#gridStartDate}
-            days=${String(this.daysPerWeek)}
+            .daysPerWeek=${this.daysPerWeek}
             variant="timed"
             .events=${this.#timedEvents}
             .visibleHours=${clampedVisibleHours ?? 24}
             .rtl=${this.rtl}
-            locale=${ifDefined(this.locale)}
-            timezone=${ifDefined(this.timezone)}
-            current-time=${ifDefined(this.currentTime)}
+            .lang=${this.lang}
+            .timezone=${this.timezone}
+            current-time=${this.currentTime}
             .snapInterval=${this.snapInterval}
-            @event-create-requested=${this.#reemit}
-            @event-selection-requested=${this.#reemit}
-            @event-update-requested=${this.#reemit}
-            @event-delete-requested=${this.#reemit}
-            @day-selection-requested=${this.#reemit}
+            @event-create-requested=${this.forwardCalendarEvent}
+            @event-selection-requested=${this.forwardCalendarEvent}
+            @event-update-requested=${this.forwardCalendarEvent}
+            @event-delete-requested=${this.forwardCalendarEvent}
+            @day-selection-requested=${this.forwardCalendarEvent}
             @interaction-lock-change=${this.#handleInteractionLockChange}
           >
-          </calendar-view>
+          </calendar-grid-view>
         </div>
         </swipe-container>
       </div>
     `;
   }
-
-  #reemit = (event: Event) => {
-    event.stopPropagation();
-    const forwardedEvent = new CustomEvent(event.type, {
-      detail: (event as CustomEvent).detail,
-      cancelable: event.cancelable,
-    });
-    const notCancelled = this.dispatchEvent(forwardedEvent);
-    if (!notCancelled && event.cancelable) {
-      event.preventDefault();
-    }
-  };
 
   #handleInteractionLockChange = (event: Event) => {
     if (!(event instanceof CustomEvent)) return;

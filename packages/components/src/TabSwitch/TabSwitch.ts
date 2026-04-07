@@ -1,4 +1,4 @@
-import { html, nothing, type TemplateResult } from "lit";
+import { html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import {
@@ -10,15 +10,9 @@ import {
   isEditableEventTarget,
   normalizeHotkey,
 } from "../shared/hotkey.js";
+import type { TabSwitchOption } from "../types/TabSwitch.js";
 
 let tabSwitchInstanceId = 0;
-
-export type TabSwitchOption = {
-  label: string | TemplateResult;
-  value: string;
-  hotkey?: string;
-  ariaLabel?: string;
-};
 
 @customElement("tab-switch")
 export class TabSwitch extends BaseElement {

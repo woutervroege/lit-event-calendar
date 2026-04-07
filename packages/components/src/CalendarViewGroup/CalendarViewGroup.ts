@@ -2,51 +2,35 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { cache } from "lit/directives/cache.js";
-import { BaseElement } from "../BaseElement/BaseElement.js";
+import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
-import "../CalendarAgendaView/CalendarAgendaView.js";
-import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
-import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
+import "../CalendarListView/CalendarListView.js";
+import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
+import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
+import { resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
-
-export type CalendarViewMode = "day" | "week" | "month" | "year";
-export type CalendarPresentationMode = "grid" | "list";
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-export type CalendarNavigationDirection = "previous" | "today" | "next";
-
-type EventsMap = Map<string, EventInput>;
-type EventEntry = [id: string, event: EventInput];
 type RangeLabelPart = {
   text: string;
   isYear: boolean;
 };
 
-function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
-  return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
-}
-
-@customElement("calendar-view-group")
-export class CalendarViewGroup extends BaseElement {
+@customElement("calendar-grid-view-group")
+export class CalendarViewGroup extends CalendarViewBase {
   #view: CalendarViewMode = "month";
   #presentation: CalendarPresentationMode = "grid";
   #startDate?: string;
-  weekStart?: WeekdayNumber;
-  #daysPerWeek = 7;
-  declare events?: EventsMap;
-  locale?: string;
-  timezone?: string;
-  currentTime?: string;
+  weekStart?: number;
+  #daysPerWeekStored = 7;
   snapInterval = 15;
   visibleHours?: number;
   rtl = false;
-  defaultEventSummary = "New event";
-  defaultEventColor = "#0ea5e9";
-  defaultCalendarId?: string;
 
   static get properties() {
     return {
+      ...CalendarViewBase.properties,
       view: {
         type: String,
         reflect: true,
@@ -67,32 +51,31 @@ export class CalendarViewGroup extends BaseElement {
         type: Number,
         attribute: "days-per-week",
       },
-      events: {
-        type: Object,
-        converter: {
-          fromAttribute: (value: string | null): EventsMap =>
-            new Map(JSON.parse(value || "[]") as EventEntry[]),
-        },
-      },
-      locale: { type: String },
-      timezone: { type: String },
-      currentTime: { type: String, attribute: "current-time" },
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
-      defaultEventSummary: { type: String, attribute: "default-event-summary" },
-      defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultCalendarId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
   static get styles() {
-    return [...BaseElement.styles, unsafeCSS(componentStyle)];
+    return [...CalendarViewBase.styles, unsafeCSS(componentStyle)];
+  }
+
+  get daysPerWeek(): number {
+    return clampDaysPerWeek(this.#daysPerWeekStored);
+  }
+
+  set daysPerWeek(value: number | string | null | undefined) {
+    const next = daysPerWeekFromInput(value);
+    if (Object.is(next, this.#daysPerWeekStored)) return;
+    const previous = this.#daysPerWeekStored;
+    this.#daysPerWeekStored = next;
+    this.requestUpdate("daysPerWeek", previous);
   }
 
   render() {
     return html`
-      <div class="calendar-view-group">
+      <div class="calendar-grid-view-group">
         <section class="content" role="tabpanel">
           ${cache(this.#renderViewFor(this.view))}
         </section>
@@ -110,7 +93,9 @@ export class CalendarViewGroup extends BaseElement {
 
   set view(value: CalendarViewMode | string | null | undefined) {
     const nextValue =
-      value === "day" || value === "week" || value === "month" || value === "year" ? value : "month";
+      value === "day" || value === "week" || value === "month" || value === "year"
+        ? value
+        : "month";
     this.#view = nextValue;
   }
 
@@ -120,17 +105,6 @@ export class CalendarViewGroup extends BaseElement {
 
   set presentation(value: CalendarPresentationMode | string | null | undefined) {
     this.#presentation = value === "list" ? "list" : "grid";
-  }
-
-  get daysPerWeek(): number {
-    return this.#daysPerWeek;
-  }
-
-  set daysPerWeek(value: number | string | null | undefined) {
-    const rawValue = typeof value === "string" ? Number(value) : value;
-    const numeric = Number(rawValue);
-    const nextValue = Number.isFinite(numeric) ? Math.max(1, Math.min(7, Math.floor(numeric))) : 7;
-    this.#daysPerWeek = nextValue;
   }
 
   get month(): number {
@@ -154,29 +128,34 @@ export class CalendarViewGroup extends BaseElement {
   }
 
   get rangeLabelParts(): RangeLabelPart[] {
-    const locale = resolveLocale(this.locale);
+    const lang = resolveLocale(this.lang);
     const anchor = this.#resolvedStartDate;
     const anchorDate = new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day));
 
     if (this.view === "year") {
-      return [{ text: new Intl.DateTimeFormat(locale, { year: "numeric" }).format(anchorDate), isYear: false }];
+      return [
+        {
+          text: new Intl.DateTimeFormat(lang, { year: "numeric" }).format(anchorDate),
+          isYear: false,
+        },
+      ];
     }
 
     if (this.view === "month") {
       return this.#dateLabelParts(
-        new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }),
+        new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" }),
         new Date(Date.UTC(anchor.year, anchor.month - 1, 1))
       );
     }
 
     if (this.view === "day") {
-      return this.#dateLabelParts(new Intl.DateTimeFormat(locale, { dateStyle: "long" }), anchorDate);
+      return this.#dateLabelParts(new Intl.DateTimeFormat(lang, { dateStyle: "long" }), anchorDate);
     }
 
     const start = this.#weekRangeStartDate;
-    const rangeLengthDays = Math.max(1, Math.min(7, Math.floor(Number(this.daysPerWeek) || 7)));
+    const rangeLengthDays = this.daysPerWeek;
     const end = start.add({ days: rangeLengthDays - 1 });
-    return this.#weekRangeLabelParts(start, end, locale);
+    return this.#weekRangeLabelParts(start, end, lang);
   }
 
   get startDate(): Temporal.PlainDate | undefined {
@@ -199,7 +178,7 @@ export class CalendarViewGroup extends BaseElement {
   }
 
   get nextWeek(): string {
-    return this.#weekRangeStartDate.add({ days: this.#weekStepDays }).toString();
+    return this.#weekRangeStartDate.add({ days: this.daysPerWeek }).toString();
   }
 
   get nextMonth(): string {
@@ -243,16 +222,16 @@ export class CalendarViewGroup extends BaseElement {
   #renderViewFor(view: CalendarViewMode) {
     if (this.presentation === "list") {
       return html`
-        <calendar-agenda-view
-          start-date=${this.#agendaRangeStartDate.toString()}
-          .days=${this.#agendaRangeDays}
+        <calendar-list-view
+          .startDate=${this.#agendaRangeStartDate}
+          .daysPerWeek=${this.#agendaRangeDays}
           .events=${this.events}
-          .locale=${this.locale}
+          .lang=${this.lang}
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
           @day-selection-requested=${this.#handleDaySelectionRequested}
-          @event-selection-requested=${this.#reemit}
-        ></calendar-agenda-view>
+          @event-selection-requested=${this.forwardComposedCalendarEvent}
+        ></calendar-list-view>
       `;
     }
 
@@ -261,12 +240,12 @@ export class CalendarViewGroup extends BaseElement {
       const daysPerWeek = view === "day" ? 1 : this.daysPerWeek;
       return html`
         <calendar-week-view
-          start-date=${startDate.toString()}
+          .startDate=${startDate}
           .weekStart=${this.weekStart}
           .daysPerWeek=${daysPerWeek}
           .events=${this.events}
           .rtl=${this.rtl}
-          .locale=${this.locale}
+          .lang=${this.lang}
           .timezone=${this.timezone}
           .currentTime=${this.currentTime}
           .snapInterval=${this.snapInterval}
@@ -276,10 +255,10 @@ export class CalendarViewGroup extends BaseElement {
           .defaultCalendarId=${this.defaultCalendarId}
           @active-date-changed=${this.#handleWeekActiveDateChanged}
           @day-selection-requested=${this.#handleDaySelectionRequested}
-          @event-create-requested=${this.#reemit}
-          @event-selection-requested=${this.#reemit}
-          @event-update-requested=${this.#reemit}
-          @event-delete-requested=${this.#reemit}
+          @event-create-requested=${this.forwardComposedCalendarEvent}
+          @event-selection-requested=${this.forwardComposedCalendarEvent}
+          @event-update-requested=${this.forwardComposedCalendarEvent}
+          @event-delete-requested=${this.forwardComposedCalendarEvent}
         ></calendar-week-view>
       `;
     }
@@ -290,17 +269,17 @@ export class CalendarViewGroup extends BaseElement {
           .year=${this.year}
           .weekStart=${this.weekStart}
           .events=${this.events}
-          .locale=${this.locale}
+          .lang=${this.lang}
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
           .defaultEventSummary=${this.defaultEventSummary}
           .defaultEventColor=${this.defaultEventColor}
           .defaultCalendarId=${this.defaultCalendarId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
-          @event-create-requested=${this.#reemit}
-          @event-selection-requested=${this.#reemit}
-          @event-update-requested=${this.#reemit}
-          @event-delete-requested=${this.#reemit}
+          @event-create-requested=${this.forwardComposedCalendarEvent}
+          @event-selection-requested=${this.forwardComposedCalendarEvent}
+          @event-update-requested=${this.forwardComposedCalendarEvent}
+          @event-delete-requested=${this.forwardComposedCalendarEvent}
         ></calendar-year-view>
       `;
     }
@@ -311,17 +290,17 @@ export class CalendarViewGroup extends BaseElement {
         .year=${this.year}
         .weekStart=${this.weekStart}
         .events=${this.events}
-        .locale=${this.locale}
+        .lang=${this.lang}
         .timezone=${this.timezone}
         .currentTime=${this.#resolvedCurrentTime}
         .defaultEventSummary=${this.defaultEventSummary}
         .defaultEventColor=${this.defaultEventColor}
         .defaultCalendarId=${this.defaultCalendarId}
         @day-selection-requested=${this.#handleDaySelectionRequested}
-        @event-create-requested=${this.#reemit}
-        @event-selection-requested=${this.#reemit}
-        @event-update-requested=${this.#reemit}
-        @event-delete-requested=${this.#reemit}
+        @event-create-requested=${this.forwardComposedCalendarEvent}
+        @event-selection-requested=${this.forwardComposedCalendarEvent}
+        @event-update-requested=${this.forwardComposedCalendarEvent}
+        @event-delete-requested=${this.forwardComposedCalendarEvent}
       ></calendar-month-view>
     `;
   }
@@ -371,11 +350,7 @@ export class CalendarViewGroup extends BaseElement {
       });
     }
 
-    return this.#weekRangeStartDate.add({ days: this.#weekStepDays * step });
-  }
-
-  get #weekStepDays(): number {
-    return Math.max(1, Math.min(7, Math.floor(Number(this.daysPerWeek) || 7)));
+    return this.#weekRangeStartDate.add({ days: this.daysPerWeek * step });
   }
 
   get #weekStartDate(): Temporal.PlainDate {
@@ -383,8 +358,8 @@ export class CalendarViewGroup extends BaseElement {
   }
 
   get #weekRangeStartDate(): Temporal.PlainDate {
-    // Full-week mode stays aligned to locale week start; partial-week modes use a sliding anchor.
-    if (this.#weekStepDays < 7) return this.#resolvedStartDate;
+    // Full-week mode stays aligned to localized week start; partial-week modes use a sliding anchor.
+    if (this.daysPerWeek < 7) return this.#resolvedStartDate;
     return this.#weekStartDate;
   }
 
@@ -409,10 +384,7 @@ export class CalendarViewGroup extends BaseElement {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
-    const localeFirstDay = getLocaleWeekInfo(this.locale).firstDay;
-    if (isWeekdayNumber(localeFirstDay)) return localeFirstDay;
-    return 1;
+    return this.resolveWeekStart(this.weekStart, this.lang);
   }
 
   #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {
@@ -420,13 +392,17 @@ export class CalendarViewGroup extends BaseElement {
     return date.subtract({ days: weekdayOffset });
   }
 
-  #weekRangeLabelParts(start: Temporal.PlainDate, end: Temporal.PlainDate, locale: string): RangeLabelPart[] {
+  #weekRangeLabelParts(
+    start: Temporal.PlainDate,
+    end: Temporal.PlainDate,
+    lang: string
+  ): RangeLabelPart[] {
     const startDate = new Date(Date.UTC(start.year, start.month - 1, start.day));
     const endDate = new Date(Date.UTC(end.year, end.month - 1, end.day));
-    const yearText = new Intl.DateTimeFormat(locale, { year: "numeric" }).format(startDate);
+    const yearText = new Intl.DateTimeFormat(lang, { year: "numeric" }).format(startDate);
 
     if (start.year === end.year && start.month === end.month) {
-      const month = new Intl.DateTimeFormat(locale, { month: "short" }).format(startDate);
+      const month = new Intl.DateTimeFormat(lang, { month: "short" }).format(startDate);
       return [
         { text: `${month} ${start.day}-${end.day}, `, isYear: false },
         { text: yearText, isYear: true },
@@ -434,10 +410,10 @@ export class CalendarViewGroup extends BaseElement {
     }
 
     if (start.year === end.year) {
-      const startPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
+      const startPart = new Intl.DateTimeFormat(lang, { month: "short", day: "numeric" }).format(
         startDate
       );
-      const endPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
+      const endPart = new Intl.DateTimeFormat(lang, { month: "short", day: "numeric" }).format(
         endDate
       );
       return [
@@ -446,7 +422,7 @@ export class CalendarViewGroup extends BaseElement {
       ];
     }
 
-    const mediumDateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
+    const mediumDateFormatter = new Intl.DateTimeFormat(lang, { dateStyle: "medium" });
     return [
       ...this.#dateLabelParts(mediumDateFormatter, startDate),
       { text: " - ", isYear: false },
@@ -486,17 +462,4 @@ export class CalendarViewGroup extends BaseElement {
     }
     return Temporal.PlainDate.from(this.#resolvedCurrentTime);
   }
-
-  #reemit = (event: Event) => {
-    event.stopPropagation();
-    const forwardedEvent = new CustomEvent(event.type, {
-      detail: (event as CustomEvent).detail,
-      composed: true,
-      cancelable: event.cancelable,
-    });
-    const notCancelled = this.dispatchEvent(forwardedEvent);
-    if (!notCancelled && event.cancelable) {
-      event.preventDefault();
-    }
-  };
 }

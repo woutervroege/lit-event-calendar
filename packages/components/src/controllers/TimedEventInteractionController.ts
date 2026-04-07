@@ -12,7 +12,7 @@ type TimedEventHost = HTMLElement & {
   end: Temporal.PlainDateTime | string | null;
   setStartFromPlainDateTime?: (value: Temporal.PlainDateTime) => void;
   setEndFromPlainDateTime?: (value: Temporal.PlainDateTime) => void;
-  renderedDays?: unknown;
+  viewDays?: unknown;
   daysPerRow?: number;
   gridRows?: number;
   getInteractionStackOffsetY?: () => number;
@@ -602,13 +602,13 @@ export class TimedEventInteractionController {
       return;
     }
 
-    const { dayIndex, time, savedStart, savedEnd, renderedDays } = context;
+    const { dayIndex, time, savedStart, savedEnd, viewDays } = context;
     const { targetStart, targetEnd } = this.#getFinalTargetRange(
       dayIndex,
       time,
       savedStart,
       savedEnd,
-      renderedDays
+      viewDays
     );
 
     this.#applyFinalMove(targetStart, targetEnd);
@@ -620,25 +620,25 @@ export class TimedEventInteractionController {
     time: Temporal.PlainTime | null;
     savedStart: Temporal.PlainDateTime;
     savedEnd: Temporal.PlainDateTime;
-    renderedDays: Temporal.PlainDate[];
+    viewDays: Temporal.PlainDate[];
   } | null {
     const bounds = this.#bounds;
     const savedStart = this.#savedStart;
     const savedEnd = this.#savedEnd;
-    const renderedDays = (this.#host as { renderedDays?: Temporal.PlainDate[] }).renderedDays;
+    const viewDays = (this.#host as { viewDays?: Temporal.PlainDate[] }).viewDays;
 
-    if (!bounds || !savedStart || !savedEnd || !renderedDays || !renderedDays.length) {
+    if (!bounds || !savedStart || !savedEnd || !viewDays || !viewDays.length) {
       return null;
     }
 
     const dayIndex = this.#getFinalDayIndex();
     const time = this.#getFinalTime();
 
-    if (dayIndex === null || dayIndex < 0 || dayIndex >= renderedDays.length) {
+    if (dayIndex === null || dayIndex < 0 || dayIndex >= viewDays.length) {
       return null;
     }
 
-    return { dayIndex, time, savedStart, savedEnd, renderedDays };
+    return { dayIndex, time, savedStart, savedEnd, viewDays };
   }
 
   #getFinalDayIndex(): number | null {
@@ -678,9 +678,9 @@ export class TimedEventInteractionController {
     time: Temporal.PlainTime | null,
     savedStart: Temporal.PlainDateTime,
     savedEnd: Temporal.PlainDateTime,
-    renderedDays: Temporal.PlainDate[]
+    viewDays: Temporal.PlainDate[]
   ): { targetStart: Temporal.PlainDateTime; targetEnd: Temporal.PlainDateTime } {
-    const targetDay = renderedDays[dayIndex];
+    const targetDay = viewDays[dayIndex];
 
     if (this.#mode === "all-day") {
       const startTime = savedStart.toPlainTime();
@@ -873,37 +873,37 @@ export class TimedEventInteractionController {
   }
 
   #getRenderedDayCount(): number {
-    const renderedDays = this.#host.renderedDays;
-    if (Array.isArray(renderedDays)) return renderedDays.length;
+    const viewDays = this.#host.viewDays;
+    if (Array.isArray(viewDays)) return viewDays.length;
     const ctor = this.constructor as typeof TimedEventInteractionController;
     return ctor.renderedDayCount;
   }
 
   /** Get the pixel position (left, top) of the event's start within the section. */
   #getEventStartPosition(sectionBounds: DOMRect): { left: number; top: number } {
-    const renderedDays = (this.#host as { renderedDays?: Temporal.PlainDate[] }).renderedDays;
-    if (!this.#savedStart || !renderedDays?.length) {
+    const viewDays = (this.#host as { viewDays?: Temporal.PlainDate[] }).viewDays;
+    if (!this.#savedStart || !viewDays?.length) {
       return { left: sectionBounds.left, top: sectionBounds.top };
     }
 
-    const startDayIndex = this.#getStartDayIndex(renderedDays, this.#savedStart);
+    const startDayIndex = this.#getStartDayIndex(viewDays, this.#savedStart);
     if (startDayIndex < 0) {
       return { left: sectionBounds.left, top: sectionBounds.top };
     }
 
     if (this.#mode === "all-day") {
-      return this.#getAllDayStartPosition(sectionBounds, startDayIndex, renderedDays.length);
+      return this.#getAllDayStartPosition(sectionBounds, startDayIndex, viewDays.length);
     }
 
-    return this.#getTimedStartPosition(sectionBounds, startDayIndex, renderedDays.length);
+    return this.#getTimedStartPosition(sectionBounds, startDayIndex, viewDays.length);
   }
 
   #getStartDayIndex(
-    renderedDays: Temporal.PlainDate[],
+    viewDays: Temporal.PlainDate[],
     savedStart: Temporal.PlainDateTime
   ): number {
     const startDate = savedStart.toPlainDate();
-    return renderedDays.findIndex(
+    return viewDays.findIndex(
       (d) => (typeof d === "string" ? d : d.toString()) === startDate.toString()
     );
   }

@@ -1,25 +1,19 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html } from "lit";
 import { customElement } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
-import type {
-  CalendarPresentationMode,
-  CalendarViewGroup,
-  CalendarViewMode,
-} from "../CalendarViewGroup/CalendarViewGroup.js";
-import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
+import type { CalendarViewGroup } from "../CalendarViewGroup/CalendarViewGroup.js";
+import type { CalendarEventViewMap as EventsMap } from "../types/CalendarEvent.js";
+import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
+import type { TabSwitchOption } from "../types/TabSwitch.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
 import "../TabSwitch/TabSwitch.js";
-import { renderCalendarIcon } from "../icons/calendarIcon.js";
-import { renderGridIcon } from "../icons/gridIcon.js";
-import { renderListIcon } from "../icons/listIcon.js";
-import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
-import { getLocaleDirection } from "../utils/Locale.js";
-
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-type EventsMap = Map<string, EventInput>;
+import { renderCalendarIcon } from "../icons/CalendarIcon.js";
+import { renderGridIcon } from "../icons/GridIcon.js";
+import { renderListIcon } from "../icons/ListIcon.js";
+import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
 
 type ViewUnit = Extract<CalendarViewMode, "day" | "week" | "month" | "year">;
 type PresentationUnit = CalendarPresentationMode;
@@ -43,23 +37,25 @@ const VIEW_DATE_TIME_FIELDS: Record<ViewUnit, string> = {
   year: "year",
 };
 
-function capitalizeLabel(value: string, locale = globalThis.navigator?.language ?? "en"): string {
-  return value.replace(/^\p{L}/u, (character) => character.toLocaleUpperCase(locale));
+function capitalizeLabel(value: string, lang?: string): string {
+  const resolvedLang = resolveLocale(lang);
+  return value.replace(/^\p{L}/u, (character) => character.toLocaleUpperCase(resolvedLang));
 }
 
-function getUnitLabel(unit: ViewUnit, locale = globalThis.navigator?.language ?? "en"): string {
+function getUnitLabel(unit: ViewUnit, lang?: string): string {
+  const resolvedLang = resolveLocale(lang);
   try {
-    const displayNames = new Intl.DisplayNames(locale, { type: "dateTimeField" });
+    const displayNames = new Intl.DisplayNames(resolvedLang, { type: "dateTimeField" });
     const label = displayNames.of(VIEW_DATE_TIME_FIELDS[unit] as Intl.DateTimeField) ?? unit;
-    return capitalizeLabel(label, locale);
+    return capitalizeLabel(label, resolvedLang);
   } catch {
-    return capitalizeLabel(unit, locale);
+    return capitalizeLabel(unit, resolvedLang);
   }
 }
 
-function getViewOptions(locale?: string): TabSwitchOption[] {
+function getViewOptions(lang?: string): TabSwitchOption[] {
   return VIEW_OPTIONS_BASE.map(({ value, hotkey }) => ({
-    label: getUnitLabel(value, locale),
+    label: getUnitLabel(value, lang),
     value,
     hotkey,
   }));
@@ -76,10 +72,11 @@ function getPresentationOptions(): TabSwitchOption[] {
   }));
 }
 
-function getTodayLabel(locale = globalThis.navigator?.language ?? "en"): string {
+function getTodayLabel(lang?: string): string {
+  const resolvedLang = resolveLocale(lang);
   try {
-    const relativeTimeFormat = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-    return capitalizeLabel(relativeTimeFormat.format(0, "day"), locale);
+    const relativeTimeFormat = new Intl.RelativeTimeFormat(resolvedLang, { numeric: "auto" });
+    return capitalizeLabel(relativeTimeFormat.format(0, "day"), resolvedLang);
   } catch {
     return "Today";
   }
@@ -90,13 +87,13 @@ export class EventCalendar extends BaseElement {
   #view: CalendarViewMode = "month";
   #presentation: CalendarPresentationMode = "grid";
   #startDate?: string;
-  #daysPerWeek = 7;
+  daysPerWeek = 7;
   #threeDayRangeEnabled = false;
   #rangeLabelText = "";
   #rangeLabelParts: Array<{ text: string; isYear: boolean }> = [];
   weekStart?: WeekdayNumber;
   declare events?: EventsMap;
-  locale?: string;
+  lang = "";
   timezone?: string;
   currentTime?: string;
   snapInterval = 15;
@@ -131,7 +128,7 @@ export class EventCalendar extends BaseElement {
       events: {
         type: Object,
       },
-      locale: { type: String },
+      lang: { type: String },
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
       snapInterval: { type: Number, attribute: "snap-interval" },
@@ -190,21 +187,8 @@ export class EventCalendar extends BaseElement {
     this.requestUpdate();
   }
 
-  get daysPerWeek(): number {
-    return this.#daysPerWeek;
-  }
-
-  set daysPerWeek(value: number | string | null | undefined) {
-    const rawValue = typeof value === "string" ? Number(value) : value;
-    const numeric = Number(rawValue);
-    const nextValue = Number.isFinite(numeric) ? Math.max(1, Math.min(7, Math.floor(numeric))) : 7;
-    if (this.#daysPerWeek === nextValue) return;
-    this.#daysPerWeek = nextValue;
-    this.requestUpdate();
-  }
-
   get #calendarViewGroup(): CalendarViewGroup | null {
-    return this.renderRoot.querySelector("calendar-view-group");
+    return this.renderRoot.querySelector("calendar-grid-view-group");
   }
 
   #disableThreeDayRange() {
@@ -235,7 +219,7 @@ export class EventCalendar extends BaseElement {
   }
 
   render() {
-    const headerDirection = this.rtl || getLocaleDirection(this.locale) === "rtl" ? "rtl" : "ltr";
+    const headerDirection = this.rtl || getLocaleDirection(this.lang) === "rtl" ? "rtl" : "ltr";
     const isHeaderRtl = headerDirection === "rtl";
     return html`
       <div class="flex h-full min-h-0 flex-col gap-7 overflow-hidden [container-type:inline-size] [@media(max-width:54rem)]:gap-4">
@@ -313,21 +297,21 @@ export class EventCalendar extends BaseElement {
               </h2>
             </div>
             <lc-button
-              label=${getTodayLabel(this.locale)}
+              .label=${getTodayLabel(this.lang)}
               style="--_lc-grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --_lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));"
               @click=${() => this.goToday()}
             >
               ${renderCalendarIcon({ className: "h-[1.1rem] w-[1.1rem]" })}
-              <span class="[@container(max-width:54rem)]:hidden">${getTodayLabel(this.locale)}</span>
+              <span class="[@container(max-width:54rem)]:hidden">${getTodayLabel(this.lang)}</span>
             </lc-button>
           </div>
           <div class="flex items-center justify-end gap-0 border-t border-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_12%))] pt-2 [@container(max-width:34rem)]:w-full [@container(max-width:34rem)]:justify-between [@container(max-width:34rem)]:gap-2 [@container(max-width:34rem)]:items-stretch">
             <tab-switch
               class="flex-none"
               .showHotkeys=${false}
-              .options=${getViewOptions(this.locale)}
+              .options=${getViewOptions(this.lang)}
               .value=${this.view}
-              name="event-calendar-view-tabs"
+              name="event-calendar-grid-view-tabs"
               group-label="Calendar view"
               @value-changed=${this.#handleViewTabChanged}
             ></tab-switch>
@@ -347,16 +331,16 @@ export class EventCalendar extends BaseElement {
             ></tab-switch>
           </div>
         </header>
-        <calendar-view-group
+        <calendar-grid-view-group
           class="min-h-0 flex-[1_1_auto] overflow-y-auto p-4 pt-0 mb-4"
           style="--_lc-week-sticky-top: 0px;"
           .view=${this.view}
           .presentation=${this.presentation}
-          start-date=${ifDefined(this.#startDate)}
+          .startDate=${this.#startDate}
           .weekStart=${this.weekStart}
           .daysPerWeek=${this.daysPerWeek}
           .events=${this.events}
-          .locale=${this.locale}
+          .lang=${this.lang}
           .timezone=${this.timezone}
           .currentTime=${this.currentTime}
           .snapInterval=${this.snapInterval}
@@ -372,7 +356,7 @@ export class EventCalendar extends BaseElement {
           @event-selection-requested=${this.#reemit}
           @event-update-requested=${this.#reemit}
           @event-delete-requested=${this.#reemit}
-        ></calendar-view-group>
+        ></calendar-grid-view-group>
       </div>
     `;
   }

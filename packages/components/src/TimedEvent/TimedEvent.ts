@@ -5,10 +5,10 @@ import { styleMap } from "lit/directives/style-map.js";
 import { getEventColorStyles } from "../utils/EventColor";
 import "../EventCard/EventCard";
 import "../ResizeHandle/ResizeHandle";
-import { BaseEvent } from "./BaseEvent";
+import { EventBase } from "../EventBase/EventBase.js";
 
 @customElement("timed-event")
-export class TimedEvent extends BaseEvent {
+export class TimedEvent extends EventBase {
   #previewRange: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime } | null = null;
   #keyboardHintId = `timed-event-kbd-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -35,7 +35,7 @@ export class TimedEvent extends BaseEvent {
 
   #getSiblingsOnSameDay(day: Temporal.PlainDate): TimedEvent[] {
     return this.siblings.filter((sibling) =>
-      sibling.days.some((siblingDay) => siblingDay.toString() === day.toString())
+      sibling.renderedDays.some((siblingDay) => siblingDay.toString() === day.toString())
     );
   }
 
@@ -67,10 +67,7 @@ export class TimedEvent extends BaseEvent {
     return this.#calculateStaggeredPosition(overlappingSiblings, day);
   }
 
-  #getSameStartSiblings(
-    overlappingSiblings: TimedEvent[],
-    day: Temporal.PlainDate
-  ): TimedEvent[] {
+  #getSameStartSiblings(overlappingSiblings: TimedEvent[], day: Temporal.PlainDate): TimedEvent[] {
     const thisStartEff = this.#getEffectiveTimesForDay(day).start;
     return overlappingSiblings.filter((sibling) => {
       const sibStartEff = sibling.#getEffectiveTimesForDay(day).start;
@@ -78,9 +75,10 @@ export class TimedEvent extends BaseEvent {
     });
   }
 
-  #calculateSharedStartPosition(
-    sameStartSiblings: TimedEvent[]
-  ): { width: number; marginLeft: number } {
+  #calculateSharedStartPosition(sameStartSiblings: TimedEvent[]): {
+    width: number;
+    marginLeft: number;
+  } {
     const startTimeIndex = sameStartSiblings.indexOf(this);
     const width = 1 / sameStartSiblings.length;
     const marginLeft = startTimeIndex / sameStartSiblings.length;
@@ -125,8 +123,8 @@ export class TimedEvent extends BaseEvent {
     return { top, bottom };
   }
 
-  #createDayInset(day: Temporal.PlainDate, renderedDays: string[]) {
-    const left = (renderedDays.indexOf(day.toString()) / renderedDays.length) * 100;
+  #createDayInset(day: Temporal.PlainDate, viewDayStrings: string[]) {
+    const left = (viewDayStrings.indexOf(day.toString()) / viewDayStrings.length) * 100;
     const overlappingSiblings = this.#getOverlappingSiblings(day);
     const { width, marginLeft, indentation } = this.#calculatePositioning(overlappingSiblings, day);
     const { top, bottom } = this.#calculateVerticalPositioning(day);
@@ -146,11 +144,11 @@ export class TimedEvent extends BaseEvent {
 
   get dayInsets() {
     const insets: Array<Record<string, string | number>> = [];
-    const renderedDays = this.renderedDays?.map((d) => d.toString()) ?? [];
+    const viewDayStrings = this.viewDays?.map((d) => d.toString()) ?? [];
 
-    this.days.forEach((day) => {
-      if (renderedDays.includes(day.toString())) {
-        insets.push(this.#createDayInset(day, renderedDays));
+    this.renderedDays.forEach((day) => {
+      if (viewDayStrings.includes(day.toString())) {
+        insets.push(this.#createDayInset(day, viewDayStrings));
       }
     });
 
@@ -165,7 +163,7 @@ export class TimedEvent extends BaseEvent {
 
   #formatTimeLabel(time: Temporal.PlainTime | null): string {
     return (
-      time?.toLocaleString(this.locale, {
+      time?.toLocaleString(this.lang, {
         hour: "2-digit",
         minute: "2-digit",
       }) ?? ""
@@ -231,29 +229,27 @@ export class TimedEvent extends BaseEvent {
     startTime: Temporal.PlainTime,
     endTime: Temporal.PlainTime
   ): string {
-    const startTimeLabel = startTime.toLocaleString(this.locale, {
+    const startTimeLabel = startTime.toLocaleString(this.lang, {
       hour: "2-digit",
       minute: "2-digit",
     });
 
-    const endTimeLabel = endTime.toLocaleString(this.locale, {
+    const endTimeLabel = endTime.toLocaleString(this.lang, {
       hour: "2-digit",
       minute: "2-digit",
     });
 
     const viewStartDate = this.#getViewStartDate();
     const showStartDate =
-      startDate && viewStartDate
-        ? Temporal.PlainDate.compare(startDate, viewStartDate) < 0
-        : false;
+      startDate && viewStartDate ? Temporal.PlainDate.compare(startDate, viewStartDate) < 0 : false;
 
     const startDateLabel =
       showStartDate && startDate
-        ? startDate.toLocaleString(this.locale, { month: "short", day: "numeric" })
+        ? startDate.toLocaleString(this.lang, { month: "short", day: "numeric" })
         : "";
 
     const endDateLabel =
-      endDate?.toLocaleString(this.locale, { month: "short", day: "numeric" }) ?? "";
+      endDate?.toLocaleString(this.lang, { month: "short", day: "numeric" }) ?? "";
 
     const startPart = startDateLabel ? `${startDateLabel} ${startTimeLabel}` : startTimeLabel;
     const endPart = `${endDateLabel} ${endTimeLabel}`.trim();
@@ -262,12 +258,12 @@ export class TimedEvent extends BaseEvent {
   }
 
   #getViewStartDate(): Temporal.PlainDate | null {
-    const renderedDays = this.renderedDays;
-    if (!renderedDays || !renderedDays.length) {
+    const viewDays = this.viewDays;
+    if (!viewDays || !viewDays.length) {
       return null;
     }
 
-    return renderedDays.reduce<Temporal.PlainDate | null>((earliest, day) => {
+    return viewDays.reduce<Temporal.PlainDate | null>((earliest, day) => {
       if (!earliest) return day;
       return Temporal.PlainDate.compare(day, earliest) < 0 ? day : earliest;
     }, null);
@@ -312,22 +308,20 @@ export class TimedEvent extends BaseEvent {
     this.requestUpdate();
   };
 
-  #getHoverDetail(event: CustomEvent):
-    | {
+  #getHoverDetail(event: CustomEvent): {
+    dayIndex: number;
+    time: Temporal.PlainTime | null;
+    clientX: number;
+    clientY: number;
+  } | null {
+    return (
+      (event.detail as {
         dayIndex: number;
         time: Temporal.PlainTime | null;
         clientX: number;
         clientY: number;
-      }
-    | null {
-    return (event.detail as
-      | {
-          dayIndex: number;
-          time: Temporal.PlainTime | null;
-          clientX: number;
-          clientY: number;
-        }
-      | null) ?? null;
+      } | null) ?? null
+    );
   }
 
   #clearPreviewDisplayTime() {
@@ -342,20 +336,20 @@ export class TimedEvent extends BaseEvent {
     const startTime = this.startTime;
     const endTime = this.endTime;
     const startDate = this.startDate;
-    const renderedDays = this.renderedDays;
+    const viewDays = this.viewDays;
     if (
       !hoverTime ||
       !startTime ||
       !endTime ||
       !startDate ||
-      !renderedDays?.length ||
+      !viewDays?.length ||
       hoverDayIndex < 0 ||
-      hoverDayIndex >= renderedDays.length
+      hoverDayIndex >= viewDays.length
     ) {
       return null;
     }
 
-    const targetDay = renderedDays[hoverDayIndex];
+    const targetDay = viewDays[hoverDayIndex];
     const previewStart = targetDay.toPlainDateTime({
       hour: hoverTime.hour,
       minute: hoverTime.minute,
@@ -453,31 +447,35 @@ export class TimedEvent extends BaseEvent {
 
     return html`
       <event-card
-        summary=${this.summary}
-        time=${isFirst ? this.displayTime : ""}
-        time-detail=${isFirst ? this.displayTimeDetail : ""}
-        segment-direction="vertical"
+        .summary=${this.summary}
+        .time=${isFirst ? this.displayTime : ""}
+        .timeDetail=${isFirst ? this.displayTimeDetail : ""}
+        .segmentDirection=${"vertical"}
         ?past=${this.isPast}
         style=${styleMap(inset)}
         ?first-segment=${hasRoundedStart}
         ?last-segment=${hasRoundedEnd}
       >
-        ${isFirst
-          ? html`
+        ${
+          isFirst
+            ? html`
               <resize-handle
                 position="start"
                 title="Resize start time"
               ></resize-handle>
             `
-          : ""}
-        ${isLast
-          ? html`
+            : ""
+        }
+        ${
+          isLast
+            ? html`
               <resize-handle
                 position="end"
                 title="Resize end time"
               ></resize-handle>
             `
-          : ""}
+            : ""
+        }
       </event-card>
     `;
   }

@@ -1,10 +1,10 @@
 import { html, unsafeCSS } from "lit";
-import { customElement } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
+import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarWeekdayHeader.css?inline";
-
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
   return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
@@ -12,36 +12,14 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
 
 @customElement("calendar-weekday-header")
 export class CalendarWeekdayHeader extends BaseElement {
-  weekStart?: WeekdayNumber;
-  locale?: string;
-  days = 7;
+  lang = "";
+  weekStart?: number;
+  #daysPerWeekStored = 7;
 
   static get properties() {
     return {
-      weekStart: {
-        type: Number,
-        attribute: "week-start",
-        reflect: true,
-        converter: {
-          fromAttribute: (v: string | null): WeekdayNumber | undefined => {
-            if (v === null) return undefined;
-            const day = Number(v);
-            return isWeekdayNumber(day) ? day : undefined;
-          },
-          toAttribute: (v: number | undefined): string | null => (v ? String(v) : null),
-        },
-      },
-      locale: { type: String },
-      days: {
-        type: Number,
-        converter: {
-          fromAttribute: (v: string | null): number => {
-            const n = Number(v);
-            if (!Number.isFinite(n)) return 7;
-            return Math.max(1, Math.min(7, Math.floor(n)));
-          },
-        },
-      },
+      weekStart: { type: Number, attribute: "week-start", reflect: true },
+      lang: { type: String },
     } as const;
   }
 
@@ -50,13 +28,26 @@ export class CalendarWeekdayHeader extends BaseElement {
   }
 
   get #resolvedLocale(): string {
-    return resolveLocale(this.locale);
+    return resolveLocale(this.lang);
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
+    if (isWeekdayNumber(this.weekStart)) return this.weekStart as WeekdayNumber;
     const firstDay = getLocaleWeekInfo(this.#resolvedLocale).firstDay;
     return isWeekdayNumber(firstDay) ? firstDay : 1;
+  }
+
+  @property({ type: Number, attribute: "days-per-week", reflect: true })
+  get daysPerWeek(): number {
+    return clampDaysPerWeek(this.#daysPerWeekStored);
+  }
+
+  set daysPerWeek(value: number | string | null | undefined) {
+    const next = daysPerWeekFromInput(value);
+    if (Object.is(next, this.#daysPerWeekStored)) return;
+    const previous = this.#daysPerWeekStored;
+    this.#daysPerWeekStored = next;
+    this.requestUpdate("daysPerWeek", previous);
   }
 
   get #weekdayNumbers(): WeekdayNumber[] {
@@ -65,7 +56,7 @@ export class CalendarWeekdayHeader extends BaseElement {
       { length: 7 },
       (_, index) => (((weekStart - 1 + index) % 7) + 1) as WeekdayNumber
     );
-    return ordered.slice(0, this.days);
+    return ordered.slice(0, this.daysPerWeek);
   }
 
   get #weekendDays(): Set<number> {
@@ -90,7 +81,7 @@ export class CalendarWeekdayHeader extends BaseElement {
       <div
         class="weekday-header"
         dir=${direction}
-        style=${`grid-template-columns: repeat(${this.days}, minmax(0, 1fr));`}
+        style=${`grid-template-columns: repeat(${this.daysPerWeek}, minmax(0, 1fr));`}
         aria-hidden="true"
       >
         ${this.#weekdayNumbers.map(

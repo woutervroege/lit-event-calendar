@@ -1,6 +1,5 @@
 import { css, html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import {
   sharedButtonActiveBackgroundClasses,
@@ -40,14 +39,22 @@ export class Button extends BaseElement {
   @property({ type: Boolean, reflect: true })
   raised = false;
 
-  @property({
-    type: String,
-    converter: {
-      fromAttribute: (value: string | null): ButtonType =>
-        value === "submit" || value === "reset" || value === "button" ? value : "button",
-    },
-  })
-  type: ButtonType = "button";
+  /** Raw attribute/property value; `get type()` exposes the safe subset for `<button type>`. */
+  #typeAttribute = "button";
+
+  @property({ type: String })
+  get type(): ButtonType {
+    const t = this.#typeAttribute;
+    return t === "submit" || t === "reset" || t === "button" ? t : "button";
+  }
+
+  set type(value: string | null | undefined) {
+    const next = value ?? "button";
+    if (next === this.#typeAttribute) return;
+    const previous = this.#typeAttribute;
+    this.#typeAttribute = next;
+    this.requestUpdate("type", previous);
+  }
 
   static get styles() {
     return [
@@ -115,9 +122,9 @@ export class Button extends BaseElement {
         type=${this.type}
         class=${buttonClasses}
         ?disabled=${this.disabled}
-        aria-label=${ifDefined(this.label || undefined)}
-        aria-keyshortcuts=${ariaHotkey || nothing}
-        title=${ifDefined(hotkeyDisplay && this.label ? `${this.label} (${hotkeyDisplay})` : undefined)}
+        .ariaLabel=${this.label || null}
+        .ariaKeyShortcuts=${ariaHotkey || null}
+        .title=${hotkeyDisplay && this.label ? `${this.label} (${hotkeyDisplay})` : ""}
       >
         <span class="inline-flex items-center gap-2">
           <slot></slot>

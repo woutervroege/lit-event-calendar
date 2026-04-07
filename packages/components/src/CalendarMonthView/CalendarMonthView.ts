@@ -1,69 +1,29 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
-import "../CalendarView/CalendarView.js";
+import "../CalendarGridView/CalendarGridView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
-import { BaseElement } from "../BaseElement/BaseElement.js";
-import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
-import { getLocaleWeekInfo } from "../utils/Locale.js";
+import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
 import componentStyle from "./CalendarMonthView.css?inline";
 
-type EventsMap = Map<string, EventInput>;
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
-  return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
-}
-
 @customElement("calendar-month-view")
-export class CalendarMonthView extends BaseElement {
+export class CalendarMonthView extends CalendarViewBase {
   month = Temporal.Now.plainDateISO().month;
   year = Temporal.Now.plainDateISO().year;
-  weekStart?: WeekdayNumber;
-  declare events?: EventsMap;
-  locale?: string;
-  timezone?: string;
-  currentTime?: string;
-  defaultEventSummary = "New event";
-  defaultEventColor = "#0ea5e9";
-  defaultCalendarId?: string;
+  weekStart?: number;
 
   static get properties() {
     return {
+      ...CalendarViewBase.properties,
       month: { type: Number },
       year: { type: Number },
-      weekStart: {
-        type: Number,
-        attribute: "week-start",
-        reflect: true,
-        converter: {
-          fromAttribute: (v: string | null): WeekdayNumber | undefined => {
-            if (v === null) return undefined;
-            const day = Number(v);
-            return isWeekdayNumber(day) ? day : undefined;
-          },
-          toAttribute: (v: number | undefined): string | null => (v ? String(v) : null),
-        },
-      },
-      events: {
-        type: Object,
-        converter: {
-          fromAttribute: (value: string | null): EventsMap =>
-            new Map(JSON.parse(value || "[]") as Array<[id: string, event: EventInput]>),
-        },
-      },
-      locale: { type: String },
-      timezone: { type: String },
-      currentTime: { type: String, attribute: "current-time" },
-      defaultEventSummary: { type: String, attribute: "default-event-summary" },
-      defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultCalendarId: { type: String, attribute: "default-source-id" },
+      weekStart: { type: Number, attribute: "week-start", reflect: true },
     } as const;
   }
 
   static get styles() {
-    return [...BaseElement.styles, unsafeCSS(componentStyle)];
+    return [...CalendarViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   get startDate(): Temporal.PlainDate {
@@ -80,56 +40,37 @@ export class CalendarMonthView extends BaseElement {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
-    return this.#weekStartFromLocale(this.locale);
-  }
-
-  #weekStartFromLocale(locale: string | undefined): WeekdayNumber {
-    const firstDay = getLocaleWeekInfo(locale).firstDay;
-    if (isWeekdayNumber(firstDay)) return firstDay;
-    return 1;
+    return this.resolveWeekStart(this.weekStart, this.lang);
   }
 
   render() {
     return html`
       <div class="month-layout">
         <calendar-weekday-header
-          .locale=${this.locale}
+          .lang=${this.lang}
           .weekStart=${this.weekStart}
-          days="7"
+          .daysPerWeek=${7}
         ></calendar-weekday-header>
-        <calendar-view
+        <calendar-grid-view
           class="month-grid"
-          start-date=${this.startDate.toString()}
-          days="42"
+          .startDate=${this.startDate}
+          .daysPerWeek=${42}
           variant="all-day"
           .events=${this.events}
-          locale=${ifDefined(this.locale)}
-          timezone=${ifDefined(this.timezone)}
-          current-time=${ifDefined(this.currentTime)}
+          .lang=${this.lang}
+          .timezone=${this.timezone}
+          current-time=${this.currentTime}
           .labelsHidden=${false}
           .defaultEventSummary=${this.defaultEventSummary}
           .defaultEventColor=${this.defaultEventColor}
           .defaultCalendarId=${this.defaultCalendarId}
-          @day-selection-requested=${this.#reemit}
-          @event-create-requested=${this.#reemit}
-          @event-selection-requested=${this.#reemit}
-          @event-update-requested=${this.#reemit}
-          @event-delete-requested=${this.#reemit}
-        ></calendar-view>
+          @day-selection-requested=${this.forwardCalendarEvent}
+          @event-create-requested=${this.forwardCalendarEvent}
+          @event-selection-requested=${this.forwardCalendarEvent}
+          @event-update-requested=${this.forwardCalendarEvent}
+          @event-delete-requested=${this.forwardCalendarEvent}
+        ></calendar-grid-view>
       </div>
     `;
   }
-
-  #reemit = (event: Event) => {
-    event.stopPropagation();
-    const forwardedEvent = new CustomEvent(event.type, {
-      detail: (event as CustomEvent).detail,
-      cancelable: event.cancelable,
-    });
-    const notCancelled = this.dispatchEvent(forwardedEvent);
-    if (!notCancelled && event.cancelable) {
-      event.preventDefault();
-    }
-  };
 }

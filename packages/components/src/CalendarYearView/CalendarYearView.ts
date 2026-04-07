@@ -2,75 +2,33 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import "../CalendarMonthView/CalendarMonthView.js";
-import { BaseElement } from "../BaseElement/BaseElement.js";
-import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
-import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
+import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
+import { resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarYearView.css?inline";
 
-type EventsMap = Map<string, EventInput>;
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
-  return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
-}
-
 @customElement("calendar-year-view")
-export class CalendarYearView extends BaseElement {
+export class CalendarYearView extends CalendarViewBase {
   year = Temporal.Now.plainDateISO().year;
-  weekStart?: WeekdayNumber;
-  declare events?: EventsMap;
-  locale?: string;
-  timezone?: string;
-  currentTime?: string;
-  defaultEventSummary = "New event";
-  defaultEventColor = "#0ea5e9";
-  defaultCalendarId?: string;
+  weekStart?: number;
 
   static get properties() {
     return {
+      ...CalendarViewBase.properties,
       year: { type: Number },
-      weekStart: {
-        type: Number,
-        attribute: "week-start",
-        reflect: true,
-        converter: {
-          fromAttribute: (v: string | null): WeekdayNumber | undefined => {
-            if (v === null) return undefined;
-            const day = Number(v);
-            return isWeekdayNumber(day) ? day : undefined;
-          },
-          toAttribute: (v: number | undefined): string | null => (v ? String(v) : null),
-        },
-      },
-      events: {
-        type: Object,
-        converter: {
-          fromAttribute: (value: string | null): EventsMap =>
-            new Map(JSON.parse(value || "[]") as Array<[id: string, event: EventInput]>),
-        },
-      },
-      locale: { type: String },
-      timezone: { type: String },
-      currentTime: { type: String, attribute: "current-time" },
-      defaultEventSummary: { type: String, attribute: "default-event-summary" },
-      defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultCalendarId: { type: String, attribute: "default-source-id" },
+      weekStart: { type: Number, attribute: "week-start", reflect: true },
     } as const;
   }
 
   static get styles() {
-    return [...BaseElement.styles, unsafeCSS(componentStyle)];
+    return [...CalendarViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   get #resolvedLocale(): string {
-    return resolveLocale(this.locale);
+    return resolveLocale(this.lang);
   }
 
-  get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
-    const firstDay = getLocaleWeekInfo(this.#resolvedLocale).firstDay;
-    if (isWeekdayNumber(firstDay)) return firstDay;
-    return 1;
+  get #resolvedWeekStart(): number {
+    return this.resolveWeekStart(this.weekStart, this.#resolvedLocale);
   }
 
   #formatMonth(month: number): string {
@@ -80,7 +38,7 @@ export class CalendarYearView extends BaseElement {
   }
 
   render() {
-    const direction = getLocaleDirection(this.#resolvedLocale);
+    const direction = this.resolveDirection();
 
     return html`
       <div
@@ -92,21 +50,21 @@ export class CalendarYearView extends BaseElement {
             <section class="month-card">
               <h3 class="month-title">${this.#formatMonth(month)}</h3>
               <calendar-month-view
-                month=${month}
-                year=${this.year}
+                .month=${month}
+                .year=${this.year}
                 .weekStart=${this.#resolvedWeekStart}
                 .events=${this.events}
-                .locale=${this.locale}
+                .lang=${this.lang}
                 .timezone=${this.timezone}
                 .currentTime=${this.currentTime}
                 .defaultEventSummary=${this.defaultEventSummary}
                 .defaultEventColor=${this.defaultEventColor}
                 .defaultCalendarId=${this.defaultCalendarId}
-                @day-selection-requested=${this.#reemit}
-                @event-create-requested=${this.#reemit}
-                @event-selection-requested=${this.#reemit}
-                @event-update-requested=${this.#reemit}
-                @event-delete-requested=${this.#reemit}
+                @day-selection-requested=${this.forwardCalendarEvent}
+                @event-create-requested=${this.forwardCalendarEvent}
+                @event-selection-requested=${this.forwardCalendarEvent}
+                @event-update-requested=${this.forwardCalendarEvent}
+                @event-delete-requested=${this.forwardCalendarEvent}
               ></calendar-month-view>
             </section>
           `
@@ -114,16 +72,4 @@ export class CalendarYearView extends BaseElement {
       </div>
     `;
   }
-
-  #reemit = (event: Event) => {
-    event.stopPropagation();
-    const forwardedEvent = new CustomEvent(event.type, {
-      detail: (event as CustomEvent).detail,
-      cancelable: event.cancelable,
-    });
-    const notCancelled = this.dispatchEvent(forwardedEvent);
-    if (!notCancelled && event.cancelable) {
-      event.preventDefault();
-    }
-  };
 }
