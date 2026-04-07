@@ -22,6 +22,7 @@
   --_lc-event-focus-ring-gap: 1px;
   --_lc-event-focus-ring-inset-width: 0px;
   --_lc-event-recurring-icon-size: 13px;
+  --_lc-event-card-segment-radius: var(--lc-event-card-radius, var(--radius-md));
 }
 
 :host([layout="flow"]) {
@@ -101,6 +102,29 @@
 
 :host .event-card-shell[data-segment-direction="vertical"]:not([data-last-segment])::before {
   bottom: 0;
+}
+
+:host .event-card-shell[data-segment-direction="vertical"][data-first-segment]::before {
+  border-top-left-radius: var(--_lc-event-card-segment-radius);
+  border-top-right-radius: var(--_lc-event-card-segment-radius);
+}
+
+:host .event-card-shell[data-segment-direction="vertical"][data-last-segment]::before {
+  border-bottom-left-radius: var(--_lc-event-card-segment-radius);
+  border-bottom-right-radius: var(--_lc-event-card-segment-radius);
+}
+
+:host .event-card-shell[data-segment-direction="horizontal"][data-first-segment][dir="ltr"]::before,
+:host .event-card-shell[data-segment-direction="horizontal"][data-last-segment][dir="rtl"]::before {
+  border-top-left-radius: var(--_lc-event-card-segment-radius);
+  border-bottom-left-radius: var(--_lc-event-card-segment-radius);
+}
+
+:host .event-card-shell[data-segment-direction="horizontal"][data-last-segment][dir="ltr"]::before,
+:host
+  .event-card-shell[data-segment-direction="horizontal"][data-first-segment][dir="rtl"]::before {
+  border-top-right-radius: var(--_lc-event-card-segment-radius);
+  border-bottom-right-radius: var(--_lc-event-card-segment-radius);
 }
 
 :host([segment-direction="horizontal"]) h6.sticky {

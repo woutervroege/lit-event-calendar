@@ -280,7 +280,8 @@ time {
 }
 
 .day-overflow-dot {
-  @apply w-[7px] h-[7px] rounded-full bg-current opacity-[0.85];
+  @apply w-[7px] h-[7px] bg-current opacity-[0.85];
+  border-radius: var(--lc-event-card-radius, var(--radius-md));
 }
 
 time.current-day,

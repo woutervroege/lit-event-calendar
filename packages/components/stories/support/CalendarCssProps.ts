@@ -14,6 +14,12 @@ export const calendarCssProps = {
     category: "Layout",
     description: "Height for all-day event rows.",
   },
+  "lc-event-card-radius": {
+    value: "var(--radius-md, 0.375rem)",
+    category: "Theme",
+    description:
+      "Corner radius for event cards and overflow dots; set to 0 for square corners and square overflow dots.",
+  },
   "lc-days-per-row": {
     value: "7",
     control: "text",

@@ -1,6 +1,7 @@
 import { ContextConsumer } from "@lit/context";
 import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { classMap } from "lit/directives/class-map.js";
 import { BaseElement } from "../BaseElement/BaseElement";
 import { type CalendarViewContextValue, calendarViewContext } from "../context/CalendarViewContext";
 import { renderRecurringIcon } from "../icons/RecurringIcon";
@@ -79,13 +80,9 @@ export class EventCard extends BaseElement {
     const compactTimeLabel = [compactTime, timeDetail ? `(${timeDetail})` : ""]
       .filter(Boolean)
       .join(" ");
-    const cardClass = this.#isOverlappingIndentedCard
-      ? "event-card-shell event-card-overlap"
-      : "event-card-shell";
-    const headingClass = this.past ? "event-card-heading is-past" : "event-card-heading";
     return html`
           <div
-            class=${cardClass}
+            class=${classMap(this.#cardClasses)}
             dir="${this.dir}"
             data-segment-direction=${this.segmentDirection}
             ?data-first-segment=${this.firstSegment}
@@ -93,9 +90,9 @@ export class EventCard extends BaseElement {
           >
               ${this.past ? html`<span class="sr-only">Past event.</span>` : ""}
               ${this.#recurrenceStatusSrLabel ? html`<span class="sr-only">${this.#recurrenceStatusSrLabel}</span>` : ""}
-              <h6 class=${headingClass}>
+              <h6 class=${classMap(this.#summaryClasses)}>
                 <span class="event-card-content">
-                  <span class="event-card-compact-label">
+                  <span class=${classMap(this.#compactLabelClasses)}>
                     ${
                       hasTimeLabel
                         ? html`
@@ -106,18 +103,20 @@ export class EventCard extends BaseElement {
                     }
                     <span>${this.summary}</span>
                   </span>
-                  <span class="event-card-summary-main">${this.summary}</span>
+                  <span class=${classMap(this.#summaryMainClasses)}>${this.summary}</span>
                   ${
                     hasMetaLabel
                       ? html`
-                        <time class="event-card-time">
+                        <time class=${classMap(this.#summaryTimeClasses)}>
                           ${
                             hasTimeLabel
                               ? html`
-                                <span class="event-card-time-main">${this.time}</span>
+                                <span class=${classMap(this.#summaryTimeMainClasses)}>${this.time}</span>
                                 ${
                                   this.timeDetail
-                                    ? html`<span class="event-card-time-detail">(${this.timeDetail})</span>`
+                                    ? html`<span class=${classMap(this.#summaryTimeDetailClasses)}
+                                      >(${this.timeDetail})</span
+                                    >`
                                     : ""
                                 }
                           `
@@ -126,7 +125,7 @@ export class EventCard extends BaseElement {
                         </time>
                         ${
                           hasLocation
-                            ? html`<span class="event-card-location">${location}</span>`
+                            ? html`<span class=${classMap(this.#summaryLocationClasses)}>${location}</span>`
                             : ""
                         }
                       `
@@ -146,6 +145,58 @@ export class EventCard extends BaseElement {
               <slot></slot>
           </div>
         `;
+  }
+
+  get #compactLabelClasses() {
+    return {
+      "event-card-compact-label": true,
+    };
+  }
+
+  get #summaryClasses() {
+    return {
+      "event-card-heading": true,
+      "is-past": this.past,
+    };
+  }
+
+  get #summaryMainClasses() {
+    return {
+      "event-card-summary-main": true,
+    };
+  }
+
+  get #summaryTimeClasses() {
+    return {
+      "event-card-time": true,
+    };
+  }
+
+  get #summaryTimeMainClasses() {
+    return {
+      "event-card-time-main": true,
+    };
+  }
+
+  get #summaryTimeDetailClasses() {
+    return {
+      "event-card-time-detail": true,
+    };
+  }
+
+  get #summaryLocationClasses() {
+    return {
+      "event-card-location": true,
+    };
+  }
+
+  get #cardClasses() {
+    const isOverlapping = this.#isOverlappingIndentedCard;
+
+    return {
+      "event-card-overlap": isOverlapping,
+      "event-card-shell": true,
+    };
   }
 
   get #recurrenceStatusSrLabel(): string {
