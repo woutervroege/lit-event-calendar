@@ -2,53 +2,39 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { cache } from "lit/directives/cache.js";
-import { BaseElement } from "../BaseElement/BaseElement.js";
+import { CalendarSharedViewBase } from "../CalendarSharedViewBase/CalendarSharedViewBase.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
 import "../CalendarAgendaView/CalendarAgendaView.js";
-import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
 import type {
   CalendarPresentationMode,
   CalendarViewMode,
 } from "../types/CalendarViewGroup.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
-import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
+import { resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-type EventsMap = Map<string, EventInput>;
-type EventEntry = [id: string, event: EventInput];
 type RangeLabelPart = {
   text: string;
   isYear: boolean;
 };
 
-function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
-  return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
-}
-
 @customElement("calendar-view-group")
-export class CalendarViewGroup extends BaseElement {
+export class CalendarViewGroup extends CalendarSharedViewBase {
   #view: CalendarViewMode = "month";
   #presentation: CalendarPresentationMode = "grid";
   #startDate?: string;
   weekStart?: number;
   #daysPerWeekStored = 7;
-  declare events?: EventsMap;
-  locale?: string;
-  timezone?: string;
-  currentTime?: string;
   snapInterval = 15;
   visibleHours?: number;
   rtl = false;
-  defaultEventSummary = "New event";
-  defaultEventColor = "#0ea5e9";
-  defaultCalendarId?: string;
 
   static get properties() {
     return {
+      ...CalendarSharedViewBase.properties,
       view: {
         type: String,
         reflect: true,
@@ -69,27 +55,14 @@ export class CalendarViewGroup extends BaseElement {
         type: Number,
         attribute: "days-per-week",
       },
-      events: {
-        type: Object,
-        converter: {
-          fromAttribute: (value: string | null): EventsMap =>
-            new Map(JSON.parse(value || "[]") as EventEntry[]),
-        },
-      },
-      locale: { type: String },
-      timezone: { type: String },
-      currentTime: { type: String, attribute: "current-time" },
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
-      defaultEventSummary: { type: String, attribute: "default-event-summary" },
-      defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultCalendarId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
   static get styles() {
-    return [...BaseElement.styles, unsafeCSS(componentStyle)];
+    return [...CalendarSharedViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   get daysPerWeek(): number {
@@ -254,7 +227,7 @@ export class CalendarViewGroup extends BaseElement {
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
           @day-selection-requested=${this.#handleDaySelectionRequested}
-          @event-selection-requested=${this.#reemit}
+          @event-selection-requested=${this.forwardComposedCalendarEvent}
         ></calendar-agenda-view>
       `;
     }
@@ -279,10 +252,10 @@ export class CalendarViewGroup extends BaseElement {
           .defaultCalendarId=${this.defaultCalendarId}
           @active-date-changed=${this.#handleWeekActiveDateChanged}
           @day-selection-requested=${this.#handleDaySelectionRequested}
-          @event-create-requested=${this.#reemit}
-          @event-selection-requested=${this.#reemit}
-          @event-update-requested=${this.#reemit}
-          @event-delete-requested=${this.#reemit}
+          @event-create-requested=${this.forwardComposedCalendarEvent}
+          @event-selection-requested=${this.forwardComposedCalendarEvent}
+          @event-update-requested=${this.forwardComposedCalendarEvent}
+          @event-delete-requested=${this.forwardComposedCalendarEvent}
         ></calendar-week-view>
       `;
     }
@@ -300,10 +273,10 @@ export class CalendarViewGroup extends BaseElement {
           .defaultEventColor=${this.defaultEventColor}
           .defaultCalendarId=${this.defaultCalendarId}
           @day-selection-requested=${this.#handleDaySelectionRequested}
-          @event-create-requested=${this.#reemit}
-          @event-selection-requested=${this.#reemit}
-          @event-update-requested=${this.#reemit}
-          @event-delete-requested=${this.#reemit}
+          @event-create-requested=${this.forwardComposedCalendarEvent}
+          @event-selection-requested=${this.forwardComposedCalendarEvent}
+          @event-update-requested=${this.forwardComposedCalendarEvent}
+          @event-delete-requested=${this.forwardComposedCalendarEvent}
         ></calendar-year-view>
       `;
     }
@@ -321,10 +294,10 @@ export class CalendarViewGroup extends BaseElement {
         .defaultEventColor=${this.defaultEventColor}
         .defaultCalendarId=${this.defaultCalendarId}
         @day-selection-requested=${this.#handleDaySelectionRequested}
-        @event-create-requested=${this.#reemit}
-        @event-selection-requested=${this.#reemit}
-        @event-update-requested=${this.#reemit}
-        @event-delete-requested=${this.#reemit}
+        @event-create-requested=${this.forwardComposedCalendarEvent}
+        @event-selection-requested=${this.forwardComposedCalendarEvent}
+        @event-update-requested=${this.forwardComposedCalendarEvent}
+        @event-delete-requested=${this.forwardComposedCalendarEvent}
       ></calendar-month-view>
     `;
   }
@@ -408,10 +381,7 @@ export class CalendarViewGroup extends BaseElement {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart as WeekdayNumber;
-    const localeFirstDay = getLocaleWeekInfo(this.locale).firstDay;
-    if (isWeekdayNumber(localeFirstDay)) return localeFirstDay;
-    return 1;
+    return this.resolveWeekStart(this.weekStart, this.locale);
   }
 
   #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {
@@ -486,16 +456,4 @@ export class CalendarViewGroup extends BaseElement {
     return Temporal.PlainDate.from(this.#resolvedCurrentTime);
   }
 
-  #reemit = (event: Event) => {
-    event.stopPropagation();
-    const forwardedEvent = new CustomEvent(event.type, {
-      detail: (event as CustomEvent).detail,
-      composed: true,
-      cancelable: event.cancelable,
-    });
-    const notCancelled = this.dispatchEvent(forwardedEvent);
-    if (!notCancelled && event.cancelable) {
-      event.preventDefault();
-    }
-  };
 }

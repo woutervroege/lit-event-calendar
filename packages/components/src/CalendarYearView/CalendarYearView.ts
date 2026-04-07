@@ -2,63 +2,33 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import "../CalendarMonthView/CalendarMonthView.js";
-import { BaseElement } from "../BaseElement/BaseElement.js";
-import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
-import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
+import { CalendarSharedViewBase } from "../CalendarSharedViewBase/CalendarSharedViewBase.js";
+import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarYearView.css?inline";
 
-type EventsMap = Map<string, EventInput>;
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
-  return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
-}
-
 @customElement("calendar-year-view")
-export class CalendarYearView extends BaseElement {
+export class CalendarYearView extends CalendarSharedViewBase {
   year = Temporal.Now.plainDateISO().year;
   weekStart?: number;
-  declare events?: EventsMap;
-  locale?: string;
-  timezone?: string;
-  currentTime?: string;
-  defaultEventSummary = "New event";
-  defaultEventColor = "#0ea5e9";
-  defaultCalendarId?: string;
 
   static get properties() {
     return {
+      ...CalendarSharedViewBase.properties,
       year: { type: Number },
       weekStart: { type: Number, attribute: "week-start", reflect: true },
-      events: {
-        type: Object,
-        converter: {
-          fromAttribute: (value: string | null): EventsMap =>
-            new Map(JSON.parse(value || "[]") as Array<[id: string, event: EventInput]>),
-        },
-      },
-      locale: { type: String },
-      timezone: { type: String },
-      currentTime: { type: String, attribute: "current-time" },
-      defaultEventSummary: { type: String, attribute: "default-event-summary" },
-      defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultCalendarId: { type: String, attribute: "default-source-id" },
     } as const;
   }
 
   static get styles() {
-    return [...BaseElement.styles, unsafeCSS(componentStyle)];
+    return [...CalendarSharedViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   get #resolvedLocale(): string {
     return resolveLocale(this.locale);
   }
 
-  get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart as WeekdayNumber;
-    const firstDay = getLocaleWeekInfo(this.#resolvedLocale).firstDay;
-    if (isWeekdayNumber(firstDay)) return firstDay;
-    return 1;
+  get #resolvedWeekStart(): number {
+    return this.resolveWeekStart(this.weekStart, this.#resolvedLocale);
   }
 
   #formatMonth(month: number): string {
@@ -90,11 +60,11 @@ export class CalendarYearView extends BaseElement {
                 .defaultEventSummary=${this.defaultEventSummary}
                 .defaultEventColor=${this.defaultEventColor}
                 .defaultCalendarId=${this.defaultCalendarId}
-                @day-selection-requested=${this.#reemit}
-                @event-create-requested=${this.#reemit}
-                @event-selection-requested=${this.#reemit}
-                @event-update-requested=${this.#reemit}
-                @event-delete-requested=${this.#reemit}
+                @day-selection-requested=${this.forwardCalendarEvent}
+                @event-create-requested=${this.forwardCalendarEvent}
+                @event-selection-requested=${this.forwardCalendarEvent}
+                @event-update-requested=${this.forwardCalendarEvent}
+                @event-delete-requested=${this.forwardCalendarEvent}
               ></calendar-month-view>
             </section>
           `
@@ -102,16 +72,4 @@ export class CalendarYearView extends BaseElement {
       </div>
     `;
   }
-
-  #reemit = (event: Event) => {
-    event.stopPropagation();
-    const forwardedEvent = new CustomEvent(event.type, {
-      detail: (event as CustomEvent).detail,
-      cancelable: event.cancelable,
-    });
-    const notCancelled = this.dispatchEvent(forwardedEvent);
-    if (!notCancelled && event.cancelable) {
-      event.preventDefault();
-    }
-  };
 }

@@ -2,7 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
-import { BaseElement } from "../BaseElement/BaseElement.js";
+import { CalendarSharedViewBase } from "../CalendarSharedViewBase/CalendarSharedViewBase.js";
 import "../EventCard/EventCard.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
@@ -12,7 +12,6 @@ import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarAgendaView.css?inline";
 
 type EventEntry = [id: string, event: EventInput];
-type EventsMap = Map<string, EventInput>;
 
 type AgendaItem = {
   id: string;
@@ -30,27 +29,14 @@ type AgendaDay = {
 };
 
 @customElement("calendar-agenda-view")
-export class CalendarAgendaView extends BaseElement {
+export class CalendarAgendaView extends CalendarSharedViewBase {
   #startDate?: string;
   #daysPerWeekStored = 31;
-  declare events?: EventsMap;
-  locale?: string;
-  timezone?: string;
-  currentTime?: string;
 
   static get properties() {
     return {
+      ...CalendarSharedViewBase.properties,
       startDate: { type: String, attribute: "start-date" },
-      events: {
-        type: Object,
-        converter: {
-          fromAttribute: (value: string | null): EventsMap =>
-            new Map(JSON.parse(value || "[]") as EventEntry[]),
-        },
-      },
-      locale: { type: String },
-      timezone: { type: String },
-      currentTime: { type: String, attribute: "current-time" },
     } as const;
   }
 
@@ -85,7 +71,7 @@ export class CalendarAgendaView extends BaseElement {
   }
 
   static get styles() {
-    return [...BaseElement.styles, unsafeCSS(componentStyle)];
+    return [...CalendarSharedViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   render() {
