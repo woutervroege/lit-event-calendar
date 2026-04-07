@@ -4,6 +4,7 @@ import { customElement, property } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { BaseElement } from "../BaseElement/BaseElement";
 import { type CalendarViewContextValue, calendarViewContext } from "../context/CalendarViewContext";
+import { renderRecurringIcon } from "../icons/RecurringIcon";
 import { getLocaleDirection } from "../utils/Locale";
 import componentStyle from "./EventCard.css?inline";
 
@@ -49,6 +50,12 @@ export class EventCard extends BaseElement {
   @property({ type: Boolean, reflect: true })
   past = false;
 
+  @property({ type: Boolean, reflect: true })
+  recurring = false;
+
+  @property({ type: Boolean, reflect: true })
+  exception = false;
+
   static get styles() {
     return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
@@ -76,44 +83,56 @@ export class EventCard extends BaseElement {
     return html`
           <div class=${classMap(this.#cardClasses)} dir="${this.dir}">
               ${this.past ? html`<span class="sr-only">Past event.</span>` : ""}
+              ${this.#recurrenceStatusSrLabel ? html`<span class="sr-only">${this.#recurrenceStatusSrLabel}</span>` : ""}
               <h6 class=${classMap(this.#summaryClasses)}>
-                <span class=${classMap(this.#compactLabelClasses)}>
+                <span class="event-card-content">
+                  <span class=${classMap(this.#compactLabelClasses)}>
+                    ${
+                      hasTimeLabel
+                        ? html`
+                            <span class="event-card-compact-time">${compactTimeLabel}</span>
+                            <span aria-hidden="true"> </span>
+                          `
+                        : ""
+                    }
+                    <span>${this.summary}</span>
+                  </span>
+                  <span class=${classMap(this.#summaryMainClasses)}>${this.summary}</span>
                   ${
-                    hasTimeLabel
+                    hasMetaLabel
                       ? html`
-                          <span class="event-card-compact-time">${compactTimeLabel}</span>
-                          <span aria-hidden="true"> </span>
-                        `
-                      : ""
-                  }
-                  <span>${this.summary}</span>
-                </span>
-                <span class=${classMap(this.#summaryMainClasses)}>${this.summary}</span>
-                ${
-                  hasMetaLabel
-                    ? html`
-                      <time class=${classMap(this.#summaryTimeClasses)}>
+                        <time class=${classMap(this.#summaryTimeClasses)}>
+                          ${
+                            hasTimeLabel
+                              ? html`
+                                <span class=${classMap(this.#summaryTimeMainClasses)}>${this.time}</span>
+                                ${
+                                  this.timeDetail
+                                    ? html`<span class=${classMap(this.#summaryTimeDetailClasses)}
+                                      >(${this.timeDetail})</span
+                                    >`
+                                    : ""
+                                }
+                          `
+                              : ""
+                          }
+                        </time>
                         ${
-                          hasTimeLabel
-                            ? html`
-                              <span class=${classMap(this.#summaryTimeMainClasses)}>${this.time}</span>
-                              ${
-                                this.timeDetail
-                                  ? html`<span class=${classMap(this.#summaryTimeDetailClasses)}
-                                    >(${this.timeDetail})</span
-                                  >`
-                                  : ""
-                              }
-                        `
+                          hasLocation
+                            ? html`<span class=${classMap(this.#summaryLocationClasses)}>${location}</span>`
                             : ""
                         }
-                      </time>
-                      ${
-                        hasLocation
-                          ? html`<span class=${classMap(this.#summaryLocationClasses)}>${location}</span>`
-                          : ""
-                      }
-                    `
+                      `
+                      : ""
+                  }
+                </span>
+                ${
+                  this.recurring && !this.exception
+                    ? html`
+                        <span class="event-card-recurring-icon-wrap" aria-hidden="true">
+                          ${renderRecurringIcon({ className: "event-card-recurring-icon" })}
+                        </span>
+                      `
                     : ""
                 }
               </h6>
@@ -139,6 +158,8 @@ export class EventCard extends BaseElement {
       "text-xs": true,
       "text-start": true,
       "font-bold": true,
+      "flex-1": true,
+      "min-w-0": true,
       "px-2": true,
       "pt-2": true,
       "pb-2": true,
@@ -251,6 +272,12 @@ export class EventCard extends BaseElement {
       "[@container(max-height:47px)]:whitespace-nowrap": true,
       "pointer-events-auto": true,
     };
+  }
+
+  get #recurrenceStatusSrLabel(): string {
+    if (this.exception) return "Exception to recurring series.";
+    if (this.recurring) return "Recurring event.";
+    return "";
   }
 
   get #isOverlappingIndentedCard(): boolean {

@@ -43,6 +43,12 @@ export abstract class EventBase extends BaseElement {
   @property({ type: String, attribute: "event-id" })
   eventId = "";
 
+  @property({ type: Boolean, attribute: "is-recurring" })
+  isRecurring = false;
+
+  @property({ type: Boolean, attribute: "is-exception" })
+  isException = false;
+
   static get properties() {
     return {
       start: { type: String },
@@ -51,6 +57,8 @@ export abstract class EventBase extends BaseElement {
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
       eventId: { type: String, attribute: "event-id" },
+      isRecurring: { type: Boolean, attribute: "is-recurring" },
+      isException: { type: Boolean, attribute: "is-exception" },
     } as const;
   }
 

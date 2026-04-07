@@ -525,6 +525,8 @@ export class AllDayEvent extends EventBase {
         .summary=${isFirst ? this.summary : ""}
         .time=${isFirst ? this.displayTime : ""}
         .segmentDirection=${"horizontal"}
+        .recurring=${this.isRecurring}
+        .exception=${this.isException}
         ?past=${this.isPast}
         style=${styleMap(inset.style)}
         ?first-segment=${hasRoundedStart}
@@ -623,6 +625,12 @@ export class AllDayEvent extends EventBase {
     const title = this.summary?.trim() || "Untitled all-day event";
     const time = this.displayTime?.trim();
     const baseLabel = time ? `${title}. ${time}` : title;
-    return this.isPast ? `Past event. ${baseLabel}` : baseLabel;
+    const recurrenceLabel = this.isException
+      ? "Exception to recurring series."
+      : this.isRecurring
+        ? "Recurring event."
+        : "";
+    const segments = [this.isPast ? "Past event." : "", recurrenceLabel, baseLabel].filter(Boolean);
+    return segments.join(" ");
   }
 }

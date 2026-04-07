@@ -20,6 +20,7 @@
   --_lc-event-focus-ring-color: transparent;
   --_lc-event-focus-ring-gap: 1px;
   --_lc-event-focus-ring-inset-width: 0px;
+  --_lc-event-recurring-icon-size: 13px;
 }
 
 :host([layout="flow"]) {
@@ -29,6 +30,7 @@
   touch-action: auto;
   container-type: inline-size;
   container-name: event-card;
+  --_lc-event-recurring-icon-size: 14px;
 }
 
 :host > div {
@@ -92,7 +94,6 @@
 }
 
 :host([layout="flow"]) .event-card-heading {
-  position: static;
   padding: 10px 10px 9px;
 }
 
@@ -127,10 +128,44 @@
   opacity: 0.84;
 }
 
+:host .event-card-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+:host .event-card-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+:host .event-card-recurring-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  align-self: flex-start;
+  margin-top: 1px;
+  width: var(--_lc-event-recurring-icon-size);
+  height: var(--_lc-event-recurring-icon-size);
+  opacity: 0.92;
+  pointer-events: none;
+}
+
+:host .event-card-recurring-icon {
+  width: 100%;
+  height: 100%;
+}
+
 /* Compact cards: keep summary + time on a single row. */
 @container (max-height: 47px) {
+  :host {
+    --_lc-event-recurring-icon-size: 12px;
+  }
+
   :host .event-card-heading {
-    display: block;
+    align-items: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -146,10 +181,19 @@
   :host .event-card-time {
     display: none;
   }
+
+  :host .event-card-recurring-icon-wrap {
+    align-self: center;
+    margin-top: 0;
+  }
 }
 
 /* Smaller compact cards: tighten spacing to avoid vertical clipping. */
 @container (max-height: 31px) {
+  :host {
+    --_lc-event-recurring-icon-size: 11px;
+  }
+
   :host .event-card-heading {
     padding: 6px 8px;
   }
@@ -162,6 +206,10 @@
 
 /* Very small cards: hide compact time, keep summary visible. */
 @container event-card-content (max-width: 120px) {
+  :host {
+    --_lc-event-recurring-icon-size: 10px;
+  }
+
   :host .event-card-compact-time,
   :host .event-card-compact-time + [aria-hidden="true"] {
     display: none;
@@ -188,7 +236,8 @@
   }
 
   :host h6,
-  :host time {
+  :host time,
+  :host .event-card-recurring-icon-wrap {
     display: none;
   }
 

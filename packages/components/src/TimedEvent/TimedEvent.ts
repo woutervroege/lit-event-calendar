@@ -414,7 +414,13 @@ export class TimedEvent extends EventBase {
     const title = this.summary?.trim() || "Untitled event";
     const time = this.displayTime?.trim();
     const baseLabel = time ? `${title}. ${time}` : title;
-    return this.isPast ? `Past event. ${baseLabel}` : baseLabel;
+    const recurrenceLabel = this.isException
+      ? "Exception to recurring series."
+      : this.isRecurring
+        ? "Recurring event."
+        : "";
+    const segments = [this.isPast ? "Past event." : "", recurrenceLabel, baseLabel].filter(Boolean);
+    return segments.join(" ");
   }
 
   #renderEventCards() {
@@ -451,6 +457,8 @@ export class TimedEvent extends EventBase {
         .time=${isFirst ? this.displayTime : ""}
         .timeDetail=${isFirst ? this.displayTimeDetail : ""}
         .segmentDirection=${"vertical"}
+        .recurring=${this.isRecurring}
+        .exception=${this.isException}
         ?past=${this.isPast}
         style=${styleMap(inset)}
         ?first-segment=${hasRoundedStart}

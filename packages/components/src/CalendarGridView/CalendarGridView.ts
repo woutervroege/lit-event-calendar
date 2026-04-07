@@ -189,6 +189,28 @@ export class CalendarGridView extends BaseElement {
     );
   }
 
+  #isRecurringEvent(event: EventInput): boolean {
+    const envelope = (
+      event as EventInput & {
+        envelope?: { isRecurring?: boolean; recurrenceId?: string; isException?: boolean };
+      }
+    ).envelope;
+    const isException = this.#isExceptionEvent(event);
+    if (isException) return false;
+    return Boolean(
+      event.isRecurring || event.recurrenceId || envelope?.isRecurring || envelope?.recurrenceId
+    );
+  }
+
+  #isExceptionEvent(event: EventInput): boolean {
+    const envelope = (
+      event as EventInput & {
+        envelope?: { isException?: boolean };
+      }
+    ).envelope;
+    return Boolean(event.isException || envelope?.isException);
+  }
+
   static get properties() {
     return {
       startDate: { type: String, attribute: "start-date" },
@@ -668,6 +690,8 @@ export class CalendarGridView extends BaseElement {
                 end=${this.#toEventDateTimeString(event.end)}
                 .summary=${event.summary}
                 .color=${event.color}
+                .isRecurring=${this.#isRecurringEvent(event)}
+                .isException=${this.#isExceptionEvent(event)}
                 ?inert=${this.#isCompactMonthView}
                 .viewDays=${this.viewDays}
                 .daysPerRow=${this.#isMonthView ? this.daysPerRow : 0}
@@ -687,6 +711,8 @@ export class CalendarGridView extends BaseElement {
                 end=${this.#toEventDateTimeString(event.end)}
                 .summary=${event.summary}
                 .color=${event.color}
+                .isRecurring=${this.#isRecurringEvent(event)}
+                .isException=${this.#isExceptionEvent(event)}
                 .viewDays=${this.viewDays}
                 @interaction-drag-state=${this.#handleEventInteractionDragState}
                 @select=${this.#handleEventSelect}

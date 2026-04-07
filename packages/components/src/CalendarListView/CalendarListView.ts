@@ -112,6 +112,8 @@ export class CalendarListView extends CalendarViewBase {
     const { event } = item;
     const isPast = Temporal.PlainDateTime.compare(item.end, this.#now) <= 0;
     const colorStyles = getEventColorStyles(event.color);
+    const isRecurring = this.#isRecurringEvent(event);
+    const isException = this.#isExceptionEvent(event);
     return html`
       <li
         class="agenda-event-item"
@@ -123,6 +125,8 @@ export class CalendarListView extends CalendarViewBase {
           .summary=${event.summary}
           .time=${this.#formatItemTime(item)}
           .location=${event.location ?? ""}
+          .recurring=${isRecurring}
+          .exception=${isException}
           ?past=${isPast}
           first-segment
           last-segment
@@ -343,6 +347,28 @@ export class CalendarListView extends CalendarViewBase {
 
   #isAllDayEvent(event: EventInput): boolean {
     return event.start instanceof Temporal.PlainDate || event.end instanceof Temporal.PlainDate;
+  }
+
+  #isRecurringEvent(event: EventInput): boolean {
+    const envelope = (
+      event as EventInput & {
+        envelope?: { isRecurring?: boolean; recurrenceId?: string; isException?: boolean };
+      }
+    ).envelope;
+    const isException = this.#isExceptionEvent(event);
+    if (isException) return false;
+    return Boolean(
+      event.isRecurring || event.recurrenceId || envelope?.isRecurring || envelope?.recurrenceId
+    );
+  }
+
+  #isExceptionEvent(event: EventInput): boolean {
+    const envelope = (
+      event as EventInput & {
+        envelope?: { isException?: boolean };
+      }
+    ).envelope;
+    return Boolean(event.isException || envelope?.isException);
   }
 
   get #eventsAsEntries(): EventEntry[] {
