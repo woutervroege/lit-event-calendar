@@ -10,7 +10,7 @@ const defaultOptions: DropdownOption[] = [
 ];
 
 const meta: Meta = {
-  title: "Shared/Dropdown",
+  title: "UI/Dropdown",
   component: "lc-dropdown",
   tags: ["autodocs"],
   argTypes: {
@@ -63,7 +63,8 @@ export const Hotkeys: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Press `V` to focus the dropdown, then press `D`, `W`, `M`, or `Y` to select an option.",
+        story:
+          "Press `V` to focus the dropdown, then press `D`, `W`, `M`, or `Y` to select an option.",
       },
     },
   },

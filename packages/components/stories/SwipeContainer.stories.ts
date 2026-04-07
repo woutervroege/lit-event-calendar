@@ -48,7 +48,7 @@ const createPage = (label: string, description: string, color: string): HTMLElem
 };
 
 const meta: Meta<StoryArgs> = {
-  title: "Shared/SwipeContainer",
+  title: "UI/SwipeContainer",
   component: "swipe-container",
   tags: ["autodocs"],
   argTypes: {

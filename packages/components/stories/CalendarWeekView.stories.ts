@@ -18,7 +18,7 @@ type StoryCalendarWeekViewElement = HTMLElement & { events: Map<string, Calendar
 const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => index + 1)];
 
 const meta: Meta = {
-  title: "CalendarGridView/CalendarWeekView",
+  title: "Calendar/CalendarWeekView",
   component: "calendar-week-view",
   tags: ["autodocs"],
   parameters: {

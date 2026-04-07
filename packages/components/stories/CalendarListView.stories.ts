@@ -13,7 +13,7 @@ import {
 type StoryCalendarAgendaViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
 
 const meta: Meta = {
-  title: "CalendarGridView/CalendarListView",
+  title: "Calendar/CalendarListView",
   component: "calendar-list-view",
   tags: ["autodocs"],
   parameters: {

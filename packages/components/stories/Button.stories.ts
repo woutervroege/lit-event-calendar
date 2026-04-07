@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "../src/Button/Button.js";
 
 const meta: Meta = {
-  title: "Shared/Button",
+  title: "UI/Button",
   component: "lc-button",
   tags: ["autodocs"],
   argTypes: {

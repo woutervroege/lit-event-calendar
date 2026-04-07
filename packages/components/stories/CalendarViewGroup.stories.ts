@@ -18,7 +18,7 @@ type StoryCalendarViewGroupElement = HTMLElement & { events: Map<string, Calenda
 const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => index + 1)];
 
 const meta: Meta = {
-  title: "CalendarGridView/CalendarViewGroup",
+  title: "Calendar/CalendarViewGroup",
   component: "calendar-grid-view-group",
   tags: ["autodocs"],
   parameters: {

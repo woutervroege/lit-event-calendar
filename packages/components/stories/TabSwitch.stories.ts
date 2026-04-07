@@ -10,7 +10,7 @@ const defaultOptions: TabSwitchOption[] = [
 ];
 
 const meta: Meta = {
-  title: "Shared/TabSwitch",
+  title: "UI/TabSwitch",
   component: "tab-switch",
   tags: ["autodocs"],
   argTypes: {

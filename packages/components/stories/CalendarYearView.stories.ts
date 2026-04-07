@@ -16,7 +16,7 @@ import {
 type StoryCalendarYearViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
 
 const meta: Meta = {
-  title: "CalendarGridView/CalendarYearView",
+  title: "Calendar/CalendarYearView",
   component: "calendar-year-view",
   tags: ["autodocs"],
   parameters: {
