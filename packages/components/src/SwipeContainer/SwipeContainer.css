@@ -10,14 +10,14 @@
 }
 
 .container {
-  @apply relative flex w-full items-start;
+  @apply relative flex w-full min-w-full items-start;
   will-change: transform;
   transform: translate3d(0, 0, 0);
 }
 
 ::slotted(*) {
-  @apply grow-0 shrink-0 touch-pan-y;
-  flex-basis: var(--page-width, 100%);
+  @apply touch-pan-y;
+  flex: 0 0 var(--page-width, 100%);
   width: var(--page-width, 100%);
 }
 
