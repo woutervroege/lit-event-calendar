@@ -11,7 +11,7 @@ import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js
 import { type AllDayLayoutItem, buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { getLocaleDirection, getLocaleWeekInfo } from "../utils/Locale.js";
 import componentStyle from "./CalendarWeekView.css?inline";
-import "../SwipeContainer.js";
+import "../SwipeContainer/SwipeContainer.js";
 
 type EventEntry = [id: string, event: EventInput];
 type EventsMap = Map<string, EventInput>;

@@ -12,9 +12,9 @@ import type {
 } from "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import "../TabSwitch/TabSwitch.js";
-import { renderCalendarIcon } from "../icons/calendarIcon.js";
-import { renderGridIcon } from "../icons/gridIcon.js";
-import { renderListIcon } from "../icons/listIcon.js";
+import { renderCalendarIcon } from "../icons/CalendarIcon.js";
+import { renderGridIcon } from "../icons/GridIcon.js";
+import { renderListIcon } from "../icons/ListIcon.js";
 import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
 import { getLocaleDirection } from "../utils/Locale.js";
 

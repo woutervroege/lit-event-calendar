@@ -4,7 +4,7 @@ import { customElement } from "lit/decorators.js";
 import { keyed } from "lit/directives/keyed.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import "../TimedEvent/AllDayEvent.js";
+import "../AllDayEvent/AllDayEvent.js";
 import componentStyle from "./DayOverflowPopover.css?inline";
 
 export type DayOverflowPopoverEvent = {

@@ -8,22 +8,22 @@ import { styleMap } from "lit/directives/style-map.js";
 import "../TimedEvent/TimedEvent.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import componentStyle from "./CalendarView.css?inline";
-import "../TimedEvent/AllDayEvent.js";
-import "./DayOverflowPopover.js";
+import "../AllDayEvent/AllDayEvent.js";
+import "../DayOverflowPopover/DayOverflowPopover.js";
 import {
   type CalendarViewContextValue,
   calendarViewContext,
 } from "../context/CalendarViewContext.js";
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController.js";
 import { sharedFocusRingColorClasses } from "../shared/buttonStyles.js";
-import type { BaseEvent } from "../TimedEvent/BaseEvent.js";
+import type { BaseEvent } from "../BaseEvent/BaseEvent.js";
 import {
   type AllDayLayoutItem,
   buildAllDayLayout,
 } from "../utils/AllDayLayout.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
-import type { DayOverflowPopoverEvent } from "./DayOverflowPopover.js";
+import type { DayOverflowPopoverEvent } from "../DayOverflowPopover/DayOverflowPopover.js";
 import "../EventCard/EventCard.js";
 import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import type {

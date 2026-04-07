@@ -6,7 +6,7 @@ import { styleMap } from "lit/directives/style-map.js";
 import { getEventColorStyles } from "../utils/EventColor";
 import "../EventCard/EventCard";
 import "../ResizeHandle/ResizeHandle";
-import { BaseEvent } from "./BaseEvent";
+import { BaseEvent } from "../BaseEvent/BaseEvent.js";
 
 @customElement("all-day-event")
 export class AllDayEvent extends BaseEvent {

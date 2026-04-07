@@ -1,4 +1,4 @@
-import { css, html, LitElement, type PropertyValues } from "https://esm.sh/lit@3";
+import { css, html, LitElement, type PropertyValues } from "lit";
 
 type SwipeIntent = "x" | "y" | null;
 type SnapStopMode = "always" | "normal";

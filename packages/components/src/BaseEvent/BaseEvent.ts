@@ -6,7 +6,7 @@ import { ContextConsumer } from "@lit/context";
 import { BaseElement } from "../BaseElement/BaseElement";
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController";
 import { calendarViewContext, type CalendarViewContextValue } from "../context/CalendarViewContext";
-import componentStyle from "./TimedEvent.css?inline";
+import componentStyle from "./BaseEvent.css?inline";
 import { resolveLocale } from "../utils/Locale";
 
 export abstract class BaseEvent extends BaseElement {
