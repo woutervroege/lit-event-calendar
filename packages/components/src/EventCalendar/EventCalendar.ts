@@ -5,17 +5,17 @@ import { ifDefined } from "lit/directives/if-defined.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
+import type { CalendarViewGroup } from "../CalendarViewGroup/CalendarViewGroup.js";
+import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
 import type {
   CalendarPresentationMode,
-  CalendarViewGroup,
   CalendarViewMode,
-} from "../CalendarViewGroup/CalendarViewGroup.js";
-import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
+} from "../types/CalendarViewGroup.js";
+import type { TabSwitchOption } from "../types/TabSwitch.js";
 import "../TabSwitch/TabSwitch.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import { renderGridIcon } from "../icons/GridIcon.js";
 import { renderListIcon } from "../icons/ListIcon.js";
-import type { TabSwitchOption } from "../TabSwitch/TabSwitch.js";
 import { getLocaleDirection } from "../utils/Locale.js";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;

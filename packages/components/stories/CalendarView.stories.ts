@@ -1,14 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "./CalendarView.js";
-import { calendarCssProps } from "../calendarCssProps.js";
+import "../src/CalendarView/CalendarView.js";
+import { calendarCssProps } from "./support/CalendarCssProps.js";
 import {
   type CalendarEvent,
   localeOptions,
   sampleEvents,
   timezoneOptions,
   timezoneShiftEvents,
-} from "../storyData.js";
-import { attachRequestEventHandlers } from "../storyRequestHandlers.js";
+} from "./support/StoryData.js";
+import { attachRequestEventHandlers } from "./support/StoryRequestHandlers.js";
 
 type StoryCalendarViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
 const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => index + 1)];

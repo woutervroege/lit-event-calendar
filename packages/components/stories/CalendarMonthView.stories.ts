@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "./CalendarMonthView.js";
-import { calendarCssProps } from "../calendarCssProps.js";
+import "../src/CalendarMonthView/CalendarMonthView.js";
+import { calendarCssProps } from "./support/CalendarCssProps.js";
 import {
   localeOptions,
   type CalendarEvent,
   sampleEvents,
   timezoneOptions,
-} from "../storyData.js";
-import { attachRequestEventHandlers } from "../storyRequestHandlers.js";
+} from "./support/StoryData.js";
+import { attachRequestEventHandlers } from "./support/StoryRequestHandlers.js";
 
 type StoryCalendarMonthViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
 

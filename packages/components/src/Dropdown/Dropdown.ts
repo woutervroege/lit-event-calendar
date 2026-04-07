@@ -16,13 +16,7 @@ import {
   sharedButtonVisualClasses,
   sharedFocusRingColorClasses,
 } from "../shared/buttonStyles.js";
-
-export type DropdownOption = {
-  label: string;
-  value: string;
-  hotkey?: string;
-  disabled?: boolean;
-};
+import type { DropdownOption } from "../types/Dropdown.js";
 
 @customElement("lc-dropdown")
 export class Dropdown extends BaseElement {

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "./TabSwitch.js";
-import type { TabSwitchOption } from "./TabSwitch.js";
+import "../src/TabSwitch/TabSwitch.js";
+import type { TabSwitchOption } from "../src/types/TabSwitch.js";
 
 const defaultOptions: TabSwitchOption[] = [
   { label: "Day", value: "day", hotkey: "d" },

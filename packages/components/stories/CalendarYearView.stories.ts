@@ -1,25 +1,34 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "./CalendarAgendaView.js";
-import { calendarCssProps } from "../calendarCssProps.js";
-import {
-  localeOptions,
-  type CalendarEvent,
-  sampleEvents,
-  timezoneOptions,
-} from "../storyData.js";
+import "../src/CalendarYearView/CalendarYearView.js";
+import { localeOptions, type CalendarEvent, sampleEvents, timezoneOptions } from "./support/StoryData.js";
+import { calendarCssProps } from "./support/CalendarCssProps.js";
 
-type StoryCalendarAgendaViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
+type StoryCalendarYearViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
 
 const meta: Meta = {
-  title: "CalendarView/CalendarAgendaView",
-  component: "calendar-agenda-view",
+  title: "CalendarView/CalendarYearView",
+  component: "calendar-year-view",
   tags: ["autodocs"],
   parameters: {
     cssprops: calendarCssProps,
   },
   argTypes: {
-    startDate: { control: "text", description: "Range start date (YYYY-MM-DD)" },
-    days: { control: { type: "number", min: 1, max: 366, step: 1 } },
+    year: { control: { type: "number", min: 1900, max: 2100 } },
+    weekStart: {
+      control: {
+        type: "select",
+        labels: {
+          1: "Monday",
+          2: "Tuesday",
+          3: "Wednesday",
+          4: "Thursday",
+          5: "Friday",
+          6: "Saturday",
+          7: "Sunday",
+        },
+      },
+      options: [1, 2, 3, 4, 5, 6, 7],
+    },
     locale: {
       control: "select",
       options: localeOptions,
@@ -33,19 +42,20 @@ const meta: Meta = {
     currentTime: { control: "text", description: "Current time (ISO string)" },
   },
   args: {
-    startDate: "2025-01-01",
-    days: 31,
+    year: 2025,
     timezone: "Europe/Amsterdam",
     currentTime: "2025-01-15T14:30:00",
     events: sampleEvents,
   },
   render: (args) => {
-    const el = document.createElement("calendar-agenda-view") as StoryCalendarAgendaViewElement;
+    const el = document.createElement("calendar-year-view") as StoryCalendarYearViewElement;
     el.style.display = "block";
     el.style.width = "100%";
     el.style.height = "100%";
-    el.setAttribute("start-date", String(args.startDate));
-    el.setAttribute("days", String(args.days));
+    el.setAttribute("year", String(args.year));
+    if (typeof args.weekStart === "number") {
+      el.setAttribute("week-start", String(args.weekStart));
+    }
     if (args.locale) {
       el.setAttribute("locale", args.locale);
     }

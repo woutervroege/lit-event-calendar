@@ -12,6 +12,12 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts", "demo/**/*.ts", "vite.config.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/types/ambient/**/*.d.ts",
+    "stories/**/*.ts",
+    "demo/**/*.ts",
+    "vite.config.ts"
+  ],
   "exclude": ["node_modules"]
 }

@@ -5,8 +5,8 @@ import type {
   EventDeleteRequestDetail,
   EventSelectionRequestDetail,
   EventUpdateRequestDetail,
-} from "./models/CalendarEventRequests.js";
-import type { CalendarEvent } from "./storyData.js";
+} from "../../src/types/CalendarEventRequests.js";
+import type { CalendarEvent } from "./StoryData.js";
 
 type StoryCalendarElement = HTMLElement & { events: Map<string, CalendarEvent> };
 

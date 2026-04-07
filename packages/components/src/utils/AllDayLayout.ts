@@ -1,10 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
-
-export type AllDayLayoutItem = {
-  id: string;
-  start: Temporal.PlainDate;
-  endInclusive: Temporal.PlainDate;
-};
+import type { AllDayLayout, AllDayLayoutItem } from "../types/AllDayLayout.js";
 
 type RowSegment = {
   rowIndex: number;
@@ -19,13 +14,6 @@ type PlacedRowSegment = RowSegment & {
 type PlacedEvent = {
   id: string;
   segments: PlacedRowSegment[];
-};
-
-export type AllDayLayout = {
-  placedEvents: PlacedEvent[];
-  activeCountsByDay: Map<number, number>;
-  maxEventsOnAnyDay: number;
-  daysPerRow: number;
 };
 
 export function buildAllDayLayout({

@@ -5,7 +5,7 @@ import { styleMap } from "lit/directives/style-map.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../EventCard/EventCard.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
-import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
+import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
 import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarAgendaView.css?inline";

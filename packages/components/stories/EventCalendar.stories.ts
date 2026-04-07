@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "./EventCalendar.js";
-import { calendarCssProps } from "../calendarCssProps.js";
-import { type CalendarEvent, localeOptions, sampleEvents, timezoneOptions } from "../storyData.js";
-import { attachRequestEventHandlers } from "../storyRequestHandlers.js";
+import "../src/EventCalendar/EventCalendar.js";
+import { calendarCssProps } from "./support/CalendarCssProps.js";
+import { type CalendarEvent, localeOptions, sampleEvents, timezoneOptions } from "./support/StoryData.js";
+import { attachRequestEventHandlers } from "./support/StoryRequestHandlers.js";
 
 type StoryEventCalendarElement = HTMLElement & { events: Map<string, CalendarEvent> };
 const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => index + 1)];

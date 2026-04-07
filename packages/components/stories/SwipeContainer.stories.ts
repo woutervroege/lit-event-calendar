@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "./SwipeContainer.js";
+import "../src/SwipeContainer/SwipeContainer.js";
 
 type StorySwipeContainer = HTMLElement & {
   currentIndex: number;

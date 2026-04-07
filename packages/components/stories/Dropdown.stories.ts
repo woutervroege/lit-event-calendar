@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "./Dropdown.js";
-import type { DropdownOption } from "./Dropdown.js";
+import "../src/Dropdown/Dropdown.js";
+import type { DropdownOption } from "../src/types/Dropdown.js";
 
 const defaultOptions: DropdownOption[] = [
   { label: "Day", value: "day", hotkey: "d" },

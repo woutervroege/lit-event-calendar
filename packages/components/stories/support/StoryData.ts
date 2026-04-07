@@ -5,8 +5,8 @@ import type {
   CalendarEventEntry,
   CalendarEventView,
   CalendarEventViewEntry,
-} from "./models/CalendarEvent.js";
-export type { CalendarEvent as CalendarEventRecord } from "./models/CalendarEvent.js";
+} from "../../src/types/CalendarEvent.js";
+export type { CalendarEvent as CalendarEventRecord } from "../../src/types/CalendarEvent.js";
 
 export type CalendarEvent = CalendarEventView;
 export type CalendarEventSampleEntry = CalendarEventViewEntry;

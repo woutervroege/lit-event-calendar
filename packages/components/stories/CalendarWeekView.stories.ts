@@ -1,34 +1,27 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "./CalendarViewGroup.js";
-import { calendarCssProps } from "../calendarCssProps.js";
+import "../src/CalendarWeekView/CalendarWeekView.js";
+import { calendarCssProps } from "./support/CalendarCssProps.js";
+import { attachRequestEventHandlers } from "./support/StoryRequestHandlers.js";
 import {
+  type CalendarTemporalEvent,
   localeOptions,
-  type CalendarEvent,
-  sampleEvents,
   timezoneOptions,
-} from "../storyData.js";
-import { attachRequestEventHandlers } from "../storyRequestHandlers.js";
+  weekSplitEvents,
+} from "./support/StoryData.js";
 
-type StoryCalendarViewGroupElement = HTMLElement & { events: Map<string, CalendarEvent> };
+type StoryCalendarWeekViewElement = HTMLElement & { events: Map<string, CalendarTemporalEvent> };
 const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => index + 1)];
 
 const meta: Meta = {
-  title: "CalendarView/CalendarViewGroup",
-  component: "calendar-view-group",
+  title: "CalendarView/CalendarWeekView",
+  component: "calendar-week-view",
   tags: ["autodocs"],
   parameters: {
     cssprops: calendarCssProps,
   },
   argTypes: {
-    view: {
-      control: "inline-radio",
-      options: ["day", "week", "month", "year"],
-    },
-    presentation: {
-      control: "inline-radio",
-      options: ["grid", "list"],
-    },
-    startDate: { control: "text", description: "Anchor date (YYYY-MM-DD)" },
+    weekNumber: { control: { type: "number", min: 1, max: 53 } },
+    year: { control: { type: "number", min: 1900, max: 2100 } },
     weekStart: {
       control: {
         type: "select",
@@ -63,27 +56,22 @@ const meta: Meta = {
     },
   },
   args: {
-    view: "month",
-    presentation: "grid",
-    startDate: "2025-01-15",
+    weekNumber: 2,
+    year: 2025,
     daysPerWeek: 7,
     timezone: "Europe/Amsterdam",
-    currentTime: "2025-01-15T14:30:00",
+    currentTime: "2025-01-07T13:00:00",
     snapInterval: 15,
     visibleHours: 12,
-    events: sampleEvents,
+    events: weekSplitEvents,
   },
   render: (args) => {
-    const el = document.createElement("calendar-view-group") as StoryCalendarViewGroupElement;
+    const el = document.createElement("calendar-week-view") as StoryCalendarWeekViewElement;
     el.style.display = "block";
     el.style.width = "100%";
     el.style.height = "100%";
-
-    el.setAttribute("view", String(args.view ?? "month"));
-    el.setAttribute("presentation", String(args.presentation ?? "grid"));
-    if (args.startDate) {
-      el.setAttribute("start-date", String(args.startDate));
-    }
+    el.setAttribute("week-number", String(args.weekNumber));
+    el.setAttribute("year", String(args.year));
     if (typeof args.weekStart === "number") {
       el.setAttribute("week-start", String(args.weekStart));
     }
@@ -103,11 +91,9 @@ const meta: Meta = {
     } else {
       el.setAttribute("visible-hours", String(args.visibleHours));
     }
-
-    const entries = Array.isArray(args.events) ? args.events : sampleEvents;
+    const entries = Array.isArray(args.events) ? args.events : weekSplitEvents;
     el.events = new Map(entries);
     attachRequestEventHandlers(el, { preserveDateOnlyShape: true });
-
     return el;
   },
 };
@@ -116,35 +102,10 @@ export default meta;
 
 type Story = StoryObj;
 
-export const Default: Story = {};
+export const FullWeek: Story = {};
 
-export const Week: Story = {
+export const WorkWeek: Story = {
   args: {
-    view: "week",
-  },
-};
-
-export const Day: Story = {
-  args: {
-    view: "day",
-  },
-};
-
-export const Year: Story = {
-  args: {
-    view: "year",
-  },
-};
-
-export const MonthList: Story = {
-  args: {
-    presentation: "list",
-  },
-};
-
-export const WeekList: Story = {
-  args: {
-    view: "week",
-    presentation: "list",
+    daysPerWeek: 5,
   },
 };

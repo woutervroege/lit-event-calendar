@@ -7,14 +7,15 @@ import "../CalendarMonthView/CalendarMonthView.js";
 import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
 import "../CalendarAgendaView/CalendarAgendaView.js";
-import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
+import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
+import type {
+  CalendarPresentationMode,
+  CalendarViewMode,
+} from "../types/CalendarViewGroup.js";
 import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 
-export type CalendarViewMode = "day" | "week" | "month" | "year";
-export type CalendarPresentationMode = "grid" | "list";
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-export type CalendarNavigationDirection = "previous" | "today" | "next";
 
 type EventsMap = Map<string, EventInput>;
 type EventEntry = [id: string, event: EventInput];

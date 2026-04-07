@@ -17,21 +17,19 @@ import {
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController.js";
 import { sharedFocusRingColorClasses } from "../shared/buttonStyles.js";
 import type { BaseEvent } from "../BaseEvent/BaseEvent.js";
-import {
-  type AllDayLayoutItem,
-  buildAllDayLayout,
-} from "../utils/AllDayLayout.js";
+import { buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
-import type { DayOverflowPopoverEvent } from "../DayOverflowPopover/DayOverflowPopover.js";
 import "../EventCard/EventCard.js";
-import type { CalendarEventView as EventInput } from "../models/CalendarEvent.js";
 import type {
+  AllDayLayoutItem,
+  CalendarEventView as EventInput,
+  DayOverflowPopoverEvent,
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
   EventSelectionRequestDetail,
   EventUpdateRequestDetail,
-} from "../models/CalendarEventRequests.js";
+} from "../types/index.js";
 
 type EventEntry = [id: string, event: EventInput];
 type EventsMap = Map<string, EventInput>;
