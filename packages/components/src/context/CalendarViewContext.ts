@@ -4,5 +4,5 @@ import type { CalendarViewContextValue } from "../types/CalendarViewContext.js";
 export type { CalendarViewContextValue };
 
 export const calendarViewContext = createContext<CalendarViewContextValue>(
-  Symbol("calendar-view-context")
+  Symbol("calendar-grid-view-context")
 );

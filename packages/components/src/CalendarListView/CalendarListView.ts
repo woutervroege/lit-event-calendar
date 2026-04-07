@@ -9,7 +9,7 @@ import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js"
 import { clampAgendaDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
 import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
-import componentStyle from "./CalendarAgendaView.css?inline";
+import componentStyle from "./CalendarListView.css?inline";
 
 type EventEntry = [id: string, event: EventInput];
 
@@ -28,8 +28,8 @@ type AgendaDay = {
   items: AgendaItem[];
 };
 
-@customElement("calendar-agenda-view")
-export class CalendarAgendaView extends CalendarViewBase {
+@customElement("calendar-list-view")
+export class CalendarListView extends CalendarViewBase {
   #startDate?: string;
   #daysPerWeekStored = 31;
 

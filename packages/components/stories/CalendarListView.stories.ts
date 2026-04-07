@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "../src/CalendarAgendaView/CalendarAgendaView.js";
+import "../src/CalendarListView/CalendarListView.js";
 import { calendarCssProps } from "./support/CalendarCssProps.js";
 import {
   AUTO_LOCALE_OPTION,
@@ -13,8 +13,8 @@ import {
 type StoryCalendarAgendaViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
 
 const meta: Meta = {
-  title: "CalendarView/CalendarAgendaView",
-  component: "calendar-agenda-view",
+  title: "CalendarGridView/CalendarListView",
+  component: "calendar-list-view",
   tags: ["autodocs"],
   parameters: {
     cssprops: calendarCssProps,
@@ -43,7 +43,7 @@ const meta: Meta = {
     events: sampleEvents,
   },
   render: (args) => {
-    const el = document.createElement("calendar-agenda-view") as StoryCalendarAgendaViewElement;
+    const el = document.createElement("calendar-list-view") as StoryCalendarAgendaViewElement;
     el.style.display = "block";
     el.style.width = "100%";
     el.style.height = "100%";

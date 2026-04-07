@@ -7,7 +7,7 @@ import { keyed } from "lit/directives/keyed.js";
 import { styleMap } from "lit/directives/style-map.js";
 import "../TimedEvent/TimedEvent.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import componentStyle from "./CalendarView.css?inline";
+import componentStyle from "./CalendarGridView.css?inline";
 import "../AllDayEvent/AllDayEvent.js";
 import "../DayOverflowPopover/DayOverflowPopover.js";
 import {
@@ -63,8 +63,8 @@ type CreateHit = {
   dateTime: Temporal.PlainDateTime;
 };
 
-@customElement("calendar-view")
-export class CalendarView extends BaseElement {
+@customElement("calendar-grid-view")
+export class CalendarGridView extends BaseElement {
   #startDate?: string;
   #currentTime?: string;
   #timezone?: string;

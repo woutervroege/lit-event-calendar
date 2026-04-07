@@ -3,7 +3,7 @@ import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { styleMap } from "lit/directives/style-map.js";
-import "../CalendarView/CalendarView.js";
+import "../CalendarGridView/CalendarGridView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
 import { CalendarViewBase, isWeekdayNumber } from "../CalendarViewBase/CalendarViewBase.js";
@@ -293,7 +293,7 @@ export class CalendarWeekView extends CalendarViewBase {
               .weekStart=${headerWeekStart}
               .daysPerWeek=${this.daysPerWeek}
             ></calendar-weekday-header>
-            <calendar-view
+            <calendar-grid-view
               class="week-all-day-view"
               .startDate=${this.#gridStartDate}
               days-per-week=${String(this.daysPerWeek)}
@@ -316,10 +316,10 @@ export class CalendarWeekView extends CalendarViewBase {
               @day-selection-requested=${this.forwardCalendarEvent}
               @interaction-lock-change=${this.#handleInteractionLockChange}
             >
-            </calendar-view>
+            </calendar-grid-view>
           </div>
 
-          <calendar-view
+          <calendar-grid-view
             class="week-timed-view"
             .startDate=${this.#gridStartDate}
             days-per-week=${String(this.daysPerWeek)}
@@ -338,7 +338,7 @@ export class CalendarWeekView extends CalendarViewBase {
             @day-selection-requested=${this.forwardCalendarEvent}
             @interaction-lock-change=${this.#handleInteractionLockChange}
           >
-          </calendar-view>
+          </calendar-grid-view>
         </div>
         </swipe-container>
       </div>

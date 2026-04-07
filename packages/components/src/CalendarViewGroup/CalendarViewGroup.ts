@@ -6,7 +6,7 @@ import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
-import "../CalendarAgendaView/CalendarAgendaView.js";
+import "../CalendarListView/CalendarListView.js";
 import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { resolveLocale } from "../utils/Locale.js";
@@ -18,7 +18,7 @@ type RangeLabelPart = {
   isYear: boolean;
 };
 
-@customElement("calendar-view-group")
+@customElement("calendar-grid-view-group")
 export class CalendarViewGroup extends CalendarViewBase {
   #view: CalendarViewMode = "month";
   #presentation: CalendarPresentationMode = "grid";
@@ -76,7 +76,7 @@ export class CalendarViewGroup extends CalendarViewBase {
 
   render() {
     return html`
-      <div class="calendar-view-group">
+      <div class="calendar-grid-view-group">
         <section class="content" role="tabpanel">
           ${cache(this.#renderViewFor(this.view))}
         </section>
@@ -150,10 +150,7 @@ export class CalendarViewGroup extends CalendarViewBase {
     }
 
     if (this.view === "day") {
-      return this.#dateLabelParts(
-        new Intl.DateTimeFormat(lang, { dateStyle: "long" }),
-        anchorDate
-      );
+      return this.#dateLabelParts(new Intl.DateTimeFormat(lang, { dateStyle: "long" }), anchorDate);
     }
 
     const start = this.#weekRangeStartDate;
@@ -226,7 +223,7 @@ export class CalendarViewGroup extends CalendarViewBase {
   #renderViewFor(view: CalendarViewMode) {
     if (this.presentation === "list") {
       return html`
-        <calendar-agenda-view
+        <calendar-list-view
           start-date=${this.#agendaRangeStartDate.toString()}
           .daysPerWeek=${this.#agendaRangeDays}
           .events=${this.events}
@@ -235,7 +232,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           .currentTime=${this.#resolvedCurrentTime}
           @day-selection-requested=${this.#handleDaySelectionRequested}
           @event-selection-requested=${this.forwardComposedCalendarEvent}
-        ></calendar-agenda-view>
+        ></calendar-list-view>
       `;
     }
 

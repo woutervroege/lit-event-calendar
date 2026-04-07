@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
-import "../src/CalendarView/CalendarView.js";
+import "../src/CalendarGridView/CalendarGridView.js";
 import { calendarCssProps } from "./support/CalendarCssProps.js";
 import {
   AUTO_LOCALE_OPTION,
@@ -16,8 +16,8 @@ type StoryCalendarViewElement = HTMLElement & { events: Map<string, CalendarEven
 const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => index + 1)];
 
 const meta: Meta = {
-  title: "CalendarView/CalendarView",
-  component: "calendar-view",
+  title: "CalendarGridView/CalendarGridView",
+  component: "calendar-grid-view",
   tags: ["autodocs"],
   parameters: {
     cssprops: calendarCssProps,
@@ -64,7 +64,7 @@ const meta: Meta = {
     events: sampleEvents,
   },
   render: (args) => {
-    const el = document.createElement("calendar-view") as StoryCalendarViewElement;
+    const el = document.createElement("calendar-grid-view") as StoryCalendarViewElement;
     el.setAttribute("start-date", args.startDate);
     el.setAttribute("days-per-week", String(args.daysPerWeek));
     el.setAttribute("variant", args.variant);

@@ -17,7 +17,7 @@ import { attachRequestEventHandlers } from "./support/StoryRequestHandlers.js";
 type StoryCalendarMonthViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
 
 const meta: Meta = {
-  title: "CalendarView/CalendarMonthView",
+  title: "CalendarGridView/CalendarMonthView",
   component: "calendar-month-view",
   tags: ["autodocs"],
   parameters: {

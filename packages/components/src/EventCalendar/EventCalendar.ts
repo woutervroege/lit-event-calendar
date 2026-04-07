@@ -7,10 +7,7 @@ import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarViewGroup } from "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
-import type {
-  CalendarPresentationMode,
-  CalendarViewMode,
-} from "../types/CalendarViewGroup.js";
+import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
 import type { TabSwitchOption } from "../types/TabSwitch.js";
 import "../TabSwitch/TabSwitch.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
@@ -191,7 +188,7 @@ export class EventCalendar extends BaseElement {
   }
 
   get #calendarViewGroup(): CalendarViewGroup | null {
-    return this.renderRoot.querySelector("calendar-view-group");
+    return this.renderRoot.querySelector("calendar-grid-view-group");
   }
 
   #disableThreeDayRange() {
@@ -314,7 +311,7 @@ export class EventCalendar extends BaseElement {
               .showHotkeys=${false}
               .options=${getViewOptions(this.lang)}
               .value=${this.view}
-              name="event-calendar-view-tabs"
+              name="event-calendar-grid-view-tabs"
               group-label="Calendar view"
               @value-changed=${this.#handleViewTabChanged}
             ></tab-switch>
@@ -334,7 +331,7 @@ export class EventCalendar extends BaseElement {
             ></tab-switch>
           </div>
         </header>
-        <calendar-view-group
+        <calendar-grid-view-group
           class="min-h-0 flex-[1_1_auto] overflow-y-auto p-4 pt-0 mb-4"
           style="--_lc-week-sticky-top: 0px;"
           .view=${this.view}
@@ -359,7 +356,7 @@ export class EventCalendar extends BaseElement {
           @event-selection-requested=${this.#reemit}
           @event-update-requested=${this.#reemit}
           @event-delete-requested=${this.#reemit}
-        ></calendar-view-group>
+        ></calendar-grid-view-group>
       </div>
     `;
   }

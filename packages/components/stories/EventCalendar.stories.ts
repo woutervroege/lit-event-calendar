@@ -18,7 +18,7 @@ type StoryEventCalendarElement = HTMLElement & { events: Map<string, CalendarEve
 const VISIBLE_HOUR_OPTIONS = ["auto", ...Array.from({ length: 24 }, (_, index) => index + 1)];
 
 const meta: Meta = {
-  title: "CalendarView/EventCalendar",
+  title: "CalendarGridView/EventCalendar",
   component: "event-calendar",
   tags: ["autodocs"],
   parameters: {

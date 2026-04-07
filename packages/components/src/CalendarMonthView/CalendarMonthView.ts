@@ -2,7 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
-import "../CalendarView/CalendarView.js";
+import "../CalendarGridView/CalendarGridView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import componentStyle from "./CalendarMonthView.css?inline";
@@ -53,7 +53,7 @@ export class CalendarMonthView extends CalendarViewBase {
           .weekStart=${this.weekStart}
           days-per-week="7"
         ></calendar-weekday-header>
-        <calendar-view
+        <calendar-grid-view
           class="month-grid"
           start-date=${this.startDate.toString()}
           days-per-week="42"
@@ -71,7 +71,7 @@ export class CalendarMonthView extends CalendarViewBase {
           @event-selection-requested=${this.forwardCalendarEvent}
           @event-update-requested=${this.forwardCalendarEvent}
           @event-delete-requested=${this.forwardCalendarEvent}
-        ></calendar-view>
+        ></calendar-grid-view>
       </div>
     `;
   }
