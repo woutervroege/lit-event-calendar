@@ -572,6 +572,7 @@ export class CalendarGridView extends BaseElement {
         createPreviewSegments.length
     );
     const compactMonthView = this.#isCompactMonthView;
+    const disableAllDayInteraction = this.#shouldDisableAllDayInteractionInCompactMonth();
 
     if (this.#dragHoverDayIndex !== null) {
       if (this.variant === "all-day") {
@@ -628,10 +629,10 @@ export class CalendarGridView extends BaseElement {
           style=${styleMap({ ...this.sectionStyle, ...hoverStyle })}
           ?data-drag-hover=${this.#dragHoverDayIndex !== null}
           ?data-touch-creating=${touchCreateActive}
-          @pointerdown=${this.#handleCreatePointerDown}
-          @pointermove=${this.#handleCreatePointerMove}
-          @pointerup=${this.#handleCreatePointerUp}
-          @pointercancel=${this.#handleCreatePointerCancel}
+          @pointerdown=${disableAllDayInteraction ? null : this.#handleCreatePointerDown}
+          @pointermove=${disableAllDayInteraction ? null : this.#handleCreatePointerMove}
+          @pointerup=${disableAllDayInteraction ? null : this.#handleCreatePointerUp}
+          @pointercancel=${disableAllDayInteraction ? null : this.#handleCreatePointerCancel}
         >
           ${this.#renderWeekendHighlights()}
           ${this.variant === "timed" ? this.#renderCurrentTimeIndicator() : ""}
@@ -687,7 +688,7 @@ export class CalendarGridView extends BaseElement {
                 .color=${event.color}
                 .isRecurring=${this.#isRecurringEvent(event)}
                 .isException=${this.#isExceptionEvent(event)}
-                ?inert=${this.#isCompactMonthView}
+                ?inert=${this.#shouldDisableAllDayInteractionInCompactMonth()}
                 .viewDays=${this.viewDays}
                 .daysPerRow=${this.#isMonthView ? this.daysPerRow : 0}
                 .gridRows=${this.#isMonthView ? this.gridRows : 1}
@@ -1299,6 +1300,10 @@ export class CalendarGridView extends BaseElement {
   }
 
   #shouldOpenCompactMonthOverflowPopover(): boolean {
+    return this.variant === "all-day" && this.#isCompactMonthView && this.#isMonthView;
+  }
+
+  #shouldDisableAllDayInteractionInCompactMonth(): boolean {
     return this.variant === "all-day" && this.#isCompactMonthView && this.#isMonthView;
   }
 
