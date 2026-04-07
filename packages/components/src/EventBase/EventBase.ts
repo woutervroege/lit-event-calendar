@@ -1,15 +1,15 @@
 import { Temporal } from "@js-temporal/polyfill";
+import { ContextConsumer } from "@lit/context";
 import type { PropertyValues } from "lit";
 import { unsafeCSS } from "lit";
 import { property } from "lit/decorators.js";
-import { ContextConsumer } from "@lit/context";
 import { BaseElement } from "../BaseElement/BaseElement";
+import { type CalendarViewContextValue, calendarViewContext } from "../context/CalendarViewContext";
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController";
-import { calendarViewContext, type CalendarViewContextValue } from "../context/CalendarViewContext";
-import componentStyle from "./BaseEvent.css?inline";
 import { resolveLocale } from "../utils/Locale";
+import componentStyle from "./EventBase.css?inline";
 
-export abstract class BaseEvent extends BaseElement {
+export abstract class EventBase extends BaseElement {
   #start?: string;
   #end?: string;
   #currentTime?: string;
@@ -140,9 +140,12 @@ export abstract class BaseEvent extends BaseElement {
     return Temporal.Now.zonedDateTimeISO(this.timezone).toPlainDateTime();
   }
 
-  set currentTime(
-    currentTime: Temporal.PlainDateTime | Temporal.ZonedDateTime | string | null | undefined
-  ) {
+  set currentTime(currentTime:
+    | Temporal.PlainDateTime
+    | Temporal.ZonedDateTime
+    | string
+    | null
+    | undefined) {
     this.#currentTime = currentTime?.toString() ?? undefined;
   }
 
@@ -229,9 +232,10 @@ export abstract class BaseEvent extends BaseElement {
     return Temporal.ZonedDateTime.from(this.#end);
   }
 
-  protected get renderedDayBounds():
-    | { firstDay: Temporal.PlainDate; lastDay: Temporal.PlainDate }
-    | null {
+  protected get renderedDayBounds(): {
+    firstDay: Temporal.PlainDate;
+    lastDay: Temporal.PlainDate;
+  } | null {
     if (!this.viewDays.length) return null;
 
     let firstDay = this.viewDays[0];
@@ -244,8 +248,8 @@ export abstract class BaseEvent extends BaseElement {
     return { firstDay, lastDay };
   }
 
-  get siblings(): BaseEvent[] {
-    return [...(this.parentElement?.querySelectorAll(this.localName) ?? [])] as BaseEvent[];
+  get siblings(): EventBase[] {
+    return [...(this.parentElement?.querySelectorAll(this.localName) ?? [])] as EventBase[];
   }
 
   protected onDragStart() {
@@ -260,7 +264,9 @@ export abstract class BaseEvent extends BaseElement {
     if (!(event instanceof CustomEvent)) return;
     const isDragging = Boolean(event.detail?.isDragging);
     const pointerType =
-      typeof event.detail?.pointerType === "string" ? (event.detail.pointerType as string) : undefined;
+      typeof event.detail?.pointerType === "string"
+        ? (event.detail.pointerType as string)
+        : undefined;
     if (isDragging) {
       this.setAttribute("data-dragging", "");
       if (pointerType === "touch") {
@@ -313,9 +319,7 @@ export abstract class BaseEvent extends BaseElement {
     if (this.interactionController.isDragging || this.hasAttribute("data-just-dropped")) return;
     const path = event.composedPath();
     if (
-      path.some(
-        (target) => target instanceof HTMLElement && target.tagName === "RESIZE-HANDLE"
-      )
+      path.some((target) => target instanceof HTMLElement && target.tagName === "RESIZE-HANDLE")
     ) {
       return;
     }

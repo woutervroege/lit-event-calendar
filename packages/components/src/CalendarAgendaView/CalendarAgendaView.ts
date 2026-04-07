@@ -2,7 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
-import { CalendarSharedViewBase } from "../CalendarSharedViewBase/CalendarSharedViewBase.js";
+import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import "../EventCard/EventCard.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
@@ -29,13 +29,13 @@ type AgendaDay = {
 };
 
 @customElement("calendar-agenda-view")
-export class CalendarAgendaView extends CalendarSharedViewBase {
+export class CalendarAgendaView extends CalendarViewBase {
   #startDate?: string;
   #daysPerWeekStored = 31;
 
   static get properties() {
     return {
-      ...CalendarSharedViewBase.properties,
+      ...CalendarViewBase.properties,
       startDate: { type: String, attribute: "start-date" },
     } as const;
   }
@@ -71,7 +71,7 @@ export class CalendarAgendaView extends CalendarSharedViewBase {
   }
 
   static get styles() {
-    return [...CalendarSharedViewBase.styles, unsafeCSS(componentStyle)];
+    return [...CalendarViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   render() {
@@ -80,8 +80,9 @@ export class CalendarAgendaView extends CalendarSharedViewBase {
 
     return html`
       <div class="agenda-shell" dir=${direction}>
-        ${days.length
-          ? html`
+        ${
+          days.length
+            ? html`
               ${days.map(
                 ({ date, items }) => html`
                   <section class="agenda-day">
@@ -96,11 +97,12 @@ export class CalendarAgendaView extends CalendarSharedViewBase {
                 `
               )}
             `
-          : html`
+            : html`
               <div class="agenda-empty">
                 ${renderCalendarIcon({ className: "agenda-empty-icon" })}
               </div>
-            `}
+            `
+        }
       </div>
     `;
   }
@@ -197,7 +199,9 @@ export class CalendarAgendaView extends CalendarSharedViewBase {
     }
 
     return Array.from(grouped.entries())
-      .sort(([a], [b]) => Temporal.PlainDate.compare(Temporal.PlainDate.from(a), Temporal.PlainDate.from(b)))
+      .sort(([a], [b]) =>
+        Temporal.PlainDate.compare(Temporal.PlainDate.from(a), Temporal.PlainDate.from(b))
+      )
       .map(([date, items]) => ({
         date: Temporal.PlainDate.from(date),
         items: items.sort((a, b) => this.#compareAgendaItems(a, b)),
@@ -356,7 +360,9 @@ export class CalendarAgendaView extends CalendarSharedViewBase {
     if (this.currentTime) {
       if (this.currentTime.includes("[") && this.currentTime.includes("]")) {
         const zoned = Temporal.ZonedDateTime.from(this.currentTime);
-        return this.timezone ? zoned.withTimeZone(this.timezone).toPlainDateTime() : zoned.toPlainDateTime();
+        return this.timezone
+          ? zoned.withTimeZone(this.timezone).toPlainDateTime()
+          : zoned.toPlainDateTime();
       }
       return Temporal.PlainDateTime.from(this.currentTime);
     }

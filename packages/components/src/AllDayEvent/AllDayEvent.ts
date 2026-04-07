@@ -6,10 +6,10 @@ import { styleMap } from "lit/directives/style-map.js";
 import { getEventColorStyles } from "../utils/EventColor";
 import "../EventCard/EventCard";
 import "../ResizeHandle/ResizeHandle";
-import { BaseEvent } from "../BaseEvent/BaseEvent.js";
+import { EventBase } from "../EventBase/EventBase.js";
 
 @customElement("all-day-event")
-export class AllDayEvent extends BaseEvent {
+export class AllDayEvent extends EventBase {
   static #stackIndexCache = new WeakMap<HTMLElement, Map<string, Map<AllDayEvent, number>>>();
 
   #lockedStackIndex: number | null = null;
@@ -186,13 +186,13 @@ export class AllDayEvent extends BaseEvent {
     const endDayIndex = Math.min(startDayIndex + this.daysPerRow, renderedDays.length);
     const rowDayKeys = new Set(renderedDays.slice(startDayIndex, endDayIndex));
 
-    return this.renderedDays
-      .map((day) => day.toString())
-      .filter((key) => rowDayKeys.has(key));
+    return this.renderedDays.map((day) => day.toString()).filter((key) => rowDayKeys.has(key));
   }
 
   #getVisibleDayKeys(renderedDays: string[]): string[] {
-    return this.renderedDays.map((day) => day.toString()).filter((day) => renderedDays.includes(day));
+    return this.renderedDays
+      .map((day) => day.toString())
+      .filter((day) => renderedDays.includes(day));
   }
 
   #getStackIndex(renderedDays: string[], options?: { ignoreLock?: boolean }): number {
@@ -255,7 +255,9 @@ export class AllDayEvent extends BaseEvent {
 
   #getStackIndexForPosition(renderedDays: string[], rowIndex: number): number {
     const hasGrid = this.daysPerRow > 0 && this.gridRows > 0;
-    return hasGrid ? this.#getStackIndexForRow(renderedDays, rowIndex) : this.#getStackIndex(renderedDays);
+    return hasGrid
+      ? this.#getStackIndexForRow(renderedDays, rowIndex)
+      : this.#getStackIndex(renderedDays);
   }
 
   #getTopPosition(rowIndex: number, stackIndex: number): string {
@@ -312,7 +314,8 @@ export class AllDayEvent extends BaseEvent {
           if (visible && runStartColIndex === null) {
             runStartColIndex = colIndex;
           }
-          const isRunEnd = runStartColIndex !== null && (!visible || colIndex === segment.endColIndex);
+          const isRunEnd =
+            runStartColIndex !== null && (!visible || colIndex === segment.endColIndex);
           if (!isRunEnd) continue;
           const runEndColIndex = visible ? colIndex : colIndex - 1;
           const widthInColumns = runEndColIndex - runStartColIndex + 1;
@@ -370,7 +373,11 @@ export class AllDayEvent extends BaseEvent {
     }
 
     const viewPortDays = this.viewDays;
-    if (!viewPortDays || !viewPortDays.length || !this.#hasValidHoverDayIndex(hover, viewPortDays)) {
+    if (
+      !viewPortDays ||
+      !viewPortDays.length ||
+      !this.#hasValidHoverDayIndex(hover, viewPortDays)
+    ) {
       this.#clearPreviewDisplayTime();
       return;
     }
@@ -389,22 +396,20 @@ export class AllDayEvent extends BaseEvent {
     this.requestUpdate();
   };
 
-  #getHoverDetail(event: CustomEvent):
-    | {
+  #getHoverDetail(event: CustomEvent): {
+    dayIndex: number;
+    time: Temporal.PlainTime | null;
+    clientX: number;
+    clientY: number;
+  } | null {
+    return (
+      (event.detail as {
         dayIndex: number;
         time: Temporal.PlainTime | null;
         clientX: number;
         clientY: number;
-      }
-    | null {
-    return (event.detail as
-      | {
-          dayIndex: number;
-          time: Temporal.PlainTime | null;
-          clientX: number;
-          clientY: number;
-        }
-      | null) ?? null;
+      } | null) ?? null
+    );
   }
 
   #clearPreviewDisplayTime() {
@@ -412,10 +417,7 @@ export class AllDayEvent extends BaseEvent {
     this.requestUpdate();
   }
 
-  #hasValidHoverDayIndex(
-    hover: { dayIndex: number },
-    viewPortDays: Temporal.PlainDate[]
-  ): boolean {
+  #hasValidHoverDayIndex(hover: { dayIndex: number }, viewPortDays: Temporal.PlainDate[]): boolean {
     const { dayIndex } = hover;
     return dayIndex != null && dayIndex >= 0 && dayIndex < viewPortDays.length;
   }
@@ -429,9 +431,7 @@ export class AllDayEvent extends BaseEvent {
     const isDragging = this.interactionController.isDragging;
     const hasOffset = this.dragOffsetX !== 0 || this.dragOffsetY !== 0;
     const dragTransform =
-      isDragging || hasOffset
-        ? `translate(${this.dragOffsetX}px, ${this.dragOffsetY}px)`
-        : "none";
+      isDragging || hasOffset ? `translate(${this.dragOffsetX}px, ${this.dragOffsetY}px)` : "none";
 
     return html`
       <div
@@ -442,9 +442,11 @@ export class AllDayEvent extends BaseEvent {
         ?inert=${!isFocusable}
         aria-label=${this.#interactionLabel}
         aria-describedby=${this.#keyboardHintId}
-        aria-keyshortcuts=${this.interactionDisabled
-          ? "Delete Backspace"
-          : "Delete Backspace Control+Meta+ArrowUp Control+Meta+ArrowDown Control+Meta+ArrowLeft Control+Meta+ArrowRight Control+Shift+ArrowUp Control+Shift+ArrowDown"}
+        aria-keyshortcuts=${
+          this.interactionDisabled
+            ? "Delete Backspace"
+            : "Delete Backspace Control+Meta+ArrowUp Control+Meta+ArrowDown Control+Meta+ArrowLeft Control+Meta+ArrowRight Control+Shift+ArrowUp Control+Shift+ArrowDown"
+        }
         style=${styleMap({
           ...colorStyles,
           transform: dragTransform,
@@ -454,9 +456,11 @@ export class AllDayEvent extends BaseEvent {
         @pointerdown=${this.interactionDisabled ? null : this.interactionController.pointerDownHandler}
         @pointermove=${this.interactionDisabled ? null : this.interactionController.pointerMoveHandler}
         @pointerup=${this.interactionDisabled ? null : this.interactionController.pointerUpHandler}
-        @keydown=${this.interactionDisabled
-          ? this.#handleDeleteOnlyKeydown
-          : this.interactionController.keydownHandler}
+        @keydown=${
+          this.interactionDisabled
+            ? this.#handleDeleteOnlyKeydown
+            : this.interactionController.keydownHandler
+        }
       >
         <span
           id=${this.#keyboardHintId}
@@ -526,24 +530,28 @@ export class AllDayEvent extends BaseEvent {
         ?first-segment=${hasRoundedStart}
         ?last-segment=${hasRoundedEnd}
       >
-        ${!this.interactionDisabled && isFirst && canResizeStart
-          ? html`
+        ${
+          !this.interactionDisabled && isFirst && canResizeStart
+            ? html`
               <resize-handle
                 axis="horizontal"
                 position="start"
                 title="Resize start date"
               ></resize-handle>
             `
-          : ""}
-        ${!this.interactionDisabled && isLast
-          ? html`
+            : ""
+        }
+        ${
+          !this.interactionDisabled && isLast
+            ? html`
               <resize-handle
                 axis="horizontal"
                 position="end"
                 title="Resize end date"
               ></resize-handle>
             `
-          : ""}
+            : ""
+        }
       </event-card>
     `;
   }

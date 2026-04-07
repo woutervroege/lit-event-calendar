@@ -10,7 +10,7 @@ export function isWeekdayNumber(value: number | undefined): value is WeekdayNumb
   return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
 }
 
-export abstract class CalendarSharedViewBase extends BaseElement {
+export abstract class CalendarViewBase extends BaseElement {
   declare events?: EventsMap;
   locale?: string;
   timezone?: string;

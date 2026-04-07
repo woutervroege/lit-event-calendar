@@ -2,15 +2,12 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { cache } from "lit/directives/cache.js";
-import { CalendarSharedViewBase } from "../CalendarSharedViewBase/CalendarSharedViewBase.js";
+import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
 import "../CalendarAgendaView/CalendarAgendaView.js";
-import type {
-  CalendarPresentationMode,
-  CalendarViewMode,
-} from "../types/CalendarViewGroup.js";
+import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
@@ -22,7 +19,7 @@ type RangeLabelPart = {
 };
 
 @customElement("calendar-view-group")
-export class CalendarViewGroup extends CalendarSharedViewBase {
+export class CalendarViewGroup extends CalendarViewBase {
   #view: CalendarViewMode = "month";
   #presentation: CalendarPresentationMode = "grid";
   #startDate?: string;
@@ -34,7 +31,7 @@ export class CalendarViewGroup extends CalendarSharedViewBase {
 
   static get properties() {
     return {
-      ...CalendarSharedViewBase.properties,
+      ...CalendarViewBase.properties,
       view: {
         type: String,
         reflect: true,
@@ -62,7 +59,7 @@ export class CalendarViewGroup extends CalendarSharedViewBase {
   }
 
   static get styles() {
-    return [...CalendarSharedViewBase.styles, unsafeCSS(componentStyle)];
+    return [...CalendarViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   get daysPerWeek(): number {
@@ -97,7 +94,9 @@ export class CalendarViewGroup extends CalendarSharedViewBase {
 
   set view(value: CalendarViewMode | string | null | undefined) {
     const nextValue =
-      value === "day" || value === "week" || value === "month" || value === "year" ? value : "month";
+      value === "day" || value === "week" || value === "month" || value === "year"
+        ? value
+        : "month";
     this.#view = nextValue;
   }
 
@@ -135,7 +134,12 @@ export class CalendarViewGroup extends CalendarSharedViewBase {
     const anchorDate = new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day));
 
     if (this.view === "year") {
-      return [{ text: new Intl.DateTimeFormat(locale, { year: "numeric" }).format(anchorDate), isYear: false }];
+      return [
+        {
+          text: new Intl.DateTimeFormat(locale, { year: "numeric" }).format(anchorDate),
+          isYear: false,
+        },
+      ];
     }
 
     if (this.view === "month") {
@@ -146,7 +150,10 @@ export class CalendarViewGroup extends CalendarSharedViewBase {
     }
 
     if (this.view === "day") {
-      return this.#dateLabelParts(new Intl.DateTimeFormat(locale, { dateStyle: "long" }), anchorDate);
+      return this.#dateLabelParts(
+        new Intl.DateTimeFormat(locale, { dateStyle: "long" }),
+        anchorDate
+      );
     }
 
     const start = this.#weekRangeStartDate;
@@ -389,7 +396,11 @@ export class CalendarViewGroup extends CalendarSharedViewBase {
     return date.subtract({ days: weekdayOffset });
   }
 
-  #weekRangeLabelParts(start: Temporal.PlainDate, end: Temporal.PlainDate, locale: string): RangeLabelPart[] {
+  #weekRangeLabelParts(
+    start: Temporal.PlainDate,
+    end: Temporal.PlainDate,
+    locale: string
+  ): RangeLabelPart[] {
     const startDate = new Date(Date.UTC(start.year, start.month - 1, start.day));
     const endDate = new Date(Date.UTC(end.year, end.month - 1, end.day));
     const yearText = new Intl.DateTimeFormat(locale, { year: "numeric" }).format(startDate);
@@ -455,5 +466,4 @@ export class CalendarViewGroup extends CalendarSharedViewBase {
     }
     return Temporal.PlainDate.from(this.#resolvedCurrentTime);
   }
-
 }

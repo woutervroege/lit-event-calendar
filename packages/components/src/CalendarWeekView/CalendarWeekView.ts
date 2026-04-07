@@ -6,12 +6,9 @@ import { styleMap } from "lit/directives/style-map.js";
 import "../CalendarView/CalendarView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
-import {
-  CalendarSharedViewBase,
-  isWeekdayNumber,
-} from "../CalendarSharedViewBase/CalendarSharedViewBase.js";
-import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
+import { CalendarViewBase, isWeekdayNumber } from "../CalendarViewBase/CalendarViewBase.js";
 import type { AllDayLayoutItem } from "../types/AllDayLayout.js";
+import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
 import { buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getLocaleDirection } from "../utils/Locale.js";
@@ -23,7 +20,7 @@ type EventsMap = Map<string, EventInput>;
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 @customElement("calendar-week-view")
-export class CalendarWeekView extends CalendarSharedViewBase {
+export class CalendarWeekView extends CalendarViewBase {
   #startDate?: string;
   weekNumber = Temporal.Now.plainDateISO().weekOfYear;
   year = Temporal.Now.plainDateISO().year;
@@ -41,7 +38,7 @@ export class CalendarWeekView extends CalendarSharedViewBase {
 
   static get properties() {
     return {
-      ...CalendarSharedViewBase.properties,
+      ...CalendarViewBase.properties,
       startDate: { type: String, attribute: "start-date" },
       weekNumber: { type: Number, attribute: "week-number" },
       year: { type: Number },
@@ -66,7 +63,7 @@ export class CalendarWeekView extends CalendarSharedViewBase {
   }
 
   static get styles() {
-    return [...CalendarSharedViewBase.styles, unsafeCSS(componentStyle)];
+    return [...CalendarViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   get startDate(): Temporal.PlainDate {
@@ -221,7 +218,9 @@ export class CalendarWeekView extends CalendarSharedViewBase {
     super.willUpdate(changedProperties);
     if (
       this.daysPerWeek > 1 &&
-      (changedProperties.has("startDate") || changedProperties.has("weekStart") || changedProperties.has("daysPerWeek"))
+      (changedProperties.has("startDate") ||
+        changedProperties.has("weekStart") ||
+        changedProperties.has("daysPerWeek"))
     ) {
       const dayOffset = this.#gridStartDate.until(this.startDate, { largestUnit: "day" }).days;
       const maxIndex = Math.max(0, this.daysPerWeek - 1);

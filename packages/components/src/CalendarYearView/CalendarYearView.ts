@@ -2,25 +2,25 @@ import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import "../CalendarMonthView/CalendarMonthView.js";
-import { CalendarSharedViewBase } from "../CalendarSharedViewBase/CalendarSharedViewBase.js";
+import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarYearView.css?inline";
 
 @customElement("calendar-year-view")
-export class CalendarYearView extends CalendarSharedViewBase {
+export class CalendarYearView extends CalendarViewBase {
   year = Temporal.Now.plainDateISO().year;
   weekStart?: number;
 
   static get properties() {
     return {
-      ...CalendarSharedViewBase.properties,
+      ...CalendarViewBase.properties,
       year: { type: Number },
       weekStart: { type: Number, attribute: "week-start", reflect: true },
     } as const;
   }
 
   static get styles() {
-    return [...CalendarSharedViewBase.styles, unsafeCSS(componentStyle)];
+    return [...CalendarViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   get #resolvedLocale(): string {

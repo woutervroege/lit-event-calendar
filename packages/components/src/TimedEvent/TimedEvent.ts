@@ -5,10 +5,10 @@ import { styleMap } from "lit/directives/style-map.js";
 import { getEventColorStyles } from "../utils/EventColor";
 import "../EventCard/EventCard";
 import "../ResizeHandle/ResizeHandle";
-import { BaseEvent } from "../BaseEvent/BaseEvent.js";
+import { EventBase } from "../EventBase/EventBase.js";
 
 @customElement("timed-event")
-export class TimedEvent extends BaseEvent {
+export class TimedEvent extends EventBase {
   #previewRange: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime } | null = null;
   #keyboardHintId = `timed-event-kbd-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -67,10 +67,7 @@ export class TimedEvent extends BaseEvent {
     return this.#calculateStaggeredPosition(overlappingSiblings, day);
   }
 
-  #getSameStartSiblings(
-    overlappingSiblings: TimedEvent[],
-    day: Temporal.PlainDate
-  ): TimedEvent[] {
+  #getSameStartSiblings(overlappingSiblings: TimedEvent[], day: Temporal.PlainDate): TimedEvent[] {
     const thisStartEff = this.#getEffectiveTimesForDay(day).start;
     return overlappingSiblings.filter((sibling) => {
       const sibStartEff = sibling.#getEffectiveTimesForDay(day).start;
@@ -78,9 +75,10 @@ export class TimedEvent extends BaseEvent {
     });
   }
 
-  #calculateSharedStartPosition(
-    sameStartSiblings: TimedEvent[]
-  ): { width: number; marginLeft: number } {
+  #calculateSharedStartPosition(sameStartSiblings: TimedEvent[]): {
+    width: number;
+    marginLeft: number;
+  } {
     const startTimeIndex = sameStartSiblings.indexOf(this);
     const width = 1 / sameStartSiblings.length;
     const marginLeft = startTimeIndex / sameStartSiblings.length;
@@ -243,9 +241,7 @@ export class TimedEvent extends BaseEvent {
 
     const viewStartDate = this.#getViewStartDate();
     const showStartDate =
-      startDate && viewStartDate
-        ? Temporal.PlainDate.compare(startDate, viewStartDate) < 0
-        : false;
+      startDate && viewStartDate ? Temporal.PlainDate.compare(startDate, viewStartDate) < 0 : false;
 
     const startDateLabel =
       showStartDate && startDate
@@ -312,22 +308,20 @@ export class TimedEvent extends BaseEvent {
     this.requestUpdate();
   };
 
-  #getHoverDetail(event: CustomEvent):
-    | {
+  #getHoverDetail(event: CustomEvent): {
+    dayIndex: number;
+    time: Temporal.PlainTime | null;
+    clientX: number;
+    clientY: number;
+  } | null {
+    return (
+      (event.detail as {
         dayIndex: number;
         time: Temporal.PlainTime | null;
         clientX: number;
         clientY: number;
-      }
-    | null {
-    return (event.detail as
-      | {
-          dayIndex: number;
-          time: Temporal.PlainTime | null;
-          clientX: number;
-          clientY: number;
-        }
-      | null) ?? null;
+      } | null) ?? null
+    );
   }
 
   #clearPreviewDisplayTime() {
@@ -462,22 +456,26 @@ export class TimedEvent extends BaseEvent {
         ?first-segment=${hasRoundedStart}
         ?last-segment=${hasRoundedEnd}
       >
-        ${isFirst
-          ? html`
+        ${
+          isFirst
+            ? html`
               <resize-handle
                 position="start"
                 title="Resize start time"
               ></resize-handle>
             `
-          : ""}
-        ${isLast
-          ? html`
+            : ""
+        }
+        ${
+          isLast
+            ? html`
               <resize-handle
                 position="end"
                 title="Resize end time"
               ></resize-handle>
             `
-          : ""}
+            : ""
+        }
       </event-card>
     `;
   }

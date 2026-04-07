@@ -15,8 +15,8 @@ import {
   calendarViewContext,
 } from "../context/CalendarViewContext.js";
 import { TimedEventInteractionController } from "../controllers/TimedEventInteractionController.js";
+import type { EventBase } from "../EventBase/EventBase.js";
 import { sharedFocusRingColorClasses } from "../shared/buttonStyles.js";
-import type { BaseEvent } from "../BaseEvent/BaseEvent.js";
 import { buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { clampGridDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
@@ -24,10 +24,10 @@ import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/L
 import "../EventCard/EventCard.js";
 import type {
   AllDayLayoutItem,
-  CalendarEventView as EventInput,
   DayOverflowPopoverEvent,
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
+  CalendarEventView as EventInput,
   EventSelectionRequestDetail,
   EventUpdateRequestDetail,
 } from "../types/index.js";
@@ -576,7 +576,10 @@ export class CalendarView extends BaseElement {
           hoverStyle["--_lc-hover-height"] = `${height}%`;
         } else {
           // For single-row view, highlight the entire column
-          const visualDayIndex = this.#toVisualColumnIndex(this.#dragHoverDayIndex, this.daysPerWeek);
+          const visualDayIndex = this.#toVisualColumnIndex(
+            this.#dragHoverDayIndex,
+            this.daysPerWeek
+          );
           const left = (visualDayIndex / this.daysPerWeek) * 100;
           const width = (1 / this.daysPerWeek) * 100;
           hoverStyle["--_lc-hover-left"] = `${left}%`;
@@ -760,8 +763,7 @@ export class CalendarView extends BaseElement {
     const eventEnd = this.#toPlainDateTime(event.end).subtract({ nanoseconds: 1 }).toPlainDate();
 
     if (Temporal.PlainDate.compare(eventEnd, viewDays[0]) < 0) return null;
-    if (Temporal.PlainDate.compare(eventStart, viewDays[viewDays.length - 1]) > 0)
-      return null;
+    if (Temporal.PlainDate.compare(eventStart, viewDays[viewDays.length - 1]) > 0) return null;
 
     for (const day of viewDays) {
       if (Temporal.PlainDate.compare(day, eventStart) < 0) continue;
@@ -879,7 +881,9 @@ export class CalendarView extends BaseElement {
 
   #isMultiDayEvent(event: EventInput): boolean {
     const start = this.#toPlainDateTime(event.start).toPlainDate();
-    const endInclusive = this.#toPlainDateTime(event.end).subtract({ nanoseconds: 1 }).toPlainDate();
+    const endInclusive = this.#toPlainDateTime(event.end)
+      .subtract({ nanoseconds: 1 })
+      .toPlainDate();
     return Temporal.PlainDate.compare(endInclusive, start) > 0;
   }
 
@@ -920,7 +924,10 @@ export class CalendarView extends BaseElement {
     const dayNumberOffsetPx = this.#getAllDayDayNumberOffsetPx();
     const eventHeightPx = this.#getAllDayEventHeightPx();
     const indicatorBottomInsetPx = 2;
-    const hiddenStartTopPx = Math.max(0, dayNumberOffsetPx + Math.max(0, maxVisibleRows) * eventHeightPx);
+    const hiddenStartTopPx = Math.max(
+      0,
+      dayNumberOffsetPx + Math.max(0, maxVisibleRows) * eventHeightPx
+    );
     const maxTopWithinRowPx = Math.max(0, rowHeightPx - indicatorHeightPx - indicatorBottomInsetPx);
     const indicatorOffsetWithinRowPx = Math.min(hiddenStartTopPx, maxTopWithinRowPx);
     const colIndex = this.#isMonthView ? dayIndex % cols : dayIndex;
@@ -1076,9 +1083,9 @@ export class CalendarView extends BaseElement {
       event.detail &&
       typeof event.detail === "object" &&
       "eventId" in event.detail
-        ? (event.detail as BaseEvent)
+        ? (event.detail as EventBase)
         : null;
-    const target = detailTarget ?? (event.currentTarget as BaseEvent | null);
+    const target = detailTarget ?? (event.currentTarget as EventBase | null);
     if (!target?.eventId || !target.start || !target.end) return;
     const current = this.events?.get(target.eventId);
     const detail: EventSelectionRequestDetail = {
@@ -1121,9 +1128,9 @@ export class CalendarView extends BaseElement {
       event.detail &&
       typeof event.detail === "object" &&
       "eventId" in event.detail
-        ? (event.detail as BaseEvent)
+        ? (event.detail as EventBase)
         : null;
-    const target = detailTarget ?? (event.target as BaseEvent | null);
+    const target = detailTarget ?? (event.target as EventBase | null);
     if (!target?.eventId || !target.start || !target.end) return;
     const current = this.events?.get(target.eventId);
     const detail: EventUpdateRequestDetail = {
@@ -1151,8 +1158,8 @@ export class CalendarView extends BaseElement {
 
   #handleEventDelete = (event: Event) => {
     const detailTarget =
-      event instanceof CustomEvent ? ((event.detail as BaseEvent | null) ?? null) : null;
-    const target = detailTarget ?? (event.target as BaseEvent | null);
+      event instanceof CustomEvent ? ((event.detail as EventBase | null) ?? null) : null;
+    const target = detailTarget ?? (event.target as EventBase | null);
     if (!target?.eventId) return;
     const current = this.events?.get(target.eventId);
     const calendarId = current?.calendarId;
@@ -1516,7 +1523,7 @@ export class CalendarView extends BaseElement {
 
   #handleEventInteractionDragState = (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
-    const target = event.currentTarget as BaseEvent | null;
+    const target = event.currentTarget as EventBase | null;
     const interactionId = target?.eventId || "unknown";
     this.#emitInteractionLockChange({
       active: Boolean(event.detail?.isDragging),
@@ -1525,7 +1532,11 @@ export class CalendarView extends BaseElement {
     });
   };
 
-  #emitInteractionLockChange(input: { active: boolean; kind: "create" | "drag"; interactionId: string }) {
+  #emitInteractionLockChange(input: {
+    active: boolean;
+    kind: "create" | "drag";
+    interactionId: string;
+  }) {
     this.dispatchEvent(
       new CustomEvent("interaction-lock-change", {
         detail: input,
@@ -2159,8 +2170,14 @@ export class CalendarView extends BaseElement {
     }
 
     const hiddenCountsByDay = this.#computeHiddenAllDayCountsByDayForDayCaps(layout, baseDayCaps);
-    const hiddenEventIdsByDay = this.#computeHiddenAllDayEventIdsByDayForDayCaps(layout, baseDayCaps);
-    const hiddenColorsByDay = this.#computeHiddenAllDayColorsByDay(hiddenEventIdsByDay, eventColorsById);
+    const hiddenEventIdsByDay = this.#computeHiddenAllDayEventIdsByDayForDayCaps(
+      layout,
+      baseDayCaps
+    );
+    const hiddenColorsByDay = this.#computeHiddenAllDayColorsByDay(
+      hiddenEventIdsByDay,
+      eventColorsById
+    );
     const initialOverflowLayout: AllDayOverflowLayout = {
       maxVisibleRows,
       maxVisibleRowsByDay: baseDayCaps,
@@ -2172,7 +2189,8 @@ export class CalendarView extends BaseElement {
 
     const daysNeedingButton = new Set<number>();
     for (const [dayIndex, hiddenCount] of hiddenCountsByDay.entries()) {
-      if (!this.#shouldRenderAllDayOverflowIndicator(dayIndex, hiddenCount, initialOverflowLayout)) continue;
+      if (!this.#shouldRenderAllDayOverflowIndicator(dayIndex, hiddenCount, initialOverflowLayout))
+        continue;
       daysNeedingButton.add(dayIndex);
     }
     if (!daysNeedingButton.size) return initialOverflowLayout;
@@ -2188,7 +2206,9 @@ export class CalendarView extends BaseElement {
 
     const rowsWithOverflowButton = Math.max(
       0,
-      Math.floor((rowHeight - dayLabelOffset - indicatorHeight - indicatorBottomInset) / eventHeight)
+      Math.floor(
+        (rowHeight - dayLabelOffset - indicatorHeight - indicatorBottomInset) / eventHeight
+      )
     );
     const dayCapsWithButton = new Map(baseDayCaps);
     let didReduceAnyDay = false;

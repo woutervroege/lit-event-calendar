@@ -4,20 +4,20 @@ import { customElement } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import "../CalendarView/CalendarView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
-import { CalendarSharedViewBase } from "../CalendarSharedViewBase/CalendarSharedViewBase.js";
+import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import componentStyle from "./CalendarMonthView.css?inline";
 
 type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 @customElement("calendar-month-view")
-export class CalendarMonthView extends CalendarSharedViewBase {
+export class CalendarMonthView extends CalendarViewBase {
   month = Temporal.Now.plainDateISO().month;
   year = Temporal.Now.plainDateISO().year;
   weekStart?: number;
 
   static get properties() {
     return {
-      ...CalendarSharedViewBase.properties,
+      ...CalendarViewBase.properties,
       month: { type: Number },
       year: { type: Number },
       weekStart: { type: Number, attribute: "week-start", reflect: true },
@@ -25,7 +25,7 @@ export class CalendarMonthView extends CalendarSharedViewBase {
   }
 
   static get styles() {
-    return [...CalendarSharedViewBase.styles, unsafeCSS(componentStyle)];
+    return [...CalendarViewBase.styles, unsafeCSS(componentStyle)];
   }
 
   get startDate(): Temporal.PlainDate {
