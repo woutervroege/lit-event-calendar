@@ -3,6 +3,8 @@
 
 :host {
   --_lc-overflow-popover-gap: 8px;
+  --_lc-event-height: var(--_lc-default-event-height, 32px);
+  --_lc-event-card-compact-label-display: block;
   @apply hidden m-0 rounded-[10px] border-0 overflow-hidden p-0 fixed h-auto text-inherit;
   z-index: var(--_lc-z-popover);
   inset: auto;
@@ -32,6 +34,9 @@
 
 .day-label {
   color: var(--_lc-grid-line-day-color);
+  --_lc-focus-outline-color: light-dark(rgb(15 23 42 / 92%), rgb(255 255 255 / 96%));
+  --_lc-focus-ring-color: light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%));
+  --_lc-focus-ring-offset-color: light-dark(rgb(255 255 255), rgb(2 6 23));
 }
 
 .day-label.outside-month-day-label,
@@ -97,5 +102,18 @@
 }
 
 .day-overflow-popover-day-number {
-  @apply absolute p-1 text-sm z-0 font-medium rounded-full flex justify-center items-center border-0 bg-transparent text-inherit leading-none min-w-6 px-2 h-6 pointer-events-none [inset-inline-start:6px] top-0 mt-1.5;
+  @apply absolute p-1 text-sm z-0 font-medium rounded-full flex justify-center items-center cursor-pointer border-0 bg-transparent text-inherit leading-none min-w-6 px-2 h-6 [inset-inline-start:6px] top-0 mt-1.5;
+}
+
+.day-overflow-popover-day-number:hover:not(:focus-visible):not(.current-day) {
+  background-color: var(--_lc-grid-ghost-color);
+}
+
+.day-overflow-popover-day-number:focus-visible {
+  background-color: var(--_lc-grid-ghost-color);
+  outline: 2px solid var(--_lc-focus-outline-color);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--_lc-focus-ring-offset-color),
+    0 0 0 4px var(--_lc-focus-ring-color);
 }

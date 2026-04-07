@@ -67,14 +67,17 @@ export class DayOverflowPopover extends BaseElement {
 
   #renderDayNumber(): TemplateResult {
     return html`
-      <span
+      <button
+        type="button"
         class="day-label day-overflow-popover-day-number ${
           this.isCurrentDay ? "current-day" : ""
         } ${this.outsideVisibleMonth ? "outside-month-day-label" : ""}"
-        aria-hidden="true"
+        .ariaLabel=${`Open day ${this.dayLabel}`}
+        @click=${this.#handleDaySelectionRequest}
+        @keydown=${this.#handleDaySelectionKeyDown}
       >
         <time datetime=${this.dayIso}>${this.dayLabel}</time>
-      </span>
+      </button>
     `;
   }
 
@@ -120,5 +123,35 @@ export class DayOverflowPopover extends BaseElement {
     if (!notCancelled && event.cancelable) {
       event.preventDefault();
     }
+  };
+
+  #handleDaySelectionRequest = (event: MouseEvent) => {
+    this.dispatchEvent(
+      new CustomEvent("day-label-selection-requested", {
+        detail: {
+          trigger: "click",
+          pointerType: "mouse",
+          sourceEvent: event,
+        },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  };
+
+  #handleDaySelectionKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    this.dispatchEvent(
+      new CustomEvent("day-label-selection-requested", {
+        detail: {
+          trigger: "keyboard",
+          pointerType: "keyboard",
+          sourceEvent: event,
+        },
+        bubbles: true,
+        composed: true,
+      })
+    );
   };
 }
