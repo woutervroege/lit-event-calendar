@@ -42,14 +42,14 @@ export class CalendarMonthView extends CalendarViewBase {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    return this.resolveWeekStart(this.weekStart, this.locale);
+    return this.resolveWeekStart(this.weekStart, this.lang);
   }
 
   render() {
     return html`
       <div class="month-layout">
         <calendar-weekday-header
-          .locale=${this.locale}
+          .lang=${this.lang}
           .weekStart=${this.weekStart}
           days-per-week="7"
         ></calendar-weekday-header>
@@ -59,7 +59,7 @@ export class CalendarMonthView extends CalendarViewBase {
           days-per-week="42"
           variant="all-day"
           .events=${this.events}
-          locale=${ifDefined(this.locale)}
+          lang=${ifDefined(this.lang)}
           timezone=${ifDefined(this.timezone)}
           current-time=${ifDefined(this.currentTime)}
           .labelsHidden=${false}

@@ -1,5 +1,5 @@
 export type CalendarViewContextValue = {
-  locale: string;
+  lang: string;
   timezone: string;
   currentTime: string;
 };

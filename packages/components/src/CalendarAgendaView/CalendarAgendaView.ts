@@ -118,7 +118,7 @@ export class CalendarAgendaView extends CalendarViewBase {
       >
         <event-card
           layout="flow"
-          .locale=${this.locale}
+          .lang=${this.lang}
           summary=${event.summary}
           time=${this.#formatItemTime(item)}
           location=${event.location ?? ""}
@@ -349,7 +349,7 @@ export class CalendarAgendaView extends CalendarViewBase {
   }
 
   get #resolvedLocale(): string {
-    return resolveLocale(this.locale);
+    return resolveLocale(this.lang);
   }
 
   get #now(): Temporal.PlainDateTime {

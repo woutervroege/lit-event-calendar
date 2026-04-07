@@ -163,7 +163,7 @@ export class TimedEvent extends EventBase {
 
   #formatTimeLabel(time: Temporal.PlainTime | null): string {
     return (
-      time?.toLocaleString(this.locale, {
+      time?.toLocaleString(this.lang, {
         hour: "2-digit",
         minute: "2-digit",
       }) ?? ""
@@ -229,12 +229,12 @@ export class TimedEvent extends EventBase {
     startTime: Temporal.PlainTime,
     endTime: Temporal.PlainTime
   ): string {
-    const startTimeLabel = startTime.toLocaleString(this.locale, {
+    const startTimeLabel = startTime.toLocaleString(this.lang, {
       hour: "2-digit",
       minute: "2-digit",
     });
 
-    const endTimeLabel = endTime.toLocaleString(this.locale, {
+    const endTimeLabel = endTime.toLocaleString(this.lang, {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -245,11 +245,11 @@ export class TimedEvent extends EventBase {
 
     const startDateLabel =
       showStartDate && startDate
-        ? startDate.toLocaleString(this.locale, { month: "short", day: "numeric" })
+        ? startDate.toLocaleString(this.lang, { month: "short", day: "numeric" })
         : "";
 
     const endDateLabel =
-      endDate?.toLocaleString(this.locale, { month: "short", day: "numeric" }) ?? "";
+      endDate?.toLocaleString(this.lang, { month: "short", day: "numeric" }) ?? "";
 
     const startPart = startDateLabel ? `${startDateLabel} ${startTimeLabel}` : startTimeLabel;
     const endPart = `${endDateLabel} ${endTimeLabel}`.trim();

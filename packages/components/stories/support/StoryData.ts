@@ -1,11 +1,13 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type {
-  CalendarEvent as CalendarEventRecord,
   CalendarEventDateValue,
   CalendarEventEntry,
+  CalendarEvent as CalendarEventRecord,
   CalendarEventView,
   CalendarEventViewEntry,
 } from "../../src/types/CalendarEvent.js";
+import { getLocaleWeekInfo, resolveLocale } from "../../src/utils/Locale.js";
+
 export type { CalendarEvent as CalendarEventRecord } from "../../src/types/CalendarEvent.js";
 
 export type CalendarEvent = CalendarEventView;
@@ -39,388 +41,386 @@ const CALENDAR_IDS = {
   travel: "/calendars/wouter/travel/",
 } as const;
 
-export const sampleCalendarEvents: CalendarEventEntry[] = ([
+export const sampleCalendarEvents: CalendarEventEntry[] = (
   [
-    "event-flight-london-20250104",
-    {
-      envelope: { calendarId: CALENDAR_IDS.travel, eventId: "flight-london@example.test" },
-      content: {
-        start: "2025-01-04T08:30:00",
-        end: "2025-01-05T09:45:00",
-        summary: "Flight to London",
-        color: "#4564B5",
-        location: "Schiphol Airport",
+    [
+      "event-flight-london-20250104",
+      {
+        envelope: { calendarId: CALENDAR_IDS.travel, eventId: "flight-london@example.test" },
+        content: {
+          start: "2025-01-04T08:30:00",
+          end: "2025-01-05T09:45:00",
+          summary: "Flight to London",
+          color: "#4564B5",
+          location: "Schiphol Airport",
+        },
       },
-    },
-  ],
-  [
-    "event-hello-world-20250103",
-    {
-      envelope: { calendarId: CALENDAR_IDS.work, eventId: "hello-world@example.test" },
-      content: {
-        start: "2025-01-03T12:00:00",
-        end: "2025-01-07T18:00:00",
-        summary: "Hello World",
-        color: "#63e657",
+    ],
+    [
+      "event-hello-world-20250103",
+      {
+        envelope: { calendarId: CALENDAR_IDS.work, eventId: "hello-world@example.test" },
+        content: {
+          start: "2025-01-03T12:00:00",
+          end: "2025-01-07T18:00:00",
+          summary: "Hello World",
+          color: "#63e657",
+        },
       },
-    },
-  ],
-  [
-    "event-team-meeting-20250106",
-    {
-      envelope: { calendarId: CALENDAR_IDS.work, eventId: "team-meeting@example.test" },
-      content: {
-        start: "2025-01-06T10:00:00",
-        end: "2025-01-07T11:15:00",
-        summary: "Team Meeting",
-        color: "#ff0000",
-        location: "Room Atlas",
+    ],
+    [
+      "event-team-meeting-20250106",
+      {
+        envelope: { calendarId: CALENDAR_IDS.work, eventId: "team-meeting@example.test" },
+        content: {
+          start: "2025-01-06T10:00:00",
+          end: "2025-01-07T11:15:00",
+          summary: "Team Meeting",
+          color: "#ff0000",
+          location: "Room Atlas",
+        },
       },
-    },
-  ],
-  [
-    "event-amsterdam-zoned-20250104",
-    {
-      envelope: { calendarId: CALENDAR_IDS.travel, eventId: "amsterdam-zoned@example.test" },
-      content: {
-        start: "2025-01-04T12:00:00+01:00[Europe/Amsterdam]",
-        end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
-        summary: "Amsterdam Zoned Event",
-        color: "#f59e0b",
+    ],
+    [
+      "event-amsterdam-zoned-20250104",
+      {
+        envelope: { calendarId: CALENDAR_IDS.travel, eventId: "amsterdam-zoned@example.test" },
+        content: {
+          start: "2025-01-04T12:00:00+01:00[Europe/Amsterdam]",
+          end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
+          summary: "Amsterdam Zoned Event",
+          color: "#f59e0b",
+        },
       },
-    },
-  ],
-  [
-    "event-fiesta-20250106",
-    {
-      envelope: { calendarId: CALENDAR_IDS.personal, eventId: "fiesta@example.test" },
-      content: {
-        start: "2025-01-06T14:00:00",
-        end: "2025-01-06T15:00:00",
-        summary: "Fiesta",
-        color: "#084cb8",
-        location: "Cafe Mercado",
+    ],
+    [
+      "event-fiesta-20250106",
+      {
+        envelope: { calendarId: CALENDAR_IDS.personal, eventId: "fiesta@example.test" },
+        content: {
+          start: "2025-01-06T14:00:00",
+          end: "2025-01-06T15:00:00",
+          summary: "Fiesta",
+          color: "#084cb8",
+          location: "Cafe Mercado",
+        },
       },
-    },
-  ],
-  [
-    "event-drinks-20250108-1630",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.personal,
-        eventId: "drinks-weekly@example.test",
-        recurrenceId: "20250108T163000",
-        isRecurring: true,
+    ],
+    [
+      "event-drinks-20250108-1630",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.personal,
+          eventId: "drinks-weekly@example.test",
+          recurrenceId: "20250108T163000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-08T16:30:00",
+          end: "2025-01-08T17:30:00",
+          summary: "Drinks",
+          color: "#9f3cfa",
+          location: "Bar Noord",
+        },
       },
-      content: {
-        start: "2025-01-08T16:30:00",
-        end: "2025-01-08T17:30:00",
-        summary: "Drinks",
-        color: "#9f3cfa",
-        location: "Bar Noord",
+    ],
+    [
+      "event-drinks-20250115-1630",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.personal,
+          eventId: "drinks-weekly@example.test",
+          recurrenceId: "20250115T163000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-15T16:30:00",
+          end: "2025-01-15T17:30:00",
+          summary: "Drinks",
+          color: "#9f3cfa",
+        },
       },
-    },
-  ],
-  [
-    "event-drinks-20250115-1630",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.personal,
-        eventId: "drinks-weekly@example.test",
-        recurrenceId: "20250115T163000",
-        isRecurring: true,
+    ],
+    [
+      "event-drinks-20250122-1630",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.personal,
+          eventId: "drinks-weekly@example.test",
+          recurrenceId: "20250122T163000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-22T16:30:00",
+          end: "2025-01-22T17:30:00",
+          summary: "Drinks",
+          color: "#9f3cfa",
+        },
       },
-      content: {
-        start: "2025-01-15T16:30:00",
-        end: "2025-01-15T17:30:00",
-        summary: "Drinks",
-        color: "#9f3cfa",
+    ],
+    [
+      "event-drinks-20250129-1630",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.personal,
+          eventId: "drinks-weekly@example.test",
+          recurrenceId: "20250129T163000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-29T16:30:00",
+          end: "2025-01-29T17:30:00",
+          summary: "Drinks",
+          color: "#9f3cfa",
+        },
       },
-    },
-  ],
-  [
-    "event-drinks-20250122-1630",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.personal,
-        eventId: "drinks-weekly@example.test",
-        recurrenceId: "20250122T163000",
-        isRecurring: true,
+    ],
+    [
+      "event-daily-standup-20250113-0900",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.work,
+          eventId: "daily-standup@example.test",
+          recurrenceId: "20250113T090000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-13T09:00:00",
+          end: "2025-01-13T09:20:00",
+          summary: "Daily Standup",
+          color: "#10B981",
+        },
       },
-      content: {
-        start: "2025-01-22T16:30:00",
-        end: "2025-01-22T17:30:00",
-        summary: "Drinks",
-        color: "#9f3cfa",
+    ],
+    [
+      "event-daily-standup-20250114-0900",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.work,
+          eventId: "daily-standup@example.test",
+          recurrenceId: "20250114T090000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-14T09:00:00",
+          end: "2025-01-14T09:20:00",
+          summary: "Daily Standup",
+          color: "#10B981",
+        },
       },
-    },
-  ],
-  [
-    "event-drinks-20250129-1630",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.personal,
-        eventId: "drinks-weekly@example.test",
-        recurrenceId: "20250129T163000",
-        isRecurring: true,
+    ],
+    [
+      "event-daily-standup-20250115-0900",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.work,
+          eventId: "daily-standup@example.test",
+          recurrenceId: "20250115T090000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-15T09:00:00",
+          end: "2025-01-15T09:20:00",
+          summary: "Daily Standup",
+          color: "#10B981",
+        },
       },
-      content: {
-        start: "2025-01-29T16:30:00",
-        end: "2025-01-29T17:30:00",
-        summary: "Drinks",
-        color: "#9f3cfa",
+    ],
+    [
+      "event-daily-standup-20250116-0900",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.work,
+          eventId: "daily-standup@example.test",
+          recurrenceId: "20250116T090000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-16T09:00:00",
+          end: "2025-01-16T09:20:00",
+          summary: "Daily Standup",
+          color: "#10B981",
+        },
       },
-    },
-  ],
-  [
-    "event-daily-standup-20250113-0900",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.work,
-        eventId: "daily-standup@example.test",
-        recurrenceId: "20250113T090000",
-        isRecurring: true,
+    ],
+    [
+      "event-daily-standup-20250117-0900",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.work,
+          eventId: "daily-standup@example.test",
+          recurrenceId: "20250117T090000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-17T09:00:00",
+          end: "2025-01-17T09:20:00",
+          summary: "Daily Standup",
+          color: "#10B981",
+        },
       },
-      content: {
-        start: "2025-01-13T09:00:00",
-        end: "2025-01-13T09:20:00",
-        summary: "Daily Standup",
-        color: "#10B981",
+    ],
+    [
+      "event-daily-standup-20250118-0900",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.work,
+          eventId: "daily-standup@example.test",
+          recurrenceId: "20250118T090000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-18T09:00:00",
+          end: "2025-01-18T09:20:00",
+          summary: "Daily Standup",
+          color: "#10B981",
+        },
       },
-    },
-  ],
-  [
-    "event-daily-standup-20250114-0900",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.work,
-        eventId: "daily-standup@example.test",
-        recurrenceId: "20250114T090000",
-        isRecurring: true,
+    ],
+    [
+      "event-daily-standup-20250119-0900",
+      {
+        envelope: {
+          calendarId: CALENDAR_IDS.work,
+          eventId: "daily-standup@example.test",
+          recurrenceId: "20250119T090000",
+          isRecurring: true,
+        },
+        content: {
+          start: "2025-01-19T09:00:00",
+          end: "2025-01-19T09:20:00",
+          summary: "Daily Standup",
+          color: "#10B981",
+        },
       },
-      content: {
-        start: "2025-01-14T09:00:00",
-        end: "2025-01-14T09:20:00",
-        summary: "Daily Standup",
-        color: "#10B981",
+    ],
+    [
+      "event-meeting-john-20250110",
+      {
+        envelope: { calendarId: CALENDAR_IDS.personal, eventId: "meeting-with-john@example.test" },
+        content: {
+          start: "2025-01-08",
+          end: "2025-01-09",
+          summary: "Meeting with John",
+          color: "#E05ADD",
+        },
       },
-    },
-  ],
-  [
-    "event-daily-standup-20250115-0900",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.work,
-        eventId: "daily-standup@example.test",
-        recurrenceId: "20250115T090000",
-        isRecurring: true,
+    ],
+    [
+      "event-company-holiday-20250101",
+      {
+        envelope: { calendarId: CALENDAR_IDS.work, eventId: "company-holiday@example.test" },
+        content: {
+          start: "2025-01-01",
+          end: "2025-01-02",
+          summary: "Company Holiday",
+          color: "#0EA5E9",
+        },
       },
-      content: {
-        start: "2025-01-15T09:00:00",
-        end: "2025-01-15T09:20:00",
-        summary: "Daily Standup",
-        color: "#10B981",
+    ],
+    [
+      "event-product-planning-20250106",
+      {
+        envelope: { calendarId: CALENDAR_IDS.work, eventId: "product-planning@example.test" },
+        content: {
+          start: "2025-01-06",
+          end: "2025-01-08",
+          summary: "Product Planning Sprint",
+          color: "#22C55E",
+        },
       },
-    },
-  ],
-  [
-    "event-daily-standup-20250116-0900",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.work,
-        eventId: "daily-standup@example.test",
-        recurrenceId: "20250116T090000",
-        isRecurring: true,
+    ],
+    [
+      "event-design-qa-20250112",
+      {
+        envelope: { calendarId: CALENDAR_IDS.work, eventId: "design-qa@example.test" },
+        content: {
+          start: "2025-01-12",
+          end: "2025-01-14",
+          summary: "Design QA Window",
+          color: "#F97316",
+        },
       },
-      content: {
-        start: "2025-01-16T09:00:00",
-        end: "2025-01-16T09:20:00",
-        summary: "Daily Standup",
-        color: "#10B981",
+    ],
+    [
+      "event-team-offsite-20250115",
+      {
+        envelope: { calendarId: CALENDAR_IDS.work, eventId: "team-offsite@example.test" },
+        content: {
+          start: "2025-01-15",
+          end: "2025-01-18",
+          summary: "Team Offsite",
+          color: "#14B8A6",
+        },
       },
-    },
-  ],
-  [
-    "event-daily-standup-20250117-0900",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.work,
-        eventId: "daily-standup@example.test",
-        recurrenceId: "20250117T090000",
-        isRecurring: true,
+    ],
+    [
+      "event-release-freeze-20250119",
+      {
+        envelope: { calendarId: CALENDAR_IDS.work, eventId: "release-freeze@example.test" },
+        content: {
+          start: "2025-01-19",
+          end: "2025-01-21",
+          summary: "Release Freeze",
+          color: "#A855F7",
+        },
       },
-      content: {
-        start: "2025-01-17T09:00:00",
-        end: "2025-01-17T09:20:00",
-        summary: "Daily Standup",
-        color: "#10B981",
+    ],
+    [
+      "event-feb5-design-review-20250205",
+      {
+        envelope: { calendarId: CALENDAR_IDS.work, eventId: "feb5-design-review@example.test" },
+        content: {
+          start: "2025-02-05",
+          end: "2025-02-06",
+          summary: "Design Review",
+          color: "#6366F1",
+        },
       },
-    },
-  ],
-  [
-    "event-daily-standup-20250118-0900",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.work,
-        eventId: "daily-standup@example.test",
-        recurrenceId: "20250118T090000",
-        isRecurring: true,
+    ],
+    [
+      "event-feb5-eng-sync-20250205",
+      {
+        envelope: { calendarId: CALENDAR_IDS.work, eventId: "feb5-eng-sync@example.test" },
+        content: {
+          start: "2025-02-05",
+          end: "2025-02-06",
+          summary: "Engineering Sync",
+          color: "#0EA5E9",
+        },
       },
-      content: {
-        start: "2025-01-18T09:00:00",
-        end: "2025-01-18T09:20:00",
-        summary: "Daily Standup",
-        color: "#10B981",
-      },
-    },
-  ],
-  [
-    "event-daily-standup-20250119-0900",
-    {
-      envelope: {
-        calendarId: CALENDAR_IDS.work,
-        eventId: "daily-standup@example.test",
-        recurrenceId: "20250119T090000",
-        isRecurring: true,
-      },
-      content: {
-        start: "2025-01-19T09:00:00",
-        end: "2025-01-19T09:20:00",
-        summary: "Daily Standup",
-        color: "#10B981",
-      },
-    },
-  ],
-  [
-    "event-meeting-john-20250110",
-    {
-      envelope: { calendarId: CALENDAR_IDS.personal, eventId: "meeting-with-john@example.test" },
-      content: {
-        start: "2025-01-08",
-        end: "2025-01-09",
-        summary: "Meeting with John",
-        color: "#E05ADD",
-      },
-    },
-  ],
-  [
-    "event-company-holiday-20250101",
-    {
-      envelope: { calendarId: CALENDAR_IDS.work, eventId: "company-holiday@example.test" },
-      content: {
-        start: "2025-01-01",
-        end: "2025-01-02",
-        summary: "Company Holiday",
-        color: "#0EA5E9",
-      },
-    },
-  ],
-  [
-    "event-product-planning-20250106",
-    {
-      envelope: { calendarId: CALENDAR_IDS.work, eventId: "product-planning@example.test" },
-      content: {
-        start: "2025-01-06",
-        end: "2025-01-08",
-        summary: "Product Planning Sprint",
-        color: "#22C55E",
-      },
-    },
-  ],
-  [
-    "event-design-qa-20250112",
-    {
-      envelope: { calendarId: CALENDAR_IDS.work, eventId: "design-qa@example.test" },
-      content: {
-        start: "2025-01-12",
-        end: "2025-01-14",
-        summary: "Design QA Window",
-        color: "#F97316",
-      },
-    },
-  ],
-  [
-    "event-team-offsite-20250115",
-    {
-      envelope: { calendarId: CALENDAR_IDS.work, eventId: "team-offsite@example.test" },
-      content: {
-        start: "2025-01-15",
-        end: "2025-01-18",
-        summary: "Team Offsite",
-        color: "#14B8A6",
-      },
-    },
-  ],
-  [
-    "event-release-freeze-20250119",
-    {
-      envelope: { calendarId: CALENDAR_IDS.work, eventId: "release-freeze@example.test" },
-      content: {
-        start: "2025-01-19",
-        end: "2025-01-21",
-        summary: "Release Freeze",
-        color: "#A855F7",
-      },
-    },
-  ],
-  [
-    "event-feb5-design-review-20250205",
-    {
-      envelope: { calendarId: CALENDAR_IDS.work, eventId: "feb5-design-review@example.test" },
-      content: {
-        start: "2025-02-05",
-        end: "2025-02-06",
-        summary: "Design Review",
-        color: "#6366F1",
-      },
-    },
-  ],
-  [
-    "event-feb5-eng-sync-20250205",
-    {
-      envelope: { calendarId: CALENDAR_IDS.work, eventId: "feb5-eng-sync@example.test" },
-      content: {
-        start: "2025-02-05",
-        end: "2025-02-06",
-        summary: "Engineering Sync",
-        color: "#0EA5E9",
-      },
-    },
-  ],
-  ] as Array<[id: string, event: CalendarEventSeedInput]>).map(([id, event]) => [
-  id,
-  toCalendarEvent(event),
-]);
+    ],
+  ] as Array<[id: string, event: CalendarEventSeedInput]>
+).map(([id, event]) => [id, toCalendarEvent(event)]);
 
-export const timezoneShiftCalendarEvents: CalendarEventEntry[] = ([
+export const timezoneShiftCalendarEvents: CalendarEventEntry[] = (
   [
-    "event-amsterdam-noon-zoned",
-    {
-      envelope: { calendarId: CALENDAR_IDS.travel, eventId: "amsterdam-noon-zoned@example.test" },
-      content: {
-        start: "2025-01-06T12:00:00+01:00[Europe/Amsterdam]",
-        end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
-        summary: "Amsterdam Noon (zoned)",
-        color: "#f59e0b",
+    [
+      "event-amsterdam-noon-zoned",
+      {
+        envelope: { calendarId: CALENDAR_IDS.travel, eventId: "amsterdam-noon-zoned@example.test" },
+        content: {
+          start: "2025-01-06T12:00:00+01:00[Europe/Amsterdam]",
+          end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
+          summary: "Amsterdam Noon (zoned)",
+          color: "#f59e0b",
+        },
       },
-    },
-  ],
-  [
-    "event-local-baseline-0900",
-    {
-      envelope: { calendarId: CALENDAR_IDS.work, eventId: "local-baseline@example.test" },
-      content: {
-        start: "2025-01-06T09:00:00",
-        end: "2025-01-06T10:00:00",
-        summary: "Local baseline (plain)",
-        color: "#4564B5",
+    ],
+    [
+      "event-local-baseline-0900",
+      {
+        envelope: { calendarId: CALENDAR_IDS.work, eventId: "local-baseline@example.test" },
+        content: {
+          start: "2025-01-06T09:00:00",
+          end: "2025-01-06T10:00:00",
+          summary: "Local baseline (plain)",
+          color: "#4564B5",
+        },
       },
-    },
-  ],
-  ] as Array<[id: string, event: CalendarEventSeedInput]>).map(([id, event]) => [
-  id,
-  toCalendarEvent(event),
-]);
+    ],
+  ] as Array<[id: string, event: CalendarEventSeedInput]>
+).map(([id, event]) => [id, toCalendarEvent(event)]);
 
 export function toTemporalDateLike(
   value: string
@@ -442,7 +442,7 @@ function toCalendarEvent(event: CalendarEventSeedInput): CalendarEventRecord {
       end: toTemporalDateLike(event.content.end),
       summary: event.content.summary,
       color: event.content.color,
-        location: event.content.location,
+      location: event.content.location,
     },
   };
 }
@@ -459,10 +459,9 @@ export const sampleEvents: StoryEventEntry[] = sampleCalendarEvents.map(([id, ev
   toCalendarEventView(event),
 ]);
 
-export const timezoneShiftEvents: StoryEventEntry[] = timezoneShiftCalendarEvents.map(([id, event]) => [
-  id,
-  toCalendarEventView(event),
-]);
+export const timezoneShiftEvents: StoryEventEntry[] = timezoneShiftCalendarEvents.map(
+  ([id, event]) => [id, toCalendarEventView(event)]
+);
 
 export const weekSplitEvents: WeekStoryEventEntry[] = sampleEvents.map(([id, event]) => [
   id,
@@ -488,3 +487,25 @@ export const localeOptions = [
   "ar",
   "he",
 ];
+
+export const AUTO_LOCALE_OPTION = "__auto-locale__";
+export const AUTO_WEEK_START_OPTION = "auto";
+export const resolvedStoryLocale = resolveLocale(undefined);
+const weekDayLabels = {
+  1: "Monday",
+  2: "Tuesday",
+  3: "Wednesday",
+  4: "Thursday",
+  5: "Friday",
+  6: "Saturday",
+  7: "Sunday",
+} as const;
+export const langControlOptions = [AUTO_LOCALE_OPTION, ...localeOptions];
+export const langControlLabels = {
+  [AUTO_LOCALE_OPTION]: `auto (${resolvedStoryLocale})`,
+} as const;
+export const weekStartControlOptions = [AUTO_WEEK_START_OPTION, 1, 2, 3, 4, 5, 6, 7] as const;
+export const weekStartControlLabels = {
+  [AUTO_WEEK_START_OPTION]: `auto`,
+  ...weekDayLabels,
+} as const;

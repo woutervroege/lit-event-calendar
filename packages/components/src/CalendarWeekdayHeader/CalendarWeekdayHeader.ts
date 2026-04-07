@@ -13,14 +13,14 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
 
 @customElement("calendar-weekday-header")
 export class CalendarWeekdayHeader extends BaseElement {
-  locale?: string;
+  lang = "";
   weekStart?: number;
   #daysPerWeekStored = 7;
 
   static get properties() {
     return {
       weekStart: { type: Number, attribute: "week-start", reflect: true },
-      locale: { type: String },
+      lang: { type: String },
     } as const;
   }
 
@@ -29,7 +29,7 @@ export class CalendarWeekdayHeader extends BaseElement {
   }
 
   get #resolvedLocale(): string {
-    return resolveLocale(this.locale);
+    return resolveLocale(this.lang);
   }
 
   get #resolvedWeekStart(): WeekdayNumber {

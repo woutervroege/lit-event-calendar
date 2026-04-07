@@ -352,7 +352,7 @@ export class AllDayEvent extends EventBase {
     );
     if (!isStartVisible) return "";
 
-    return startTime.toLocaleString(this.locale, {
+    return startTime.toLocaleString(this.lang, {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -389,7 +389,7 @@ export class AllDayEvent extends EventBase {
       return;
     }
 
-    this.#previewDisplayTime = startTime.toLocaleString(this.locale, {
+    this.#previewDisplayTime = startTime.toLocaleString(this.lang, {
       hour: "2-digit",
       minute: "2-digit",
     });

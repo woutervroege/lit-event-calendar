@@ -129,14 +129,14 @@ export class CalendarViewGroup extends CalendarViewBase {
   }
 
   get rangeLabelParts(): RangeLabelPart[] {
-    const locale = resolveLocale(this.locale);
+    const lang = resolveLocale(this.lang);
     const anchor = this.#resolvedStartDate;
     const anchorDate = new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day));
 
     if (this.view === "year") {
       return [
         {
-          text: new Intl.DateTimeFormat(locale, { year: "numeric" }).format(anchorDate),
+          text: new Intl.DateTimeFormat(lang, { year: "numeric" }).format(anchorDate),
           isYear: false,
         },
       ];
@@ -144,14 +144,14 @@ export class CalendarViewGroup extends CalendarViewBase {
 
     if (this.view === "month") {
       return this.#dateLabelParts(
-        new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }),
+        new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" }),
         new Date(Date.UTC(anchor.year, anchor.month - 1, 1))
       );
     }
 
     if (this.view === "day") {
       return this.#dateLabelParts(
-        new Intl.DateTimeFormat(locale, { dateStyle: "long" }),
+        new Intl.DateTimeFormat(lang, { dateStyle: "long" }),
         anchorDate
       );
     }
@@ -159,7 +159,7 @@ export class CalendarViewGroup extends CalendarViewBase {
     const start = this.#weekRangeStartDate;
     const rangeLengthDays = this.daysPerWeek;
     const end = start.add({ days: rangeLengthDays - 1 });
-    return this.#weekRangeLabelParts(start, end, locale);
+    return this.#weekRangeLabelParts(start, end, lang);
   }
 
   get startDate(): Temporal.PlainDate | undefined {
@@ -230,7 +230,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           start-date=${this.#agendaRangeStartDate.toString()}
           .daysPerWeek=${this.#agendaRangeDays}
           .events=${this.events}
-          .locale=${this.locale}
+          .lang=${this.lang}
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
           @day-selection-requested=${this.#handleDaySelectionRequested}
@@ -249,7 +249,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           .daysPerWeek=${daysPerWeek}
           .events=${this.events}
           .rtl=${this.rtl}
-          .locale=${this.locale}
+          .lang=${this.lang}
           .timezone=${this.timezone}
           .currentTime=${this.currentTime}
           .snapInterval=${this.snapInterval}
@@ -273,7 +273,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           .year=${this.year}
           .weekStart=${this.weekStart}
           .events=${this.events}
-          .locale=${this.locale}
+          .lang=${this.lang}
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
           .defaultEventSummary=${this.defaultEventSummary}
@@ -294,7 +294,7 @@ export class CalendarViewGroup extends CalendarViewBase {
         .year=${this.year}
         .weekStart=${this.weekStart}
         .events=${this.events}
-        .locale=${this.locale}
+        .lang=${this.lang}
         .timezone=${this.timezone}
         .currentTime=${this.#resolvedCurrentTime}
         .defaultEventSummary=${this.defaultEventSummary}
@@ -362,7 +362,7 @@ export class CalendarViewGroup extends CalendarViewBase {
   }
 
   get #weekRangeStartDate(): Temporal.PlainDate {
-    // Full-week mode stays aligned to locale week start; partial-week modes use a sliding anchor.
+    // Full-week mode stays aligned to localized week start; partial-week modes use a sliding anchor.
     if (this.daysPerWeek < 7) return this.#resolvedStartDate;
     return this.#weekStartDate;
   }
@@ -388,7 +388,7 @@ export class CalendarViewGroup extends CalendarViewBase {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    return this.resolveWeekStart(this.weekStart, this.locale);
+    return this.resolveWeekStart(this.weekStart, this.lang);
   }
 
   #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {
@@ -399,14 +399,14 @@ export class CalendarViewGroup extends CalendarViewBase {
   #weekRangeLabelParts(
     start: Temporal.PlainDate,
     end: Temporal.PlainDate,
-    locale: string
+    lang: string
   ): RangeLabelPart[] {
     const startDate = new Date(Date.UTC(start.year, start.month - 1, start.day));
     const endDate = new Date(Date.UTC(end.year, end.month - 1, end.day));
-    const yearText = new Intl.DateTimeFormat(locale, { year: "numeric" }).format(startDate);
+    const yearText = new Intl.DateTimeFormat(lang, { year: "numeric" }).format(startDate);
 
     if (start.year === end.year && start.month === end.month) {
-      const month = new Intl.DateTimeFormat(locale, { month: "short" }).format(startDate);
+      const month = new Intl.DateTimeFormat(lang, { month: "short" }).format(startDate);
       return [
         { text: `${month} ${start.day}-${end.day}, `, isYear: false },
         { text: yearText, isYear: true },
@@ -414,10 +414,10 @@ export class CalendarViewGroup extends CalendarViewBase {
     }
 
     if (start.year === end.year) {
-      const startPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
+      const startPart = new Intl.DateTimeFormat(lang, { month: "short", day: "numeric" }).format(
         startDate
       );
-      const endPart = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(
+      const endPart = new Intl.DateTimeFormat(lang, { month: "short", day: "numeric" }).format(
         endDate
       );
       return [
@@ -426,7 +426,7 @@ export class CalendarViewGroup extends CalendarViewBase {
       ];
     }
 
-    const mediumDateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
+    const mediumDateFormatter = new Intl.DateTimeFormat(lang, { dateStyle: "medium" });
     return [
       ...this.#dateLabelParts(mediumDateFormatter, startDate),
       { text: " - ", isYear: false },

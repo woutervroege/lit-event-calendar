@@ -43,23 +43,23 @@ const VIEW_DATE_TIME_FIELDS: Record<ViewUnit, string> = {
   year: "year",
 };
 
-function capitalizeLabel(value: string, locale = globalThis.navigator?.language ?? "en"): string {
-  return value.replace(/^\p{L}/u, (character) => character.toLocaleUpperCase(locale));
+function capitalizeLabel(value: string, lang = globalThis.navigator?.language ?? "en"): string {
+  return value.replace(/^\p{L}/u, (character) => character.toLocaleUpperCase(lang));
 }
 
-function getUnitLabel(unit: ViewUnit, locale = globalThis.navigator?.language ?? "en"): string {
+function getUnitLabel(unit: ViewUnit, lang = globalThis.navigator?.language ?? "en"): string {
   try {
-    const displayNames = new Intl.DisplayNames(locale, { type: "dateTimeField" });
+    const displayNames = new Intl.DisplayNames(lang, { type: "dateTimeField" });
     const label = displayNames.of(VIEW_DATE_TIME_FIELDS[unit] as Intl.DateTimeField) ?? unit;
-    return capitalizeLabel(label, locale);
+    return capitalizeLabel(label, lang);
   } catch {
-    return capitalizeLabel(unit, locale);
+    return capitalizeLabel(unit, lang);
   }
 }
 
-function getViewOptions(locale?: string): TabSwitchOption[] {
+function getViewOptions(lang?: string): TabSwitchOption[] {
   return VIEW_OPTIONS_BASE.map(({ value, hotkey }) => ({
-    label: getUnitLabel(value, locale),
+    label: getUnitLabel(value, lang),
     value,
     hotkey,
   }));
@@ -76,10 +76,10 @@ function getPresentationOptions(): TabSwitchOption[] {
   }));
 }
 
-function getTodayLabel(locale = globalThis.navigator?.language ?? "en"): string {
+function getTodayLabel(lang = globalThis.navigator?.language ?? "en"): string {
   try {
-    const relativeTimeFormat = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-    return capitalizeLabel(relativeTimeFormat.format(0, "day"), locale);
+    const relativeTimeFormat = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
+    return capitalizeLabel(relativeTimeFormat.format(0, "day"), lang);
   } catch {
     return "Today";
   }
@@ -96,7 +96,7 @@ export class EventCalendar extends BaseElement {
   #rangeLabelParts: Array<{ text: string; isYear: boolean }> = [];
   weekStart?: WeekdayNumber;
   declare events?: EventsMap;
-  locale?: string;
+  lang = "";
   timezone?: string;
   currentTime?: string;
   snapInterval = 15;
@@ -131,7 +131,7 @@ export class EventCalendar extends BaseElement {
       events: {
         type: Object,
       },
-      locale: { type: String },
+      lang: { type: String },
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
       snapInterval: { type: Number, attribute: "snap-interval" },
@@ -222,7 +222,7 @@ export class EventCalendar extends BaseElement {
   }
 
   render() {
-    const headerDirection = this.rtl || getLocaleDirection(this.locale) === "rtl" ? "rtl" : "ltr";
+    const headerDirection = this.rtl || getLocaleDirection(this.lang) === "rtl" ? "rtl" : "ltr";
     const isHeaderRtl = headerDirection === "rtl";
     return html`
       <div class="flex h-full min-h-0 flex-col gap-7 overflow-hidden [container-type:inline-size] [@media(max-width:54rem)]:gap-4">
@@ -300,19 +300,19 @@ export class EventCalendar extends BaseElement {
               </h2>
             </div>
             <lc-button
-              label=${getTodayLabel(this.locale)}
+              label=${getTodayLabel(this.lang)}
               style="--_lc-grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --_lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));"
               @click=${() => this.goToday()}
             >
               ${renderCalendarIcon({ className: "h-[1.1rem] w-[1.1rem]" })}
-              <span class="[@container(max-width:54rem)]:hidden">${getTodayLabel(this.locale)}</span>
+              <span class="[@container(max-width:54rem)]:hidden">${getTodayLabel(this.lang)}</span>
             </lc-button>
           </div>
           <div class="flex items-center justify-end gap-0 border-t border-[light-dark(rgb(15_23_42_/_10%),rgb(255_255_255_/_12%))] pt-2 [@container(max-width:34rem)]:w-full [@container(max-width:34rem)]:justify-between [@container(max-width:34rem)]:gap-2 [@container(max-width:34rem)]:items-stretch">
             <tab-switch
               class="flex-none"
               .showHotkeys=${false}
-              .options=${getViewOptions(this.locale)}
+              .options=${getViewOptions(this.lang)}
               .value=${this.view}
               name="event-calendar-view-tabs"
               group-label="Calendar view"
@@ -343,7 +343,7 @@ export class EventCalendar extends BaseElement {
           .weekStart=${this.weekStart}
           .daysPerWeek=${this.daysPerWeek}
           .events=${this.events}
-          .locale=${this.locale}
+          .lang=${this.lang}
           .timezone=${this.timezone}
           .currentTime=${this.currentTime}
           .snapInterval=${this.snapInterval}

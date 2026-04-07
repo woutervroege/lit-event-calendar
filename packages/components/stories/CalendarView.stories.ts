@@ -2,8 +2,10 @@ import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "../src/CalendarView/CalendarView.js";
 import { calendarCssProps } from "./support/CalendarCssProps.js";
 import {
+  AUTO_LOCALE_OPTION,
   type CalendarEvent,
-  localeOptions,
+  langControlLabels,
+  langControlOptions,
   sampleEvents,
   timezoneOptions,
   timezoneShiftEvents,
@@ -22,10 +24,13 @@ const meta: Meta = {
   },
   argTypes: {
     startDate: { control: "text", description: "Start date (YYYY-MM-DD)" },
-    daysPerWeek: { control: { type: "number", min: 1, max: 42 }, description: "Visible day columns" },
-    locale: {
-      control: "select",
-      options: localeOptions,
+    daysPerWeek: {
+      control: { type: "number", min: 1, max: 42 },
+      description: "Visible day columns",
+    },
+    lang: {
+      control: { type: "select", labels: langControlLabels },
+      options: langControlOptions,
       description: "Locale",
     },
     timezone: {
@@ -47,6 +52,7 @@ const meta: Meta = {
   args: {
     startDate: "2025-01-05",
     daysPerWeek: 7,
+    lang: AUTO_LOCALE_OPTION,
     variant: "timed",
     timezone: "Europe/Amsterdam",
     labelsHidden: false,
@@ -63,7 +69,11 @@ const meta: Meta = {
     el.setAttribute("days-per-week", String(args.daysPerWeek));
     el.setAttribute("variant", args.variant);
     el.setAttribute("snap-interval", String(args.snapInterval));
-    if (args.visibleHours === "auto" || args.visibleHours === undefined || args.visibleHours === null) {
+    if (
+      args.visibleHours === "auto" ||
+      args.visibleHours === undefined ||
+      args.visibleHours === null
+    ) {
       el.removeAttribute("visible-hours");
     } else {
       el.setAttribute("visible-hours", String(args.visibleHours));
@@ -72,8 +82,10 @@ const meta: Meta = {
       el.setAttribute("current-time", args.currentTime);
     }
     el.toggleAttribute("labels-hidden", Boolean(args.labelsHidden));
-    if (args.locale) {
-      el.setAttribute("locale", args.locale);
+    if (args.lang && args.lang !== AUTO_LOCALE_OPTION) {
+      el.setAttribute("lang", args.lang);
+    } else {
+      el.removeAttribute("lang");
     }
     if (args.timezone) {
       el.setAttribute("timezone", args.timezone);

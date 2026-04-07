@@ -2,10 +2,15 @@ import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "../src/CalendarViewGroup/CalendarViewGroup.js";
 import { calendarCssProps } from "./support/CalendarCssProps.js";
 import {
-  localeOptions,
+  AUTO_LOCALE_OPTION,
+  AUTO_WEEK_START_OPTION,
   type CalendarEvent,
+  langControlLabels,
+  langControlOptions,
   sampleEvents,
   timezoneOptions,
+  weekStartControlLabels,
+  weekStartControlOptions,
 } from "./support/StoryData.js";
 import { attachRequestEventHandlers } from "./support/StoryRequestHandlers.js";
 
@@ -32,22 +37,14 @@ const meta: Meta = {
     weekStart: {
       control: {
         type: "select",
-        labels: {
-          1: "Monday",
-          2: "Tuesday",
-          3: "Wednesday",
-          4: "Thursday",
-          5: "Friday",
-          6: "Saturday",
-          7: "Sunday",
-        },
+        labels: weekStartControlLabels,
       },
-      options: [1, 2, 3, 4, 5, 6, 7],
+      options: weekStartControlOptions,
     },
     daysPerWeek: { control: { type: "number", min: 1, max: 7, step: 1 } },
-    locale: {
-      control: "select",
-      options: localeOptions,
+    lang: {
+      control: { type: "select", labels: langControlLabels },
+      options: langControlOptions,
       description: "Locale",
     },
     timezone: {
@@ -66,7 +63,9 @@ const meta: Meta = {
     view: "month",
     presentation: "grid",
     startDate: "2025-01-15",
+    weekStart: AUTO_WEEK_START_OPTION,
     daysPerWeek: 7,
+    lang: AUTO_LOCALE_OPTION,
     timezone: "Europe/Amsterdam",
     currentTime: "2025-01-15T14:30:00",
     snapInterval: 15,
@@ -86,10 +85,14 @@ const meta: Meta = {
     }
     if (typeof args.weekStart === "number") {
       el.setAttribute("week-start", String(args.weekStart));
+    } else if (args.weekStart === AUTO_WEEK_START_OPTION) {
+      el.removeAttribute("week-start");
     }
     el.setAttribute("days-per-week", String(args.daysPerWeek));
-    if (args.locale) {
-      el.setAttribute("locale", args.locale);
+    if (args.lang && args.lang !== AUTO_LOCALE_OPTION) {
+      el.setAttribute("lang", args.lang);
+    } else {
+      el.removeAttribute("lang");
     }
     if (args.timezone) {
       el.setAttribute("timezone", args.timezone);
@@ -98,7 +101,11 @@ const meta: Meta = {
       el.setAttribute("current-time", args.currentTime);
     }
     el.setAttribute("snap-interval", String(args.snapInterval));
-    if (args.visibleHours === "auto" || args.visibleHours === undefined || args.visibleHours === null) {
+    if (
+      args.visibleHours === "auto" ||
+      args.visibleHours === undefined ||
+      args.visibleHours === null
+    ) {
       el.removeAttribute("visible-hours");
     } else {
       el.setAttribute("visible-hours", String(args.visibleHours));

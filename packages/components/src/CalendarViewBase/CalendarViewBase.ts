@@ -1,4 +1,5 @@
-import { getLocaleWeekInfo } from "../utils/Locale.js";
+import { Temporal } from "@js-temporal/polyfill";
+import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import type { CalendarEventView } from "../types/CalendarEvent.js";
 
@@ -11,10 +12,11 @@ export function isWeekdayNumber(value: number | undefined): value is WeekdayNumb
 }
 
 export abstract class CalendarViewBase extends BaseElement {
+  #lang?: string;
+  #timezone?: string;
+  #currentTime?: string;
+
   declare events?: EventsMap;
-  locale?: string;
-  timezone?: string;
-  currentTime?: string;
   defaultEventSummary = "New event";
   defaultEventColor = "#0ea5e9";
   defaultCalendarId?: string;
@@ -28,7 +30,7 @@ export abstract class CalendarViewBase extends BaseElement {
             new Map(JSON.parse(value || "[]") as EventEntry[]),
         },
       },
-      locale: { type: String },
+      lang: { type: String },
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
@@ -37,12 +39,38 @@ export abstract class CalendarViewBase extends BaseElement {
     } as const;
   }
 
+  get lang(): string {
+    return resolveLocale(this.#lang);
+  }
+
+  set lang(lang: string | null | undefined) {
+    this.#lang = lang?.trim() ? lang : undefined;
+  }
+
+  get timezone(): string {
+    return this.#timezone ?? Temporal.Now.timeZoneId();
+  }
+
+  set timezone(timezone: string | null | undefined) {
+    this.#timezone = timezone?.trim() ? timezone : undefined;
+  }
+
+  get currentTime(): string {
+    return this.#currentTime ?? Temporal.Now.zonedDateTimeISO(this.timezone).toString();
+  }
+
+  set currentTime(
+    currentTime: Temporal.PlainDateTime | Temporal.ZonedDateTime | string | null | undefined
+  ) {
+    this.#currentTime = currentTime?.toString() ?? undefined;
+  }
+
   protected resolveWeekStart(
     weekStart: number | undefined,
-    locale: string | undefined
+    lang: string
   ): WeekdayNumber {
     if (isWeekdayNumber(weekStart)) return weekStart as WeekdayNumber;
-    const firstDay = getLocaleWeekInfo(locale).firstDay;
+    const firstDay = getLocaleWeekInfo(lang).firstDay;
     if (isWeekdayNumber(firstDay)) return firstDay;
     return 1;
   }

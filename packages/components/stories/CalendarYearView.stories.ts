@@ -1,7 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "../src/CalendarYearView/CalendarYearView.js";
-import { localeOptions, type CalendarEvent, sampleEvents, timezoneOptions } from "./support/StoryData.js";
 import { calendarCssProps } from "./support/CalendarCssProps.js";
+import {
+  AUTO_LOCALE_OPTION,
+  AUTO_WEEK_START_OPTION,
+  type CalendarEvent,
+  langControlLabels,
+  langControlOptions,
+  sampleEvents,
+  timezoneOptions,
+  weekStartControlLabels,
+  weekStartControlOptions,
+} from "./support/StoryData.js";
 
 type StoryCalendarYearViewElement = HTMLElement & { events: Map<string, CalendarEvent> };
 
@@ -17,21 +27,13 @@ const meta: Meta = {
     weekStart: {
       control: {
         type: "select",
-        labels: {
-          1: "Monday",
-          2: "Tuesday",
-          3: "Wednesday",
-          4: "Thursday",
-          5: "Friday",
-          6: "Saturday",
-          7: "Sunday",
-        },
+        labels: weekStartControlLabels,
       },
-      options: [1, 2, 3, 4, 5, 6, 7],
+      options: weekStartControlOptions,
     },
-    locale: {
-      control: "select",
-      options: localeOptions,
+    lang: {
+      control: { type: "select", labels: langControlLabels },
+      options: langControlOptions,
       description: "Locale",
     },
     timezone: {
@@ -43,6 +45,8 @@ const meta: Meta = {
   },
   args: {
     year: 2025,
+    weekStart: AUTO_WEEK_START_OPTION,
+    lang: AUTO_LOCALE_OPTION,
     timezone: "Europe/Amsterdam",
     currentTime: "2025-01-15T14:30:00",
     events: sampleEvents,
@@ -55,9 +59,13 @@ const meta: Meta = {
     el.setAttribute("year", String(args.year));
     if (typeof args.weekStart === "number") {
       el.setAttribute("week-start", String(args.weekStart));
+    } else if (args.weekStart === AUTO_WEEK_START_OPTION) {
+      el.removeAttribute("week-start");
     }
-    if (args.locale) {
-      el.setAttribute("locale", args.locale);
+    if (args.lang && args.lang !== AUTO_LOCALE_OPTION) {
+      el.setAttribute("lang", args.lang);
+    } else {
+      el.removeAttribute("lang");
     }
     if (args.timezone) {
       el.setAttribute("timezone", args.timezone);

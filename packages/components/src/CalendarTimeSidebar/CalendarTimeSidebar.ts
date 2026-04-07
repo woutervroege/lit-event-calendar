@@ -7,13 +7,13 @@ import componentStyle from "./CalendarTimeSidebar.css?inline";
 
 @customElement("calendar-time-sidebar")
 export class CalendarTimeSidebar extends BaseElement {
-  locale?: string;
+  lang = "";
   /** Raw property value; `get hours()` clamps to 1–24. */
   #hoursRaw = 24;
 
   static get properties() {
     return {
-      locale: { type: String },
+      lang: { type: String },
       hours: { type: Number },
     } as const;
   }
@@ -37,10 +37,10 @@ export class CalendarTimeSidebar extends BaseElement {
   }
 
   render() {
-    const direction = getLocaleDirection(this.locale);
+    const direction = getLocaleDirection(this.lang);
     const hours = this.hours;
-    const hourlyLabels = getHourlyTimeLabels(this.locale, hours);
-    const endLabel = getHourlyTimeLabels(this.locale, 1)[0] ?? "00:00";
+    const hourlyLabels = getHourlyTimeLabels(this.lang, hours);
+    const endLabel = getHourlyTimeLabels(this.lang, 1)[0] ?? "00:00";
     const labels = [...hourlyLabels, endLabel];
     const hourSlots = Math.max(1, hours);
 

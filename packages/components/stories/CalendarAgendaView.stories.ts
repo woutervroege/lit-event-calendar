@@ -2,8 +2,10 @@ import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "../src/CalendarAgendaView/CalendarAgendaView.js";
 import { calendarCssProps } from "./support/CalendarCssProps.js";
 import {
-  localeOptions,
+  AUTO_LOCALE_OPTION,
   type CalendarEvent,
+  langControlLabels,
+  langControlOptions,
   sampleEvents,
   timezoneOptions,
 } from "./support/StoryData.js";
@@ -20,9 +22,9 @@ const meta: Meta = {
   argTypes: {
     startDate: { control: "text", description: "Range start date (YYYY-MM-DD)" },
     daysPerWeek: { control: { type: "number", min: 1, max: 366, step: 1 } },
-    locale: {
-      control: "select",
-      options: localeOptions,
+    lang: {
+      control: { type: "select", labels: langControlLabels },
+      options: langControlOptions,
       description: "Locale",
     },
     timezone: {
@@ -35,6 +37,7 @@ const meta: Meta = {
   args: {
     startDate: "2025-01-01",
     daysPerWeek: 31,
+    lang: AUTO_LOCALE_OPTION,
     timezone: "Europe/Amsterdam",
     currentTime: "2025-01-15T14:30:00",
     events: sampleEvents,
@@ -46,8 +49,10 @@ const meta: Meta = {
     el.style.height = "100%";
     el.setAttribute("start-date", String(args.startDate));
     el.setAttribute("days-per-week", String(args.daysPerWeek));
-    if (args.locale) {
-      el.setAttribute("locale", args.locale);
+    if (args.lang && args.lang !== AUTO_LOCALE_OPTION) {
+      el.setAttribute("lang", args.lang);
+    } else {
+      el.removeAttribute("lang");
     }
     if (args.timezone) {
       el.setAttribute("timezone", args.timezone);

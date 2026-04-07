@@ -68,7 +68,7 @@ export class CalendarView extends BaseElement {
   #startDate?: string;
   #currentTime?: string;
   #timezone?: string;
-  #locale?: string;
+  #lang?: string;
   #daysPerWeekStored = 7;
   #hours: number = 24;
   #visibleHours = 24;
@@ -208,7 +208,7 @@ export class CalendarView extends BaseElement {
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
       defaultEventColor: { type: String, attribute: "default-event-color" },
       defaultCalendarId: { type: String, attribute: "default-source-id" },
-      locale: { type: String },
+      lang: { type: String },
       timezone: { type: String },
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
@@ -253,7 +253,7 @@ export class CalendarView extends BaseElement {
   updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties);
     if (
-      changedProperties.has("locale") ||
+      changedProperties.has("lang") ||
       changedProperties.has("timezone") ||
       changedProperties.has("currentTime")
     ) {
@@ -293,12 +293,12 @@ export class CalendarView extends BaseElement {
     this.#timezone = timezone || undefined;
   }
 
-  get locale(): string {
-    return resolveLocale(this.#locale);
+  get lang(): string {
+    return resolveLocale(this.#lang);
   }
 
-  set locale(locale: string | undefined) {
-    this.#locale = locale || undefined;
+  set lang(lang: string | undefined) {
+    this.#lang = lang || undefined;
   }
 
   get daysPerWeek(): number {
@@ -536,11 +536,11 @@ export class CalendarView extends BaseElement {
   }
 
   get #weekendDays(): Set<number> {
-    return new Set(getLocaleWeekInfo(this.locale).weekend);
+    return new Set(getLocaleWeekInfo(this.lang).weekend);
   }
 
   get #isRtl(): boolean {
-    return this.rtl || getLocaleDirection(this.locale) === "rtl";
+    return this.rtl || getLocaleDirection(this.lang) === "rtl";
   }
 
   #toVisualColumnIndex(columnIndex: number, columnCount: number): number {
@@ -940,8 +940,8 @@ export class CalendarView extends BaseElement {
     const inlineEndInsetPx = 2;
     const day = this.viewDays[dayIndex];
     if (!day) return null;
-    const formattedHiddenCount = new Intl.NumberFormat(this.locale).format(hiddenCount);
-    const fullDateLabel = new Intl.DateTimeFormat(this.locale, { dateStyle: "full" }).format(
+    const formattedHiddenCount = new Intl.NumberFormat(this.lang).format(hiddenCount);
+    const fullDateLabel = new Intl.DateTimeFormat(this.lang, { dateStyle: "full" }).format(
       new Date(Date.UTC(day.year, day.month - 1, day.day))
     );
     const accessibilityLabel = `${formattedHiddenCount} more ${
@@ -1030,7 +1030,7 @@ export class CalendarView extends BaseElement {
   ): TemplateResult {
     const shouldRenderContent = this.#activeOverflowPopoverId === popoverId;
     const dayEvents = shouldRenderContent ? this.#eventsForDay(day) : [];
-    const fullDateLabel = new Intl.DateTimeFormat(this.locale, { dateStyle: "full" }).format(
+    const fullDateLabel = new Intl.DateTimeFormat(this.lang, { dateStyle: "full" }).format(
       new Date(Date.UTC(day.year, day.month - 1, day.day))
     );
     const popoverEvents: DayOverflowPopoverEvent[] = dayEvents.map(([id, event]) => ({
@@ -1188,9 +1188,9 @@ export class CalendarView extends BaseElement {
 
     const days = this.viewDays;
     const currentDay = this.currentTime.toPlainDate();
-    const monthFormatter = new Intl.DateTimeFormat(this.locale, { month: "short" });
-    const dayFormatter = new Intl.NumberFormat(this.locale);
-    const fullDateFormatter = new Intl.DateTimeFormat(this.locale, { dateStyle: "full" });
+    const monthFormatter = new Intl.DateTimeFormat(this.lang, { month: "short" });
+    const dayFormatter = new Intl.NumberFormat(this.lang);
+    const fullDateFormatter = new Intl.DateTimeFormat(this.lang, { dateStyle: "full" });
     const colIndex = this.#isMonthView ? dayIndex % cols : dayIndex;
     const visualColIndex = this.#toVisualColumnIndex(colIndex, cols);
     const rowIndex = this.#isMonthView ? Math.floor(dayIndex / cols) : 0;
@@ -1835,7 +1835,7 @@ export class CalendarView extends BaseElement {
     endDateTime: Temporal.PlainDateTime
   ): string {
     const format = (dateTime: Temporal.PlainDateTime): string =>
-      dateTime.toPlainTime().toLocaleString(this.locale, {
+      dateTime.toPlainTime().toLocaleString(this.lang, {
         hour: "2-digit",
         minute: "2-digit",
       });
@@ -1913,9 +1913,9 @@ export class CalendarView extends BaseElement {
   }
 
   #getPopoverDayLabel(day: Temporal.PlainDate, dayIndex: number): string {
-    const weekdayFormatter = new Intl.DateTimeFormat(this.locale, { weekday: "short" });
-    const dayFormatter = new Intl.NumberFormat(this.locale);
-    const monthFormatter = new Intl.DateTimeFormat(this.locale, { month: "short" });
+    const weekdayFormatter = new Intl.DateTimeFormat(this.lang, { weekday: "short" });
+    const dayFormatter = new Intl.NumberFormat(this.lang);
+    const monthFormatter = new Intl.DateTimeFormat(this.lang, { month: "short" });
     const compactMonthView = this.#isCompactMonthView;
     const days = this.viewDays;
     const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
@@ -2362,7 +2362,7 @@ export class CalendarView extends BaseElement {
 
   #updateCalendarViewContext() {
     const value: CalendarViewContextValue = {
-      locale: this.locale,
+      lang: this.lang,
       timezone: this.timezone,
       currentTime: this.currentTime.toString(),
     };

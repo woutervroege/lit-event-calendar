@@ -10,7 +10,7 @@ import componentStyle from "./EventCard.css?inline";
 @customElement("event-card")
 export class EventCard extends BaseElement {
   @property({ type: String })
-  locale?: string;
+  lang = "";
 
   #calendarView?: CalendarViewContextValue;
   #calendarViewConsumer = new ContextConsumer(this, {
@@ -59,7 +59,7 @@ export class EventCard extends BaseElement {
   }
 
   get dir() {
-    return getLocaleDirection(this.locale || this.#calendarView?.locale);
+    return getLocaleDirection(this.lang || this.#calendarView?.lang);
   }
 
   render() {

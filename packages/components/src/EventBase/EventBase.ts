@@ -14,7 +14,7 @@ export abstract class EventBase extends BaseElement {
   #end?: string;
   #currentTime?: string;
   #timezone?: string;
-  #locale?: string;
+  #lang?: string;
   #justDroppedTimeout: ReturnType<typeof setTimeout> | null = null;
   #calendarView?: CalendarViewContextValue;
   #calendarViewConsumer = new ContextConsumer(this, {
@@ -47,7 +47,7 @@ export abstract class EventBase extends BaseElement {
     return {
       start: { type: String },
       end: { type: String },
-      locale: { type: String },
+      lang: { type: String },
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
       eventId: { type: String, attribute: "event-id" },
@@ -157,12 +157,12 @@ export abstract class EventBase extends BaseElement {
     this.#timezone = timezone ?? undefined;
   }
 
-  get locale(): string {
-    return resolveLocale(this.#locale ?? this.#calendarView?.locale);
+  get lang(): string {
+    return resolveLocale(this.#lang ?? this.#calendarView?.lang);
   }
 
-  set locale(locale: string | null | undefined) {
-    this.#locale = locale ?? undefined;
+  set lang(lang: string | null | undefined) {
+    this.#lang = lang ?? undefined;
   }
 
   get startDate(): Temporal.PlainDate | null {

@@ -99,7 +99,7 @@ export class CalendarWeekView extends CalendarViewBase {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    return this.resolveWeekStart(this.weekStart, this.locale);
+    return this.resolveWeekStart(this.weekStart, this.lang);
   }
 
   get #allDayEvents(): EventsMap {
@@ -246,7 +246,7 @@ export class CalendarWeekView extends CalendarViewBase {
     const timedRenderedContentHeight = clampedVisibleHours
       ? `calc(var(--_lc-week-effective-timed-height) * ${24 / clampedVisibleHours})`
       : timedContentHeight;
-    const direction = this.rtl ? "rtl" : getLocaleDirection(this.locale);
+    const direction = this.rtl ? "rtl" : getLocaleDirection(this.lang);
     const dayModeWeekStart = isWeekdayNumber(this.startDate.dayOfWeek)
       ? this.startDate.dayOfWeek
       : this.weekStart;
@@ -273,7 +273,7 @@ export class CalendarWeekView extends CalendarViewBase {
       >
         <calendar-time-sidebar
           class="week-time-sidebar"
-          .locale=${this.locale}
+          .lang=${this.lang}
           .hours=${24}
         ></calendar-time-sidebar>
 
@@ -289,7 +289,7 @@ export class CalendarWeekView extends CalendarViewBase {
           <div class="week-all-day-shell">
             <calendar-weekday-header
               class="week-weekday-header"
-              .locale=${this.locale}
+              .lang=${this.lang}
               .weekStart=${headerWeekStart}
               .daysPerWeek=${this.daysPerWeek}
             ></calendar-weekday-header>
@@ -300,7 +300,7 @@ export class CalendarWeekView extends CalendarViewBase {
               variant="all-day"
               .events=${this.#allDayEvents}
               .rtl=${this.rtl}
-              locale=${ifDefined(this.locale)}
+              lang=${ifDefined(this.lang)}
               timezone=${ifDefined(this.timezone)}
               current-time=${ifDefined(this.currentTime)}
               .snapInterval=${this.snapInterval}
@@ -327,7 +327,7 @@ export class CalendarWeekView extends CalendarViewBase {
             .events=${this.#timedEvents}
             .visibleHours=${clampedVisibleHours ?? 24}
             .rtl=${this.rtl}
-            locale=${ifDefined(this.locale)}
+            lang=${ifDefined(this.lang)}
             timezone=${ifDefined(this.timezone)}
             current-time=${ifDefined(this.currentTime)}
             .snapInterval=${this.snapInterval}

@@ -24,7 +24,7 @@ export class CalendarYearView extends CalendarViewBase {
   }
 
   get #resolvedLocale(): string {
-    return resolveLocale(this.locale);
+    return resolveLocale(this.lang);
   }
 
   get #resolvedWeekStart(): number {
@@ -54,7 +54,7 @@ export class CalendarYearView extends CalendarViewBase {
                 year=${this.year}
                 .weekStart=${this.#resolvedWeekStart}
                 .events=${this.events}
-                .locale=${this.locale}
+                .lang=${this.lang}
                 .timezone=${this.timezone}
                 .currentTime=${this.currentTime}
                 .defaultEventSummary=${this.defaultEventSummary}
