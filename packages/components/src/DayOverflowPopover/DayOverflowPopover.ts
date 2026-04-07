@@ -68,7 +68,7 @@ export class DayOverflowPopover extends BaseElement {
   #renderDayNumber(): TemplateResult {
     return html`
       <span
-        class="day-label day-overflow-popover-day-number absolute p-1 text-sm z-0 font-medium rounded-full flex justify-center items-center border-0 bg-transparent text-inherit leading-none min-w-6 px-2 h-6 ${
+        class="day-label day-overflow-popover-day-number ${
           this.isCurrentDay ? "current-day" : ""
         } ${this.outsideVisibleMonth ? "outside-month-day-label" : ""}"
         aria-hidden="true"

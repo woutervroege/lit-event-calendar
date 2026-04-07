@@ -1,27 +1,20 @@
+@import "tailwindcss";
+
 :host {
   --_lc-overflow-popover-gap: 8px;
-  display: none;
-  margin: 0;
+  @apply hidden m-0 rounded-[10px] border-0 overflow-hidden p-0 z-[120] fixed h-auto text-inherit;
   inset: auto;
-  border-radius: 10px;
-  border: 0;
   background: var(--_lc-surface-bg, Canvas);
-  color: inherit;
   box-shadow:
     0 14px 28px -16px rgb(15 23 42 / 38%),
     0 10px 16px -14px rgb(15 23 42 / 24%);
   min-inline-size: min(260px, calc(100vi - 24px));
   max-inline-size: min(300px, calc(100vi - 24px));
   max-block-size: none;
-  overflow: hidden;
-  padding: 0;
-  z-index: 120;
-  position: fixed;
   top: calc(anchor(bottom) + var(--_lc-overflow-popover-gap));
   left: anchor(center);
   translate: -50% 0;
   position-try-fallbacks: flip-block;
-  height: auto;
   --_lc-popover-day-number-space: calc(var(--_lc-all-day-day-number-space) - 6px);
 }
 
@@ -45,14 +38,12 @@
 }
 
 :host(:popover-open) {
-  display: block;
+  @apply block;
   animation: day-overflow-popover-fade-in 140ms ease-out;
 }
 
 :host([data-measuring]) {
-  display: block;
-  visibility: hidden;
-  pointer-events: none;
+  @apply block invisible pointer-events-none;
 }
 
 @keyframes day-overflow-popover-fade-in {
@@ -71,20 +62,16 @@
 }
 
 .day-overflow-popover-cell {
-  position: relative;
+  @apply relative w-full min-w-full overflow-hidden rounded-[inherit];
   --_lc-popover-cell-padding: 8px;
-  inline-size: 100%;
-  min-inline-size: 100%;
   min-height: calc(
     var(--_lc-popover-day-number-space) +
     (var(--_lc-event-height) * var(--_lc-popover-event-count, 1)) +
     (var(--_lc-popover-cell-padding) * 2)
   );
-  overflow: hidden;
   padding: var(--_lc-popover-cell-padding);
   background: var(--_lc-surface-bg);
   border: var(--_lc-grid-line-width) solid var(--_lc-grid-line-color);
-  border-radius: inherit;
   box-shadow: 0 8px 18px -14px rgb(15 23 42 / 45%);
 }
 
@@ -93,28 +80,20 @@
 }
 
 .day-overflow-popover-events {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  @apply flex flex-col gap-0;
   padding-top: var(--_lc-popover-day-number-space);
 }
 
 .day-overflow-popover-event {
-  position: relative;
+  @apply relative;
   block-size: var(--_lc-event-height);
 }
 
 .day-overflow-popover-event > all-day-event {
-  position: static;
+  @apply static block w-full h-full;
   inset: auto;
-  display: block;
-  inline-size: 100%;
-  block-size: 100%;
 }
 
 .day-overflow-popover-day-number {
-  inset-inline-start: 6px;
-  top: 0;
-  margin-top: 6px;
-  pointer-events: none;
+  @apply absolute p-1 text-sm z-0 font-medium rounded-full flex justify-center items-center border-0 bg-transparent text-inherit leading-none min-w-6 px-2 h-6 pointer-events-none [inset-inline-start:6px] top-0 mt-1.5;
 }
