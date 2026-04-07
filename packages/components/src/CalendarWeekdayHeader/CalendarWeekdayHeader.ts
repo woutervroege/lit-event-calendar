@@ -1,11 +1,10 @@
 import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarWeekdayHeader.css?inline";
-
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
   return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);

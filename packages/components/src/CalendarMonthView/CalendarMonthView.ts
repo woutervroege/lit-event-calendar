@@ -5,9 +5,8 @@ import { ifDefined } from "lit/directives/if-defined.js";
 import "../CalendarGridView/CalendarGridView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
 import componentStyle from "./CalendarMonthView.css?inline";
-
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 @customElement("calendar-month-view")
 export class CalendarMonthView extends CalendarViewBase {

@@ -1,11 +1,11 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
+import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import type { CalendarEventView } from "../types/CalendarEvent.js";
-
-type EventEntry = [id: string, event: CalendarEventView];
-type EventsMap = Map<string, CalendarEventView>;
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+import type {
+  CalendarEventViewEntry as EventEntry,
+  CalendarEventViewMap as EventsMap,
+} from "../types/CalendarEvent.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
 
 export function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
   return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
@@ -31,6 +31,7 @@ export abstract class CalendarViewBase extends BaseElement {
         },
       },
       lang: { type: String },
+      dir: { type: String, reflect: true },
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
@@ -73,6 +74,17 @@ export abstract class CalendarViewBase extends BaseElement {
     const firstDay = getLocaleWeekInfo(lang).firstDay;
     if (isWeekdayNumber(firstDay)) return firstDay;
     return 1;
+  }
+
+  protected resolveDirection(forceRtl = false): "ltr" | "rtl" {
+    if (forceRtl) return "rtl";
+
+    const explicitDirection = this.dir?.trim().toLowerCase();
+    if (explicitDirection === "rtl" || explicitDirection === "ltr") {
+      return explicitDirection;
+    }
+
+    return getLocaleDirection(this.lang);
   }
 
   protected forwardCalendarEvent = (event: Event) => {

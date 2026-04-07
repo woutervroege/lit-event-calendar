@@ -32,3 +32,5 @@ export type CalendarEventView = CalendarEventEnvelope & CalendarEventContent;
 
 export type CalendarEventEntry = [id: string, event: CalendarEvent];
 export type CalendarEventViewEntry = [id: string, event: CalendarEventView];
+export type CalendarEventMap = Map<string, CalendarEvent>;
+export type CalendarEventViewMap = Map<string, CalendarEventView>;

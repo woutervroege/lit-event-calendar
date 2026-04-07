@@ -8,16 +8,16 @@ import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
 import { CalendarViewBase, isWeekdayNumber } from "../CalendarViewBase/CalendarViewBase.js";
 import type { AllDayLayoutItem } from "../types/AllDayLayout.js";
-import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
+import type {
+  CalendarEventView as EventInput,
+  CalendarEventViewEntry as EventEntry,
+  CalendarEventViewMap as EventsMap,
+} from "../types/CalendarEvent.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
 import { buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
-import { getLocaleDirection } from "../utils/Locale.js";
 import componentStyle from "./CalendarWeekView.css?inline";
 import "../SwipeContainer/SwipeContainer.js";
-
-type EventEntry = [id: string, event: EventInput];
-type EventsMap = Map<string, EventInput>;
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 @customElement("calendar-week-view")
 export class CalendarWeekView extends CalendarViewBase {
@@ -246,7 +246,7 @@ export class CalendarWeekView extends CalendarViewBase {
     const timedRenderedContentHeight = clampedVisibleHours
       ? `calc(var(--_lc-week-effective-timed-height) * ${24 / clampedVisibleHours})`
       : timedContentHeight;
-    const direction = this.rtl ? "rtl" : getLocaleDirection(this.lang);
+    const direction = this.resolveDirection(this.rtl);
     const dayModeWeekStart = isWeekdayNumber(this.startDate.dayOfWeek)
       ? this.startDate.dayOfWeek
       : this.weekStart;

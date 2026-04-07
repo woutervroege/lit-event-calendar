@@ -8,11 +8,10 @@ import "../CalendarWeekView/CalendarWeekView.js";
 import "../CalendarYearView/CalendarYearView.js";
 import "../CalendarListView/CalendarListView.js";
 import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
-
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 type RangeLabelPart = {
   text: string;
   isYear: boolean;

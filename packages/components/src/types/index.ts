@@ -4,8 +4,10 @@ export type {
   CalendarEventDateValue,
   CalendarEventEntry,
   CalendarEventEnvelope,
+  CalendarEventMap,
   CalendarEventView,
   CalendarEventViewEntry,
+  CalendarEventViewMap,
 } from "./CalendarEvent.js";
 
 export type {
@@ -31,3 +33,5 @@ export type { DropdownOption } from "./Dropdown.js";
 export type { TabSwitchOption } from "./TabSwitch.js";
 
 export type { AllDayLayout, AllDayLayoutItem } from "./AllDayLayout.js";
+
+export type { WeekdayNumber } from "./Weekday.js";

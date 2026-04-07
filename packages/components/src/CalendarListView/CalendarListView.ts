@@ -5,13 +5,14 @@ import { styleMap } from "lit/directives/style-map.js";
 import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import "../EventCard/EventCard.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
-import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
+import type {
+  CalendarEventView as EventInput,
+  CalendarEventViewEntry as EventEntry,
+} from "../types/CalendarEvent.js";
 import { clampAgendaDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
-import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
+import { resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarListView.css?inline";
-
-type EventEntry = [id: string, event: EventInput];
 
 type AgendaItem = {
   id: string;
@@ -75,7 +76,7 @@ export class CalendarListView extends CalendarViewBase {
   }
 
   render() {
-    const direction = getLocaleDirection(this.#resolvedLocale);
+    const direction = this.resolveDirection();
     const days = this.#agendaDays;
 
     return html`

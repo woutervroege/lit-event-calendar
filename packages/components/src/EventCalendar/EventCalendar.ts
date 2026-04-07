@@ -6,17 +6,15 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarViewGroup } from "../CalendarViewGroup/CalendarViewGroup.js";
-import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
+import type { CalendarEventViewMap as EventsMap } from "../types/CalendarEvent.js";
 import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
+import type { WeekdayNumber } from "../types/Weekday.js";
 import type { TabSwitchOption } from "../types/TabSwitch.js";
 import "../TabSwitch/TabSwitch.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import { renderGridIcon } from "../icons/GridIcon.js";
 import { renderListIcon } from "../icons/ListIcon.js";
-import { getLocaleDirection } from "../utils/Locale.js";
-
-type WeekdayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-type EventsMap = Map<string, EventInput>;
+import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
 
 type ViewUnit = Extract<CalendarViewMode, "day" | "week" | "month" | "year">;
 type PresentationUnit = CalendarPresentationMode;
@@ -40,17 +38,19 @@ const VIEW_DATE_TIME_FIELDS: Record<ViewUnit, string> = {
   year: "year",
 };
 
-function capitalizeLabel(value: string, lang = globalThis.navigator?.language ?? "en"): string {
-  return value.replace(/^\p{L}/u, (character) => character.toLocaleUpperCase(lang));
+function capitalizeLabel(value: string, lang?: string): string {
+  const resolvedLang = resolveLocale(lang);
+  return value.replace(/^\p{L}/u, (character) => character.toLocaleUpperCase(resolvedLang));
 }
 
-function getUnitLabel(unit: ViewUnit, lang = globalThis.navigator?.language ?? "en"): string {
+function getUnitLabel(unit: ViewUnit, lang?: string): string {
+  const resolvedLang = resolveLocale(lang);
   try {
-    const displayNames = new Intl.DisplayNames(lang, { type: "dateTimeField" });
+    const displayNames = new Intl.DisplayNames(resolvedLang, { type: "dateTimeField" });
     const label = displayNames.of(VIEW_DATE_TIME_FIELDS[unit] as Intl.DateTimeField) ?? unit;
-    return capitalizeLabel(label, lang);
+    return capitalizeLabel(label, resolvedLang);
   } catch {
-    return capitalizeLabel(unit, lang);
+    return capitalizeLabel(unit, resolvedLang);
   }
 }
 
@@ -73,10 +73,11 @@ function getPresentationOptions(): TabSwitchOption[] {
   }));
 }
 
-function getTodayLabel(lang = globalThis.navigator?.language ?? "en"): string {
+function getTodayLabel(lang?: string): string {
+  const resolvedLang = resolveLocale(lang);
   try {
-    const relativeTimeFormat = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
-    return capitalizeLabel(relativeTimeFormat.format(0, "day"), lang);
+    const relativeTimeFormat = new Intl.RelativeTimeFormat(resolvedLang, { numeric: "auto" });
+    return capitalizeLabel(relativeTimeFormat.format(0, "day"), resolvedLang);
   } catch {
     return "Today";
   }

@@ -24,6 +24,8 @@ import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/L
 import "../EventCard/EventCard.js";
 import type {
   AllDayLayoutItem,
+  CalendarEventViewEntry as EventEntry,
+  CalendarEventViewMap as EventsMap,
   DayOverflowPopoverEvent,
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
@@ -31,9 +33,6 @@ import type {
   EventSelectionRequestDetail,
   EventUpdateRequestDetail,
 } from "../types/index.js";
-
-type EventEntry = [id: string, event: EventInput];
-type EventsMap = Map<string, EventInput>;
 type AllDayOverflowLayout = {
   maxVisibleRows: number;
   maxVisibleRowsByDay: Map<number, number>;

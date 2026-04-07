@@ -3,7 +3,7 @@ import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import "../CalendarMonthView/CalendarMonthView.js";
 import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
-import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
+import { resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarYearView.css?inline";
 
 @customElement("calendar-year-view")
@@ -38,7 +38,7 @@ export class CalendarYearView extends CalendarViewBase {
   }
 
   render() {
-    const direction = getLocaleDirection(this.#resolvedLocale);
+    const direction = this.resolveDirection();
 
     return html`
       <div
