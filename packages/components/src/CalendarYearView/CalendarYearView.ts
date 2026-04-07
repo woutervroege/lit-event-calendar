@@ -50,8 +50,8 @@ export class CalendarYearView extends CalendarViewBase {
             <section class="month-card">
               <h3 class="month-title">${this.#formatMonth(month)}</h3>
               <calendar-month-view
-                month=${month}
-                year=${this.year}
+                .month=${month}
+                .year=${this.year}
                 .weekStart=${this.#resolvedWeekStart}
                 .events=${this.events}
                 .lang=${this.lang}

@@ -1,7 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html } from "lit";
 import { customElement } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
@@ -298,7 +297,7 @@ export class EventCalendar extends BaseElement {
               </h2>
             </div>
             <lc-button
-              label=${getTodayLabel(this.lang)}
+              .label=${getTodayLabel(this.lang)}
               style="--_lc-grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --_lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));"
               @click=${() => this.goToday()}
             >
@@ -337,7 +336,7 @@ export class EventCalendar extends BaseElement {
           style="--_lc-week-sticky-top: 0px;"
           .view=${this.view}
           .presentation=${this.presentation}
-          start-date=${ifDefined(this.#startDate)}
+          .startDate=${this.#startDate}
           .weekStart=${this.weekStart}
           .daysPerWeek=${this.daysPerWeek}
           .events=${this.events}

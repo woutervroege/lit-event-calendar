@@ -447,10 +447,10 @@ export class TimedEvent extends EventBase {
 
     return html`
       <event-card
-        summary=${this.summary}
-        time=${isFirst ? this.displayTime : ""}
-        time-detail=${isFirst ? this.displayTimeDetail : ""}
-        segment-direction="vertical"
+        .summary=${this.summary}
+        .time=${isFirst ? this.displayTime : ""}
+        .timeDetail=${isFirst ? this.displayTimeDetail : ""}
+        .segmentDirection=${"vertical"}
         ?past=${this.isPast}
         style=${styleMap(inset)}
         ?first-segment=${hasRoundedStart}

@@ -1,6 +1,5 @@
 import { css, html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import {
   sharedButtonActiveBackgroundClasses,
@@ -123,9 +122,9 @@ export class Button extends BaseElement {
         type=${this.type}
         class=${buttonClasses}
         ?disabled=${this.disabled}
-        aria-label=${ifDefined(this.label || undefined)}
-        aria-keyshortcuts=${ariaHotkey || nothing}
-        title=${ifDefined(hotkeyDisplay && this.label ? `${this.label} (${hotkeyDisplay})` : undefined)}
+        .ariaLabel=${this.label || null}
+        .ariaKeyShortcuts=${ariaHotkey || null}
+        .title=${hotkeyDisplay && this.label ? `${this.label} (${hotkeyDisplay})` : ""}
       >
         <span class="inline-flex items-center gap-2">
           <slot></slot>

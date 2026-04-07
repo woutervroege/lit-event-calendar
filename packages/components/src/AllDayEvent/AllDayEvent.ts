@@ -522,9 +522,9 @@ export class AllDayEvent extends EventBase {
 
     return html`
       <event-card
-        summary=${isFirst ? this.summary : ""}
-        time=${isFirst ? this.displayTime : ""}
-        segment-direction="horizontal"
+        .summary=${isFirst ? this.summary : ""}
+        .time=${isFirst ? this.displayTime : ""}
+        .segmentDirection=${"horizontal"}
         ?past=${this.isPast}
         style=${styleMap(inset.style)}
         ?first-segment=${hasRoundedStart}

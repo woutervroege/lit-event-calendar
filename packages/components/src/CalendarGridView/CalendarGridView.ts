@@ -2,7 +2,6 @@ import { Temporal } from "@js-temporal/polyfill";
 import { ContextProvider } from "@lit/context";
 import { html, type PropertyValues, type TemplateResult, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
 import { keyed } from "lit/directives/keyed.js";
 import { styleMap } from "lit/directives/style-map.js";
 import "../TimedEvent/TimedEvent.js";
@@ -623,9 +622,9 @@ export class CalendarGridView extends BaseElement {
             (segment) => html`
               <event-card
                 class="create-preview-card"
-                summary=${this.defaultEventSummary}
-                time=${segment.timeLabel}
-                segment-direction=${segment.segmentDirection}
+                .summary=${this.defaultEventSummary}
+                .time=${segment.timeLabel}
+                .segmentDirection=${segment.segmentDirection}
                 ?first-segment=${segment.firstSegment}
                 ?last-segment=${segment.lastSegment}
                 style=${styleMap(segment.style)}
@@ -664,11 +663,11 @@ export class CalendarGridView extends BaseElement {
         this.variant === "all-day"
           ? html`
               <all-day-event
-                event-id=${id}
+                .eventId=${id}
                 start=${this.#toEventDateTimeString(event.start)}
                 end=${this.#toEventDateTimeString(event.end)}
-                summary=${event.summary}
-                color=${event.color}
+                .summary=${event.summary}
+                .color=${event.color}
                 ?inert=${this.#isCompactMonthView}
                 .viewDays=${this.viewDays}
                 .daysPerRow=${this.#isMonthView ? this.daysPerRow : 0}
@@ -683,11 +682,11 @@ export class CalendarGridView extends BaseElement {
             `
           : html`
               <timed-event
-                event-id=${id}
+                .eventId=${id}
                 start=${this.#toEventDateTimeString(event.start)}
                 end=${this.#toEventDateTimeString(event.end)}
-                summary=${event.summary}
-                color=${event.color}
+                .summary=${event.summary}
+                .color=${event.color}
                 .viewDays=${this.viewDays}
                 @interaction-drag-state=${this.#handleEventInteractionDragState}
                 @select=${this.#handleEventSelect}
@@ -970,7 +969,7 @@ export class CalendarGridView extends BaseElement {
           type="button"
           class="day-label day-overflow-button absolute z-[3] p-0 text-sm font-medium rounded-sm flex items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis ${sharedFocusRingColorClasses}"
           style=${styleMap(buttonStyle)}
-          aria-label=${accessibilityLabel}
+          .ariaLabel=${accessibilityLabel}
           tabindex="0"
           @click=${(event: MouseEvent) => this.#handleDayLabelClick(day, dayIndex, event)}
           @keydown=${(event: KeyboardEvent) => this.#handleDayLabelKeyDown(day, dayIndex, event)}
@@ -986,7 +985,7 @@ export class CalendarGridView extends BaseElement {
           type="button"
           class="day-label day-overflow-button day-overflow-toggle absolute z-[3] p-0 text-sm font-medium rounded-sm flex items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis ${sharedFocusRingColorClasses}"
           style=${styleMap(buttonStyle)}
-          aria-label=${accessibilityLabel}
+          .ariaLabel=${accessibilityLabel}
           aria-haspopup="dialog"
           popovertarget=${popoverId}
           popovertargetaction="toggle"
@@ -1049,12 +1048,12 @@ export class CalendarGridView extends BaseElement {
         id=${popoverId}
         popover="auto"
         role="dialog"
-        aria-label=${`Events on ${fullDateLabel}`}
+        .ariaLabel=${`Events on ${fullDateLabel}`}
         style=${styleMap({
           "position-anchor": anchorName,
         })}
-        day-iso=${day.toString()}
-        day-label=${dayLabel}
+        .dayIso=${day.toString()}
+        .dayLabel=${dayLabel}
         ?is-current-day=${isCurrentDay}
         ?outside-visible-month=${outsideVisibleMonth}
         ?is-weekend=${this.#weekendDays.has(day.dayOfWeek)}
@@ -1229,8 +1228,8 @@ export class CalendarGridView extends BaseElement {
         } ${monthPrefix ? "min-w-6 px-2" : "w-6"} h-6 ${isCurrentDay ? "current-day" : ""} ${
           outsideVisibleMonth ? "outside-month-day-label" : ""
         }"
-        aria-label=${fullDateLabel}
-        aria-current=${ifDefined(isCurrentDay ? "date" : undefined)}
+        .ariaLabel=${fullDateLabel}
+        .ariaCurrent=${isCurrentDay ? "date" : null}
         style=${styleMap(startOffsetStyle)}
         @click=${(event: MouseEvent) => this.#handleDayLabelClick(day, dayIndex, event)}
         @keydown=${(event: KeyboardEvent) => this.#handleDayLabelKeyDown(day, dayIndex, event)}

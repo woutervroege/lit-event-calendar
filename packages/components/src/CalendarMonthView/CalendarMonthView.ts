@@ -1,7 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
 import "../CalendarGridView/CalendarGridView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
@@ -50,17 +49,17 @@ export class CalendarMonthView extends CalendarViewBase {
         <calendar-weekday-header
           .lang=${this.lang}
           .weekStart=${this.weekStart}
-          days-per-week="7"
+          .daysPerWeek=${7}
         ></calendar-weekday-header>
         <calendar-grid-view
           class="month-grid"
-          start-date=${this.startDate.toString()}
-          days-per-week="42"
+          .startDate=${this.startDate}
+          .daysPerWeek=${42}
           variant="all-day"
           .events=${this.events}
-          lang=${ifDefined(this.lang)}
-          timezone=${ifDefined(this.timezone)}
-          current-time=${ifDefined(this.currentTime)}
+          .lang=${this.lang}
+          .timezone=${this.timezone}
+          current-time=${this.currentTime}
           .labelsHidden=${false}
           .defaultEventSummary=${this.defaultEventSummary}
           .defaultEventColor=${this.defaultEventColor}

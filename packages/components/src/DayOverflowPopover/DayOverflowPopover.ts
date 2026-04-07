@@ -86,11 +86,11 @@ export class DayOverflowPopover extends BaseElement {
           `popover-${event.id}-${this.dayIso}`,
           html`
             <all-day-event
-              event-id=${event.id}
-              start=${event.start}
-              end=${event.end}
-              summary=${event.summary}
-              color=${event.color}
+              .eventId=${event.id}
+              .start=${event.start}
+              .end=${event.end}
+              .summary=${event.summary}
+              .color=${event.color}
               style=${styleMap({
                 "--_lc-all-day-day-number-space": "0px",
               })}

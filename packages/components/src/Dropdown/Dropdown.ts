@@ -1,12 +1,6 @@
 import { css, html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
-import {
-  getPlainCharacterHotkey,
-  isEditableEventTarget,
-  normalizeHotkey,
-} from "../shared/hotkey.js";
 import {
   sharedButtonActiveBackgroundClasses,
   sharedButtonActiveTextClasses,
@@ -16,6 +10,11 @@ import {
   sharedButtonVisualClasses,
   sharedFocusRingColorClasses,
 } from "../shared/buttonStyles.js";
+import {
+  getPlainCharacterHotkey,
+  isEditableEventTarget,
+  normalizeHotkey,
+} from "../shared/hotkey.js";
 import type { DropdownOption } from "../types/Dropdown.js";
 
 @customElement("lc-dropdown")
@@ -189,11 +188,11 @@ export class Dropdown extends BaseElement {
     return html`
       <div class="lc-dropdown-root">
         <select
-          id=${this.#fallbackSelectId}
-          name=${ifDefined(this.name || undefined)}
+          .id=${this.#fallbackSelectId}
+          .name=${this.name}
           class=${selectClasses}
-          aria-label=${this.ariaLabel}
-          aria-keyshortcuts=${ownHotkey || nothing}
+          .ariaLabel=${this.ariaLabel}
+          .ariaKeyShortcuts=${ownHotkey || null}
           ?disabled=${this.disabled}
           .value=${this.value}
           @pointerdown=${this.#handlePointerDown}
@@ -211,13 +210,14 @@ export class Dropdown extends BaseElement {
             `
           )}
         </select>
-        ${hasCustomIcon
-          ? html`
+        ${
+          hasCustomIcon
+            ? html`
               <span class="lc-dropdown-icon" aria-hidden="true">
                 <slot name="icon" @slotchange=${() => this.requestUpdate()}></slot>
               </span>
             `
-          : html`
+            : html`
               <span class="lc-dropdown-chevron" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
@@ -229,7 +229,8 @@ export class Dropdown extends BaseElement {
                   <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"></path>
                 </svg>
               </span>
-            `}
+            `
+        }
       </div>
     `;
   }

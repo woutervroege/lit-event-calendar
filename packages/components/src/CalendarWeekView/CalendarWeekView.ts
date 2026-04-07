@@ -1,7 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
 import { styleMap } from "lit/directives/style-map.js";
 import "../CalendarGridView/CalendarGridView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
@@ -296,13 +295,13 @@ export class CalendarWeekView extends CalendarViewBase {
             <calendar-grid-view
               class="week-all-day-view"
               .startDate=${this.#gridStartDate}
-              days-per-week=${String(this.daysPerWeek)}
+              .daysPerWeek=${this.daysPerWeek}
               variant="all-day"
               .events=${this.#allDayEvents}
               .rtl=${this.rtl}
-              lang=${ifDefined(this.lang)}
-              timezone=${ifDefined(this.timezone)}
-              current-time=${ifDefined(this.currentTime)}
+              .lang=${this.lang}
+              .timezone=${this.timezone}
+              current-time=${this.currentTime}
               .snapInterval=${this.snapInterval}
               .labelsHidden=${false}
               style=${styleMap({
@@ -322,14 +321,14 @@ export class CalendarWeekView extends CalendarViewBase {
           <calendar-grid-view
             class="week-timed-view"
             .startDate=${this.#gridStartDate}
-            days-per-week=${String(this.daysPerWeek)}
+            .daysPerWeek=${this.daysPerWeek}
             variant="timed"
             .events=${this.#timedEvents}
             .visibleHours=${clampedVisibleHours ?? 24}
             .rtl=${this.rtl}
-            lang=${ifDefined(this.lang)}
-            timezone=${ifDefined(this.timezone)}
-            current-time=${ifDefined(this.currentTime)}
+            .lang=${this.lang}
+            .timezone=${this.timezone}
+            current-time=${this.currentTime}
             .snapInterval=${this.snapInterval}
             @event-create-requested=${this.forwardCalendarEvent}
             @event-selection-requested=${this.forwardCalendarEvent}

@@ -223,7 +223,7 @@ export class CalendarViewGroup extends CalendarViewBase {
     if (this.presentation === "list") {
       return html`
         <calendar-list-view
-          start-date=${this.#agendaRangeStartDate.toString()}
+          .startDate=${this.#agendaRangeStartDate}
           .daysPerWeek=${this.#agendaRangeDays}
           .events=${this.events}
           .lang=${this.lang}
@@ -240,7 +240,7 @@ export class CalendarViewGroup extends CalendarViewBase {
       const daysPerWeek = view === "day" ? 1 : this.daysPerWeek;
       return html`
         <calendar-week-view
-          start-date=${startDate.toString()}
+          .startDate=${startDate}
           .weekStart=${this.weekStart}
           .daysPerWeek=${daysPerWeek}
           .events=${this.events}

@@ -120,9 +120,9 @@ export class CalendarListView extends CalendarViewBase {
         <event-card
           layout="flow"
           .lang=${this.lang}
-          summary=${event.summary}
-          time=${this.#formatItemTime(item)}
-          location=${event.location ?? ""}
+          .summary=${event.summary}
+          .time=${this.#formatItemTime(item)}
+          .location=${event.location ?? ""}
           ?past=${isPast}
           first-segment
           last-segment
