@@ -1,11 +1,13 @@
 @import "tailwindcss";
+@import "../styles/z-index.css";
 
 :host .event-calendar-shell {
   @apply flex h-full min-h-0 flex-col gap-7 overflow-hidden [container-type:inline-size];
 }
 
 :host .event-calendar-header {
-  @apply sticky top-[var(--_lc-event-calendar-sticky-top,0px)] z-[var(--_lc-event-calendar-header-z-index,60)] flex flex-col gap-2 bg-[var(--_lc-surface-bg)] p-4 pb-0;
+  @apply sticky top-[var(--_lc-event-calendar-sticky-top,0px)] flex flex-col gap-2 bg-[var(--_lc-surface-bg)] p-4 pb-0;
+  z-index: var(--_lc-event-calendar-header-z-index, calc(var(--_lc-z-sticky) + 30));
 }
 
 :host .event-calendar-toolbar {

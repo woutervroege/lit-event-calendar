@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../styles/z-index.css";
 
 :host {
   @apply block w-full h-auto min-h-full [container-type:inline-size];
@@ -32,8 +33,9 @@
 }
 
 .week-swipe::before {
-  @apply absolute pointer-events-none z-[2] [inset-block-end:0] [inset-inline-start:0];
+  @apply absolute pointer-events-none [inset-block-end:0] [inset-inline-start:0];
   content: "";
+  z-index: var(--_lc-z-overlay);
   inset-block-start: calc(var(--_lc-week-all-day-shell-height) + var(--_lc-week-sections-gap, 8px));
   width: var(--_lc-grid-line-width, 1px);
   background: var(--_lc-grid-line-color, light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)));
@@ -51,7 +53,7 @@
 .week-all-day-shell {
   @apply sticky;
   top: var(--_lc-week-sticky-top, 0px);
-  z-index: var(--_lc-week-sticky-header-z-index, 30);
+  z-index: var(--_lc-week-sticky-header-z-index, var(--_lc-z-sticky));
   height: var(--_lc-week-all-day-shell-height);
   min-height: var(--_lc-week-all-day-shell-height);
   background-color: var(--_lc-surface-bg);
@@ -63,7 +65,7 @@
   @apply sticky [grid-column:1];
   top: var(--_lc-week-sticky-top, 0px);
   inset-inline-start: 0;
-  z-index: calc(var(--_lc-week-sticky-header-z-index, 30) + 1);
+  z-index: calc(var(--_lc-week-sticky-header-z-index, var(--_lc-z-sticky)) + 1);
   height: var(--_lc-week-total-height);
   min-height: var(--_lc-week-total-height);
   background-color: var(--lg-background-color);

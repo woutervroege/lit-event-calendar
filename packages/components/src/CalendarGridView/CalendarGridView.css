@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../styles/z-index.css";
 
 :host {
   @apply block w-full select-none;
@@ -124,8 +125,9 @@ section {
 }
 
 section::before {
-  @apply absolute pointer-events-none opacity-0 z-[1] transition-opacity duration-150;
+  @apply absolute pointer-events-none opacity-0 transition-opacity duration-150;
   content: "";
+  z-index: var(--_lc-z-base);
   left: var(--_lc-hover-left, 0);
   top: var(--_lc-hover-top, 0);
   width: var(--_lc-hover-width, 0);
@@ -137,7 +139,7 @@ section[data-drag-hover]::before {
   @apply opacity-100;
   /* Ensure hover target sits above non-dragged events,
      but still below the actively dragged event (z-index 10). */
-  @apply z-[9];
+  z-index: calc(var(--_lc-z-focus) - 2);
 }
 
 section[data-touch-creating] event-card.create-preview-card {
@@ -276,7 +278,8 @@ time {
 }
 
 .day-overflow-button {
-  @apply absolute z-[3] p-0 text-sm font-medium rounded-sm flex items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis justify-start [padding-inline:8px];
+  @apply absolute p-0 text-sm font-medium rounded-sm flex items-center cursor-pointer border-0 bg-transparent text-inherit leading-none whitespace-nowrap overflow-hidden text-ellipsis justify-start [padding-inline:8px];
+  z-index: var(--_lc-z-overlay-raised);
 }
 
 .day-overflow-dot {
@@ -306,7 +309,8 @@ time.current-day,
 }
 
 .current-time-indicator {
-  @apply absolute z-[20] m-0 pointer-events-none;
+  @apply absolute m-0 pointer-events-none;
+  z-index: calc(var(--_lc-z-sticky) - 10);
 }
 
 .current-time-indicator::before {
