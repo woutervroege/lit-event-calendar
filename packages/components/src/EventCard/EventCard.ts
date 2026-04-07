@@ -1,7 +1,6 @@
 import { ContextConsumer } from "@lit/context";
 import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { classMap } from "lit/directives/class-map.js";
 import { BaseElement } from "../BaseElement/BaseElement";
 import { type CalendarViewContextValue, calendarViewContext } from "../context/CalendarViewContext";
 import { renderRecurringIcon } from "../icons/RecurringIcon";
@@ -80,13 +79,23 @@ export class EventCard extends BaseElement {
     const compactTimeLabel = [compactTime, timeDetail ? `(${timeDetail})` : ""]
       .filter(Boolean)
       .join(" ");
+    const cardClass = this.#isOverlappingIndentedCard
+      ? "event-card-shell event-card-overlap"
+      : "event-card-shell";
+    const headingClass = this.past ? "event-card-heading is-past" : "event-card-heading";
     return html`
-          <div class=${classMap(this.#cardClasses)} dir="${this.dir}">
+          <div
+            class=${cardClass}
+            dir="${this.dir}"
+            data-segment-direction=${this.segmentDirection}
+            ?data-first-segment=${this.firstSegment}
+            ?data-last-segment=${this.lastSegment}
+          >
               ${this.past ? html`<span class="sr-only">Past event.</span>` : ""}
               ${this.#recurrenceStatusSrLabel ? html`<span class="sr-only">${this.#recurrenceStatusSrLabel}</span>` : ""}
-              <h6 class=${classMap(this.#summaryClasses)}>
+              <h6 class=${headingClass}>
                 <span class="event-card-content">
-                  <span class=${classMap(this.#compactLabelClasses)}>
+                  <span class="event-card-compact-label">
                     ${
                       hasTimeLabel
                         ? html`
@@ -97,20 +106,18 @@ export class EventCard extends BaseElement {
                     }
                     <span>${this.summary}</span>
                   </span>
-                  <span class=${classMap(this.#summaryMainClasses)}>${this.summary}</span>
+                  <span class="event-card-summary-main">${this.summary}</span>
                   ${
                     hasMetaLabel
                       ? html`
-                        <time class=${classMap(this.#summaryTimeClasses)}>
+                        <time class="event-card-time">
                           ${
                             hasTimeLabel
                               ? html`
-                                <span class=${classMap(this.#summaryTimeMainClasses)}>${this.time}</span>
+                                <span class="event-card-time-main">${this.time}</span>
                                 ${
                                   this.timeDetail
-                                    ? html`<span class=${classMap(this.#summaryTimeDetailClasses)}
-                                      >(${this.timeDetail})</span
-                                    >`
+                                    ? html`<span class="event-card-time-detail">(${this.timeDetail})</span>`
                                     : ""
                                 }
                           `
@@ -119,7 +126,7 @@ export class EventCard extends BaseElement {
                         </time>
                         ${
                           hasLocation
-                            ? html`<span class=${classMap(this.#summaryLocationClasses)}>${location}</span>`
+                            ? html`<span class="event-card-location">${location}</span>`
                             : ""
                         }
                       `
@@ -139,139 +146,6 @@ export class EventCard extends BaseElement {
               <slot></slot>
           </div>
         `;
-  }
-
-  get #compactLabelClasses() {
-    return {
-      "event-card-compact-label": true,
-      "min-w-0": true,
-      "max-w-full": true,
-      hidden: true,
-      truncate: true,
-    };
-  }
-
-  get #summaryClasses() {
-    return {
-      "event-card-heading": true,
-      "m-0": true,
-      "text-xs": true,
-      "text-start": true,
-      "font-bold": true,
-      "flex-1": true,
-      "min-w-0": true,
-      "px-2": true,
-      "pt-2": true,
-      "pb-2": true,
-      "leading-tight": true,
-      "max-w-full": true,
-      "overflow-hidden": true,
-      "line-through": this.past,
-      "decoration-[1.5px]": this.past,
-      "opacity-80": this.past,
-      sticky: true,
-    };
-  }
-
-  get #summaryMainClasses() {
-    return {
-      "event-card-summary-main": true,
-      "min-w-0": true,
-      "max-w-full": true,
-      block: true,
-      truncate: true,
-    };
-  }
-
-  get #summaryTimeClasses() {
-    return {
-      "event-card-time": true,
-      "text-xs": true,
-      "text-start": true,
-      "font-light": true,
-      "tabular-nums": true,
-      block: true,
-      "min-w-0": true,
-      "max-w-full": true,
-      "overflow-hidden": true,
-      "leading-tight": true,
-    };
-  }
-
-  get #summaryTimeMainClasses() {
-    return {
-      "event-card-time-main": true,
-      "min-w-0": true,
-      "max-w-full": true,
-      "inline-block": true,
-      truncate: true,
-    };
-  }
-
-  get #summaryTimeDetailClasses() {
-    return {
-      "event-card-time-detail": true,
-      "min-w-0": true,
-      "max-w-full": true,
-      "inline-block": true,
-      truncate: true,
-    };
-  }
-
-  get #summaryLocationClasses() {
-    return {
-      "event-card-location": true,
-      "text-xs": true,
-      "font-light": true,
-      "min-w-0": true,
-      "max-w-full": true,
-      block: true,
-      "overflow-hidden": true,
-      "leading-tight": true,
-      truncate: true,
-    };
-  }
-
-  get #cardClasses() {
-    const isVertical = this.segmentDirection === "vertical";
-    const isRtl = this.dir === "rtl";
-    const isOverlapping = this.#isOverlappingIndentedCard;
-    const horizontalStartEdge = this.firstSegment;
-    const horizontalEndEdge = this.lastSegment;
-    const horizontalLeftEdge = isRtl ? horizontalEndEdge : horizontalStartEdge;
-    const horizontalRightEdge = isRtl ? horizontalStartEdge : horizontalEndEdge;
-
-    return {
-      "[@container(max-height:47px)]:flex": true,
-      "[@container(max-height:47px)]:gap-1": true,
-      "before:content-['']": true,
-      "before:absolute": true,
-      "before:bg-[var(--_lc-event-card-bg)]": true,
-      "before:border-l-2": true,
-      "before:border-l-[var(--_lc-event-card-accent-color)]": true,
-      "before:text-[var(--_lc-event-card-accent-color)]": true,
-      "before:transition-colors": true,
-      "before:duration-100": true,
-      "before:top-[1px]": isVertical ? this.firstSegment : true,
-      "before:top-0": isVertical ? !this.firstSegment : false,
-      "before:bottom-[1px]": isVertical ? this.lastSegment : true,
-      "before:bottom-0": isVertical ? !this.lastSegment : false,
-      "before:left-[1px]": true,
-      "before:left-0": false,
-      "before:right-[1px]": true,
-      "before:right-0": false,
-      "before:rounded-t-sm": isVertical ? this.firstSegment : false,
-      "before:rounded-b-sm": isVertical ? this.lastSegment : false,
-      "before:rounded-l-sm": isVertical ? false : horizontalLeftEdge,
-      "before:rounded-r-sm": isVertical ? false : horizontalRightEdge,
-      "before:-z-1": true,
-      "transition-transform duration-100": true,
-      "event-card-overlap": isOverlapping,
-      relative: true,
-      "h-full": true,
-      "[@container(max-height:47px)]:whitespace-nowrap": true,
-      "pointer-events-auto": true,
-    };
   }
 
   get #recurrenceStatusSrLabel(): string {

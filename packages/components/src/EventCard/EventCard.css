@@ -1,6 +1,7 @@
+@import "tailwindcss";
+
 :host {
-  position: absolute;
-  width: 100%;
+  @apply absolute w-full;
   container-type: size;
   container-name: event-card;
   touch-action: var(--_lc-event-card-touch-action, none);
@@ -24,10 +25,7 @@
 }
 
 :host([layout="flow"]) {
-  position: static;
-  width: 100%;
-  display: block;
-  touch-action: auto;
+  @apply static block w-full touch-auto;
   container-type: inline-size;
   container-name: event-card;
   --_lc-event-recurring-icon-size: 14px;
@@ -59,6 +57,16 @@
   color: var(--_lc-event-card-text-color);
 }
 
+:host .event-card-shell {
+  @apply relative h-full pointer-events-auto transition-transform duration-100;
+}
+
+@container (max-height: 47px) {
+  :host .event-card-shell {
+    @apply flex gap-1 whitespace-nowrap;
+  }
+}
+
 :host([layout="flow"]) > div {
   width: 100%;
   margin-inline-start: 0;
@@ -66,16 +74,33 @@
   min-height: 0;
 }
 
-:host > div::before {
+:host .event-card-shell::before {
+  @apply absolute inset-px z-[-1];
+  @apply bg-[var(--_lc-event-card-bg)];
+  @apply text-[var(--_lc-event-card-accent-color)];
+  @apply transition-[color,background-color,border-color] duration-100;
+  content: "";
   outline: var(--_lc-event-focus-ring-width) solid var(--_lc-event-focus-ring-color);
   outline-offset: var(--_lc-event-focus-ring-gap);
   box-shadow: inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
 }
 
-:host > div.event-card-overlap::before {
+:host .event-card-shell[data-first-segment]::before {
+  border-inline-start: 3px solid var(--_lc-event-card-accent-color);
+}
+
+:host .event-card-shell.event-card-overlap::before {
   box-shadow:
     var(--_lc-event-card-overlap-shadow),
     inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
+}
+
+:host .event-card-shell[data-segment-direction="vertical"]:not([data-first-segment])::before {
+  top: 0;
+}
+
+:host .event-card-shell[data-segment-direction="vertical"]:not([data-last-segment])::before {
+  bottom: 0;
 }
 
 :host([segment-direction="horizontal"]) h6.sticky {
@@ -90,32 +115,31 @@
 
 /* Taller cards: stack summary over time for readability. */
 :host .event-card-time {
-  margin-top: 2px;
+  @apply mt-0.5;
 }
 
 :host([layout="flow"]) .event-card-heading {
-  padding: 10px 10px 9px;
+  @apply px-2.5 pt-2.5 pb-[9px];
 }
 
 @container (min-width: 420px) {
   :host([layout="flow"]) .event-card-summary-main {
-    font-size: 14px;
-    line-height: 1.35;
+    @apply text-sm leading-[1.35];
   }
 
   :host([layout="flow"]) .event-card-location {
-    display: block;
+    @apply block;
   }
 }
 
 @container (min-height: 72px) {
   :host .event-card-location {
-    display: block;
+    @apply block;
   }
 }
 
 :host .event-card-compact-label {
-  display: none;
+  @apply hidden;
 }
 
 :host .event-card-compact-time {
@@ -124,38 +148,54 @@
 }
 
 :host .event-card-location {
-  margin-top: 2px;
+  @apply mt-0.5;
   opacity: 0.84;
 }
 
 :host .event-card-heading {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  @apply sticky m-0 flex flex-1 min-w-0 max-w-full items-start gap-1.5 overflow-hidden px-2 pt-2 pb-2 text-start text-xs font-bold leading-tight;
+}
+
+:host .event-card-heading.is-past {
+  @apply line-through decoration-[1.5px] opacity-80;
 }
 
 :host .event-card-content {
-  flex: 1 1 auto;
-  min-width: 0;
+  @apply min-w-0 flex-1;
+}
+
+:host .event-card-compact-label {
+  @apply hidden min-w-0 max-w-full truncate;
+}
+
+:host .event-card-summary-main {
+  @apply block min-w-0 max-w-full truncate;
+}
+
+:host .event-card-time {
+  @apply block min-w-0 max-w-full overflow-hidden text-start text-xs font-light leading-tight tabular-nums;
+}
+
+:host .event-card-time-main,
+:host .event-card-time-detail {
+  @apply inline-block min-w-0 max-w-full truncate;
+}
+
+:host .event-card-location {
+  @apply block min-w-0 max-w-full overflow-hidden truncate text-xs font-light leading-tight;
 }
 
 :host .event-card-recurring-icon-wrap {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
+  @apply pointer-events-none inline-flex shrink-0 items-center justify-center self-start;
   margin-inline-start: auto;
-  align-self: flex-start;
   margin-top: 1px;
   width: var(--_lc-event-recurring-icon-size);
   height: var(--_lc-event-recurring-icon-size);
   opacity: 0.92;
-  pointer-events: none;
 }
 
 :host .event-card-recurring-icon {
-  width: 100%;
-  height: 100%;
+  @apply h-full w-full;
 }
 
 /* Compact cards: keep summary + time on a single row. */
@@ -165,26 +205,20 @@
   }
 
   :host .event-card-heading {
-    align-items: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    @apply items-center overflow-hidden whitespace-nowrap text-ellipsis;
   }
 
   :host .event-card-compact-label {
-    display: block;
-    min-width: 0;
-    max-width: 100%;
+    @apply block min-w-0 max-w-full;
   }
 
   :host .event-card-summary-main,
   :host .event-card-time {
-    display: none;
+    @apply hidden;
   }
 
   :host .event-card-recurring-icon-wrap {
-    align-self: center;
-    margin-top: 0;
+    @apply mt-0 self-center;
   }
 }
 
@@ -195,12 +229,12 @@
   }
 
   :host .event-card-heading {
-    padding: 6px 8px;
+    @apply px-2 py-1.5;
   }
 
   :host .event-card-time,
   :host .event-card-location {
-    margin-top: 0;
+    @apply mt-0;
   }
 }
 
@@ -212,14 +246,13 @@
 
   :host .event-card-compact-time,
   :host .event-card-compact-time + [aria-hidden="true"] {
-    display: none;
+    @apply hidden;
   }
 }
 
 @container (max-height: 12px) {
   :host > div {
-    min-height: 0;
-    padding: 0;
+    @apply min-h-0 p-0;
   }
 
   :host > div::before {
@@ -230,7 +263,7 @@
     width: auto;
     height: var(--_lc-event-height, 3px);
     border: 0;
-    border-radius: 999px;
+    @apply rounded-full;
     background: var(--_lc-event-card-bg);
     box-shadow: none;
   }
@@ -238,11 +271,11 @@
   :host h6,
   :host time,
   :host .event-card-recurring-icon-wrap {
-    display: none;
+    @apply hidden;
   }
 
   ::slotted(*) {
-    display: none;
+    @apply hidden;
   }
 }
 

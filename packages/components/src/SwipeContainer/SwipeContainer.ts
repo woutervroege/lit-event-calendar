@@ -12,6 +12,7 @@ export class SwipeContainer extends LitElement {
     dir: { type: String, reflect: true },
   };
 
+  /* tailwind-exception: Uses stylesheet import compiled from Tailwind @apply for Shadow DOM swipe behavior. */
   static styles = unsafeCSS(componentStyle);
 
   #currentIndex = 0;
