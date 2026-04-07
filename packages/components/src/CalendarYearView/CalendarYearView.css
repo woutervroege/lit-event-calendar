@@ -36,7 +36,7 @@
   }
 }
 
-@container (max-width: 520px) {
+@container (max-width: 512px) {
   .year-grid {
     --_lc-year-grid-effective-columns: 1;
   }

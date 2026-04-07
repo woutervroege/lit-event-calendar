@@ -170,6 +170,7 @@ section[data-touch-creating] event-card.create-preview-card {
 
 /* Month view: multi-row grid (e.g. 7 columns × N weeks) */
 section.month-view {
+  --_lc-compact-month-view: 0;
   background-image:
     linear-gradient(
       to right,
@@ -196,21 +197,18 @@ section.month-view {
   background-repeat: repeat-x, repeat-y, no-repeat, no-repeat;
 }
 
-section.month-view.compact-month-view {
-  background-image: none;
-  --_lc-event-height: 3px;
-  --_lc-all-day-day-number-space: 36px;
-}
-
-section.month-view.compact-month-view .day-label {
-  @apply mt-0;
-}
-
-@container (max-width: 520px) {
+@container (max-width: 512px) {
   section.month-view {
+    --_lc-compact-month-view: 1;
+    --_lc-event-height: 3px;
+    --_lc-all-day-day-number-space: 36px;
     background-image: none;
     aspect-ratio: 1 / 1;
     height: auto;
+  }
+
+  section.month-view .day-label {
+    @apply mt-0;
   }
 
   .day-overflow-button,

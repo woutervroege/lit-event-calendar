@@ -40,7 +40,6 @@ type AllDayOverflowLayout = {
   hiddenEventIdsByDay: Map<number, string[]>;
   forceIndicatorsByDay: Set<number>;
 };
-const COMPACT_MONTH_MAX_INLINE_SIZE_PX = 520;
 // Keep touch-create activation aligned with timed event move/resize activation.
 const CREATE_TOUCH_LONG_PRESS_MS = 160;
 const CREATE_TOUCH_CANCEL_DISTANCE_PX = 10;
@@ -105,7 +104,6 @@ export class CalendarGridView extends BaseElement {
   #resizeDebounceTimerId: number | null = null;
   #resizeDebounceDelayMs = 17;
   #lastObservedHostHeightPx = 0;
-  #lastObservedHostWidthPx = 0;
   #isCompactMonth = false;
   #cachedViewDaysKey = "";
   #cachedViewDays: Temporal.PlainDate[] = [];
@@ -429,13 +427,6 @@ export class CalendarGridView extends BaseElement {
     if (typeof ResizeObserver === "undefined") return;
     if (this.#resizeObserver) return;
     this.#resizeObserver = new ResizeObserver((entries) => {
-      const nextWidth = entries[0]?.contentRect.width;
-      if (
-        Number.isFinite(nextWidth) &&
-        Math.abs(nextWidth - this.#lastObservedHostWidthPx) >= 0.5
-      ) {
-        this.#lastObservedHostWidthPx = nextWidth;
-      }
       const nextHeight = entries[0]?.contentRect.height;
       if (
         Number.isFinite(nextHeight) &&
@@ -453,7 +444,6 @@ export class CalendarGridView extends BaseElement {
     this.#resizeObserver?.disconnect();
     this.#resizeObserver = undefined;
     this.#lastObservedHostHeightPx = 0;
-    this.#lastObservedHostWidthPx = 0;
     this.#isCompactMonth = false;
   }
 
@@ -464,7 +454,7 @@ export class CalendarGridView extends BaseElement {
     }
     this.#resizeDebounceTimerId = window.setTimeout(() => {
       this.#resizeDebounceTimerId = null;
-      this.#syncCompactMonthState(this.#lastObservedHostWidthPx);
+      this.#syncCompactMonthState();
       if (this.variant === "all-day") {
         this.#scheduleSectionHeightSync();
         return;
@@ -517,7 +507,16 @@ export class CalendarGridView extends BaseElement {
     return this.#isMonthView && this.#isCompactMonth;
   }
 
-  #syncCompactMonthState(observedWidth?: number) {
+  #readCompactMonthCssState(): boolean {
+    if (typeof getComputedStyle === "undefined") return false;
+    const section = this.renderRoot.querySelector<HTMLElement>("section.month-view");
+    const styleTarget = section ?? this;
+    const rawValue = getComputedStyle(styleTarget).getPropertyValue("--_lc-compact-month-view");
+    const compactState = Number.parseFloat(rawValue.trim());
+    return Number.isFinite(compactState) && compactState >= 0.5;
+  }
+
+  #syncCompactMonthState() {
     if (!this.#isMonthView) {
       if (!this.#isCompactMonth) return;
       this.#isCompactMonth = false;
@@ -525,12 +524,7 @@ export class CalendarGridView extends BaseElement {
       return;
     }
 
-    const width =
-      observedWidth ??
-      (this.#lastObservedHostWidthPx ||
-        this.getBoundingClientRect().width ||
-        Number.POSITIVE_INFINITY);
-    const shouldBeCompact = width <= COMPACT_MONTH_MAX_INLINE_SIZE_PX;
+    const shouldBeCompact = this.#readCompactMonthCssState();
     if (shouldBeCompact === this.#isCompactMonth) return;
     this.#isCompactMonth = shouldBeCompact;
     this.requestUpdate();
@@ -2389,6 +2383,7 @@ export class CalendarGridView extends BaseElement {
 
   protected firstUpdated(changedProperties: PropertyValues<this>) {
     super.firstUpdated(changedProperties);
+    this.#syncCompactMonthState();
     this.#syncTimedHostHeightFactor();
   }
 
