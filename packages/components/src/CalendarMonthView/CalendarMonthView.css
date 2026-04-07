@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :host {
-  @apply block w-full h-full min-h-0;
+  @apply block w-full h-full min-h-0 [container-type:inline-size];
 }
 
 .month-layout {
@@ -11,4 +11,19 @@
 
 .month-grid {
   @apply min-h-0;
+}
+
+@container (max-width: 512px) {
+  :host {
+    @apply h-auto;
+  }
+
+  .month-layout {
+    @apply h-auto;
+    grid-template-rows: auto auto;
+  }
+
+  .month-grid {
+    @apply aspect-square h-auto;
+  }
 }

@@ -201,6 +201,7 @@ section.month-view {
   section.month-view {
     --_lc-compact-month-view: 1;
     --_lc-event-height: 3px;
+    --_lc-event-card-compact-label-display: none;
     --_lc-all-day-day-number-space: 36px;
     background-image: none;
     aspect-ratio: 1 / 1;

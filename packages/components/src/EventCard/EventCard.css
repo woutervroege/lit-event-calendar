@@ -235,6 +235,7 @@
 
   :host .event-card-compact-label {
     @apply block min-w-0 max-w-full;
+    display: var(--_lc-event-card-compact-label-display, block);
   }
 
   :host .event-card-summary-main,
