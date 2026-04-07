@@ -284,7 +284,7 @@ time {
 
 .day-overflow-dot {
   @apply w-[7px] h-[7px] bg-current opacity-[0.85];
-  border-radius: var(--lc-event-card-radius, var(--radius-md));
+  border-radius: var(--lc-event-card-radius, var(--radius-sm));
 }
 
 time.current-day,

@@ -23,7 +23,7 @@
   --_lc-event-focus-ring-gap: 1px;
   --_lc-event-focus-ring-inset-width: 0px;
   --_lc-event-recurring-icon-size: 13px;
-  --_lc-event-card-segment-radius: var(--lc-event-card-radius, var(--radius-md));
+  --_lc-event-card-segment-radius: var(--lc-event-card-radius, var(--radius-sm));
 }
 
 :host([layout="flow"]) {
