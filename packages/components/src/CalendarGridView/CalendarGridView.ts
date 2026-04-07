@@ -1722,8 +1722,7 @@ export class CalendarGridView extends BaseElement {
           endDateTime.millisecond / 3_600_000;
         const top = isStartDay ? (startHour / 24) * 100 : 0;
         const bottom = isEndDay ? Math.max(0, 100 - (endHour / 24) * 100) : 0;
-        const visualDayIndex = this.#toVisualColumnIndex(dayIndex, this.daysPerWeek);
-        const left = (visualDayIndex / this.daysPerWeek) * 100;
+        const left = (dayIndex / this.daysPerWeek) * 100;
 
         return {
           firstSegment: segmentIndex === 0,
@@ -1766,8 +1765,7 @@ export class CalendarGridView extends BaseElement {
     const orderedRows = Array.from(rowSegments.entries()).sort(([a], [b]) => a - b);
     return orderedRows.map(([rowIndex, segment], segmentIndex) => {
       const widthInColumns = segment.endCol - segment.startCol + 1;
-      const visualStartCol = this.#toVisualColumnIndex(segment.startCol, cols);
-      const left = (visualStartCol / cols) * 100;
+      const left = (segment.startCol / cols) * 100;
       const inlineInsetStart = this.#isMonthView ? "2px" : "1px";
       const inlineInsetEnd = this.#isMonthView ? "1px" : "2px";
       const top = this.#isMonthView
