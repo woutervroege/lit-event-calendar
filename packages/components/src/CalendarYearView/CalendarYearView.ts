@@ -17,7 +17,7 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
 @customElement("calendar-year-view")
 export class CalendarYearView extends BaseElement {
   year = Temporal.Now.plainDateISO().year;
-  weekStart?: WeekdayNumber;
+  weekStart?: number;
   declare events?: EventsMap;
   locale?: string;
   timezone?: string;
@@ -29,19 +29,7 @@ export class CalendarYearView extends BaseElement {
   static get properties() {
     return {
       year: { type: Number },
-      weekStart: {
-        type: Number,
-        attribute: "week-start",
-        reflect: true,
-        converter: {
-          fromAttribute: (v: string | null): WeekdayNumber | undefined => {
-            if (v === null) return undefined;
-            const day = Number(v);
-            return isWeekdayNumber(day) ? day : undefined;
-          },
-          toAttribute: (v: number | undefined): string | null => (v ? String(v) : null),
-        },
-      },
+      weekStart: { type: Number, attribute: "week-start", reflect: true },
       events: {
         type: Object,
         converter: {
@@ -67,7 +55,7 @@ export class CalendarYearView extends BaseElement {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
+    if (isWeekdayNumber(this.weekStart)) return this.weekStart as WeekdayNumber;
     const firstDay = getLocaleWeekInfo(this.#resolvedLocale).firstDay;
     if (isWeekdayNumber(firstDay)) return firstDay;
     return 1;

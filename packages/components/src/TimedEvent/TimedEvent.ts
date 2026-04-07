@@ -35,7 +35,7 @@ export class TimedEvent extends BaseEvent {
 
   #getSiblingsOnSameDay(day: Temporal.PlainDate): TimedEvent[] {
     return this.siblings.filter((sibling) =>
-      sibling.days.some((siblingDay) => siblingDay.toString() === day.toString())
+      sibling.renderedDays.some((siblingDay) => siblingDay.toString() === day.toString())
     );
   }
 
@@ -125,8 +125,8 @@ export class TimedEvent extends BaseEvent {
     return { top, bottom };
   }
 
-  #createDayInset(day: Temporal.PlainDate, renderedDays: string[]) {
-    const left = (renderedDays.indexOf(day.toString()) / renderedDays.length) * 100;
+  #createDayInset(day: Temporal.PlainDate, viewDayStrings: string[]) {
+    const left = (viewDayStrings.indexOf(day.toString()) / viewDayStrings.length) * 100;
     const overlappingSiblings = this.#getOverlappingSiblings(day);
     const { width, marginLeft, indentation } = this.#calculatePositioning(overlappingSiblings, day);
     const { top, bottom } = this.#calculateVerticalPositioning(day);
@@ -146,11 +146,11 @@ export class TimedEvent extends BaseEvent {
 
   get dayInsets() {
     const insets: Array<Record<string, string | number>> = [];
-    const renderedDays = this.renderedDays?.map((d) => d.toString()) ?? [];
+    const viewDayStrings = this.viewDays?.map((d) => d.toString()) ?? [];
 
-    this.days.forEach((day) => {
-      if (renderedDays.includes(day.toString())) {
-        insets.push(this.#createDayInset(day, renderedDays));
+    this.renderedDays.forEach((day) => {
+      if (viewDayStrings.includes(day.toString())) {
+        insets.push(this.#createDayInset(day, viewDayStrings));
       }
     });
 
@@ -262,12 +262,12 @@ export class TimedEvent extends BaseEvent {
   }
 
   #getViewStartDate(): Temporal.PlainDate | null {
-    const renderedDays = this.renderedDays;
-    if (!renderedDays || !renderedDays.length) {
+    const viewDays = this.viewDays;
+    if (!viewDays || !viewDays.length) {
       return null;
     }
 
-    return renderedDays.reduce<Temporal.PlainDate | null>((earliest, day) => {
+    return viewDays.reduce<Temporal.PlainDate | null>((earliest, day) => {
       if (!earliest) return day;
       return Temporal.PlainDate.compare(day, earliest) < 0 ? day : earliest;
     }, null);
@@ -342,20 +342,20 @@ export class TimedEvent extends BaseEvent {
     const startTime = this.startTime;
     const endTime = this.endTime;
     const startDate = this.startDate;
-    const renderedDays = this.renderedDays;
+    const viewDays = this.viewDays;
     if (
       !hoverTime ||
       !startTime ||
       !endTime ||
       !startDate ||
-      !renderedDays?.length ||
+      !viewDays?.length ||
       hoverDayIndex < 0 ||
-      hoverDayIndex >= renderedDays.length
+      hoverDayIndex >= viewDays.length
     ) {
       return null;
     }
 
-    const targetDay = renderedDays[hoverDayIndex];
+    const targetDay = viewDays[hoverDayIndex];
     const previewStart = targetDay.toPlainDateTime({
       hour: hoverTime.hour,
       minute: hoverTime.minute,

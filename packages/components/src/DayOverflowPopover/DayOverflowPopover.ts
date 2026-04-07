@@ -96,7 +96,7 @@ export class DayOverflowPopover extends BaseElement {
               })}
               ?hidden=${event.hidden}
               .interactionDisabled=${true}
-              .renderedDays=${renderedDay}
+              .viewDays=${renderedDay}
               .daysPerRow=${1}
               .gridRows=${1}
               .maxVisibleRows=${Number.POSITIVE_INFINITY}

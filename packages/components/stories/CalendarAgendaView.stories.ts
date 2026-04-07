@@ -19,7 +19,7 @@ const meta: Meta = {
   },
   argTypes: {
     startDate: { control: "text", description: "Range start date (YYYY-MM-DD)" },
-    days: { control: { type: "number", min: 1, max: 366, step: 1 } },
+    daysPerWeek: { control: { type: "number", min: 1, max: 366, step: 1 } },
     locale: {
       control: "select",
       options: localeOptions,
@@ -34,7 +34,7 @@ const meta: Meta = {
   },
   args: {
     startDate: "2025-01-01",
-    days: 31,
+    daysPerWeek: 31,
     timezone: "Europe/Amsterdam",
     currentTime: "2025-01-15T14:30:00",
     events: sampleEvents,
@@ -45,7 +45,7 @@ const meta: Meta = {
     el.style.width = "100%";
     el.style.height = "100%";
     el.setAttribute("start-date", String(args.startDate));
-    el.setAttribute("days", String(args.days));
+    el.setAttribute("days-per-week", String(args.daysPerWeek));
     if (args.locale) {
       el.setAttribute("locale", args.locale);
     }

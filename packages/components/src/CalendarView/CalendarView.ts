@@ -18,6 +18,7 @@ import { TimedEventInteractionController } from "../controllers/TimedEventIntera
 import { sharedFocusRingColorClasses } from "../shared/buttonStyles.js";
 import type { BaseEvent } from "../BaseEvent/BaseEvent.js";
 import { buildAllDayLayout } from "../utils/AllDayLayout.js";
+import { clampGridDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import "../EventCard/EventCard.js";
@@ -68,12 +69,13 @@ export class CalendarView extends BaseElement {
   #currentTime?: string;
   #timezone?: string;
   #locale?: string;
-  #days!: number;
+  #daysPerWeekStored = 7;
   #hours: number = 24;
   #visibleHours = 24;
   #snapInterval: number = TimedEventInteractionController.snapInterval;
   declare events?: EventsMap;
-  variant: "timed" | "all-day" = "timed";
+  /** Raw attribute/property value; `get variant()` exposes `"timed" | "all-day"`. */
+  #variantAttribute = "timed";
   labelsHidden = false;
   rtl = false;
   defaultEventSummary = "New event";
@@ -107,8 +109,8 @@ export class CalendarView extends BaseElement {
   #lastObservedHostHeightPx = 0;
   #lastObservedHostWidthPx = 0;
   #isCompactMonth = false;
-  #cachedDaysKey = "";
-  #cachedDays: Temporal.PlainDate[] = [];
+  #cachedViewDaysKey = "";
+  #cachedViewDays: Temporal.PlainDate[] = [];
   #cachedEventEntriesSource?: EventsMap;
   #cachedEventEntries: EventEntry[] = [];
   #instanceToken = Math.random().toString(36).slice(2, 10);
@@ -152,10 +154,10 @@ export class CalendarView extends BaseElement {
     start: Temporal.PlainDateTime;
     endExclusive: Temporal.PlainDateTime;
   } | null {
-    const renderedDays = this.days;
-    if (!renderedDays.length) return null;
+    const viewDays = this.viewDays;
+    if (!viewDays.length) return null;
 
-    const start = renderedDays[0].toPlainDateTime({
+    const start = viewDays[0].toPlainDateTime({
       hour: 0,
       minute: 0,
       second: 0,
@@ -163,7 +165,7 @@ export class CalendarView extends BaseElement {
       microsecond: 0,
       nanosecond: 0,
     });
-    const lastRenderedDay = renderedDays[renderedDays.length - 1];
+    const lastRenderedDay = viewDays[viewDays.length - 1];
     const endExclusive = lastRenderedDay.add({ days: 1 }).toPlainDateTime({
       hour: 0,
       minute: 0,
@@ -192,7 +194,7 @@ export class CalendarView extends BaseElement {
   static get properties() {
     return {
       startDate: { type: String, attribute: "start-date" },
-      days: { type: Number },
+      daysPerWeek: { type: Number, attribute: "days-per-week" },
       events: {
         type: Object,
         converter: {
@@ -200,16 +202,7 @@ export class CalendarView extends BaseElement {
             new Map(JSON.parse(value || "[]") as EventEntry[]),
         },
       },
-      variant: {
-        type: String,
-        attribute: "variant",
-        reflect: true,
-        converter: {
-          fromAttribute: (v: string | null): "timed" | "all-day" =>
-            v === "all-day" ? "all-day" : "timed",
-          toAttribute: (v: string): string => v,
-        },
-      },
+      variant: { type: String, attribute: "variant", reflect: true },
       labelsHidden: { type: Boolean, attribute: "labels-hidden", reflect: true },
       rtl: { type: Boolean, reflect: true },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
@@ -219,20 +212,24 @@ export class CalendarView extends BaseElement {
       timezone: { type: String },
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
-      currentTime: {
-        attribute: "current-time",
-        converter: {
-          fromAttribute: (v: string | null): string | undefined => v ?? undefined,
-          toAttribute: (
-            v: Temporal.PlainDateTime | Temporal.ZonedDateTime | string | null | undefined
-          ): string | null => (v ? v.toString() : null),
-        },
-      },
+      currentTime: { type: String, attribute: "current-time" },
     } as const;
   }
 
   static get styles() {
     return [...BaseElement.styles, unsafeCSS(componentStyle)];
+  }
+
+  get variant(): "timed" | "all-day" {
+    return this.#variantAttribute === "all-day" ? "all-day" : "timed";
+  }
+
+  set variant(value: string | null | undefined) {
+    const next = value ?? "timed";
+    if (next === this.#variantAttribute) return;
+    const previous = this.#variantAttribute;
+    this.#variantAttribute = next;
+    this.requestUpdate("variant", previous);
   }
 
   connectedCallback() {
@@ -304,29 +301,39 @@ export class CalendarView extends BaseElement {
     this.#locale = locale || undefined;
   }
 
-  get days(): Temporal.PlainDate[] {
+  get daysPerWeek(): number {
+    return clampGridDaysPerWeek(this.#daysPerWeekStored);
+  }
+
+  set daysPerWeek(value: number | string | null | undefined) {
+    const next = daysPerWeekFromInput(value);
+    if (Object.is(next, this.#daysPerWeekStored)) return;
+    const previous = this.#daysPerWeekStored;
+    this.#daysPerWeekStored = next;
+    this.requestUpdate("daysPerWeek", previous);
+  }
+
+  /** Plain dates shown in this view (length === `daysPerWeek`); same values passed to events as `viewDays`. */
+  get viewDays(): Temporal.PlainDate[] {
     const startDate = this.startDate;
-    const cacheKey = `${startDate.toString()}|${this.#days}`;
-    if (cacheKey === this.#cachedDaysKey) {
-      return this.#cachedDays;
+    const count = this.daysPerWeek;
+    const cacheKey = `${startDate.toString()}|${this.#daysPerWeekStored}`;
+    if (cacheKey === this.#cachedViewDaysKey) {
+      return this.#cachedViewDays;
     }
 
     const values: Temporal.PlainDate[] = [];
-    for (let i = 0; i < this.#days; i++) {
+    for (let i = 0; i < count; i++) {
       values.push(startDate.add({ days: i }));
     }
-    this.#cachedDaysKey = cacheKey;
-    this.#cachedDays = values;
+    this.#cachedViewDaysKey = cacheKey;
+    this.#cachedViewDays = values;
     return values;
   }
 
   get hours(): number {
     if (this.variant === "all-day") return 0;
     return this.#hours;
-  }
-
-  set days(value: number) {
-    this.#days = value;
   }
 
   get snapInterval(): number {
@@ -483,7 +490,7 @@ export class CalendarView extends BaseElement {
 
   /** True when all-day and we have more days than columns (multi-row grid). */
   get #isMonthView(): boolean {
-    return Boolean(this.variant === "all-day" && this.#days > this.daysPerRow);
+    return Boolean(this.variant === "all-day" && this.daysPerWeek > this.daysPerRow);
   }
 
   get #isCompactMonthView(): boolean {
@@ -511,7 +518,7 @@ export class CalendarView extends BaseElement {
 
   get gridRows(): number {
     if (!this.#isMonthView) return 1;
-    return Math.ceil(this.#days / this.daysPerRow) || 1;
+    return Math.ceil(this.daysPerWeek / this.daysPerRow) || 1;
   }
 
   get sectionStyle(): Record<string, string> {
@@ -523,7 +530,7 @@ export class CalendarView extends BaseElement {
       base["--_lc-grid-rows"] = this.gridRows.toString();
       base["--_lc-row-height"] = `calc(100% / ${this.gridRows})`;
     } else {
-      base["--_lc-days"] = this.#days.toString();
+      base["--_lc-days"] = this.daysPerWeek.toString();
     }
     return base;
   }
@@ -569,9 +576,9 @@ export class CalendarView extends BaseElement {
           hoverStyle["--_lc-hover-height"] = `${height}%`;
         } else {
           // For single-row view, highlight the entire column
-          const visualDayIndex = this.#toVisualColumnIndex(this.#dragHoverDayIndex, this.#days);
-          const left = (visualDayIndex / this.#days) * 100;
-          const width = (1 / this.#days) * 100;
+          const visualDayIndex = this.#toVisualColumnIndex(this.#dragHoverDayIndex, this.daysPerWeek);
+          const left = (visualDayIndex / this.daysPerWeek) * 100;
+          const width = (1 / this.daysPerWeek) * 100;
           hoverStyle["--_lc-hover-left"] = `${left}%`;
           hoverStyle["--_lc-hover-width"] = `${width}%`;
           hoverStyle["--_lc-hover-top"] = "0%";
@@ -579,7 +586,7 @@ export class CalendarView extends BaseElement {
         }
       } else if (this.#dragHoverTime !== null) {
         // Highlight the time slot
-        const dayCount = this.#days;
+        const dayCount = this.daysPerWeek;
         const visualDayIndex = this.#toVisualColumnIndex(this.#dragHoverDayIndex, dayCount);
         const left = (visualDayIndex / dayCount) * 100;
         const width = (1 / dayCount) * 100;
@@ -661,7 +668,7 @@ export class CalendarView extends BaseElement {
                 summary=${event.summary}
                 color=${event.color}
                 ?inert=${this.#isCompactMonthView}
-                .renderedDays=${this.days}
+                .viewDays=${this.viewDays}
                 .daysPerRow=${this.#isMonthView ? this.daysPerRow : 0}
                 .gridRows=${this.#isMonthView ? this.gridRows : 1}
                 .maxVisibleRows=${allDayOverflow.maxVisibleRows}
@@ -679,7 +686,7 @@ export class CalendarView extends BaseElement {
                 end=${this.#toEventDateTimeString(event.end)}
                 summary=${event.summary}
                 color=${event.color}
-                .renderedDays=${this.days as unknown as never[]}
+                .viewDays=${this.viewDays}
                 @interaction-drag-state=${this.#handleEventInteractionDragState}
                 @select=${this.#handleEventSelect}
                 @update=${this.#handleEventUpdate}
@@ -691,9 +698,9 @@ export class CalendarView extends BaseElement {
   }
 
   #renderAllDayInterleavedByDate(allDayOverflow: AllDayOverflowLayout): TemplateResult[] {
-    const days = this.days;
+    const days = this.viewDays;
     if (!days.length) return this.#renderEventEntries(allDayOverflow);
-    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    const cols = this.#isMonthView ? this.daysPerRow : this.daysPerWeek;
     const rowHeightPx = this.#getAllDayRowHeightPx();
 
     const dayKeyToIndex = new Map<string, number>();
@@ -747,16 +754,16 @@ export class CalendarView extends BaseElement {
     event: EventInput,
     dayKeyToIndex: Map<string, number>
   ): number | null {
-    const renderedDays = this.days;
-    if (!renderedDays.length) return null;
+    const viewDays = this.viewDays;
+    if (!viewDays.length) return null;
     const eventStart = this.#toPlainDateTime(event.start).toPlainDate();
     const eventEnd = this.#toPlainDateTime(event.end).subtract({ nanoseconds: 1 }).toPlainDate();
 
-    if (Temporal.PlainDate.compare(eventEnd, renderedDays[0]) < 0) return null;
-    if (Temporal.PlainDate.compare(eventStart, renderedDays[renderedDays.length - 1]) > 0)
+    if (Temporal.PlainDate.compare(eventEnd, viewDays[0]) < 0) return null;
+    if (Temporal.PlainDate.compare(eventStart, viewDays[viewDays.length - 1]) > 0)
       return null;
 
-    for (const day of renderedDays) {
+    for (const day of viewDays) {
       if (Temporal.PlainDate.compare(day, eventStart) < 0) continue;
       if (Temporal.PlainDate.compare(day, eventEnd) > 0) break;
       const dayIndex = dayKeyToIndex.get(day.toString());
@@ -768,9 +775,9 @@ export class CalendarView extends BaseElement {
   #renderWeekendHighlights() {
     const weekendDays = this.#weekendDays;
     if (!weekendDays.size) return "";
-    const days = this.days;
+    const days = this.viewDays;
     if (!days.length) return "";
-    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    const cols = this.#isMonthView ? this.daysPerRow : this.daysPerWeek;
     if (cols <= 0) return "";
 
     return days
@@ -802,7 +809,7 @@ export class CalendarView extends BaseElement {
 
   #isOutsideVisibleMonth(day: Temporal.PlainDate): boolean {
     if (!this.#isMonthView) return false;
-    const days = this.days;
+    const days = this.viewDays;
     if (!days.length) return false;
     const anchorDay = days[Math.floor(days.length / 2)];
     if (!anchorDay) return false;
@@ -811,10 +818,10 @@ export class CalendarView extends BaseElement {
 
   #renderAllDayOverflowIndicators(layout: AllDayOverflowLayout) {
     if (this.#isCompactMonthView) return "";
-    const dayCount = this.days.length;
-    if (!dayCount || this.#days <= 0) return "";
+    const dayCount = this.viewDays.length;
+    if (!dayCount || this.daysPerWeek <= 0) return "";
     if (layout.maxVisibleRows < 0) return "";
-    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    const cols = this.#isMonthView ? this.daysPerRow : this.daysPerWeek;
     if (cols <= 0) return "";
 
     const sortedOverflowEntries = Array.from(layout.hiddenCountsByDay.entries())
@@ -882,9 +889,9 @@ export class CalendarView extends BaseElement {
     currentDayIndex: number,
     layout: AllDayOverflowLayout
   ): boolean {
-    for (let dayIndex = 0; dayIndex < this.days.length; dayIndex += 1) {
+    for (let dayIndex = 0; dayIndex < this.viewDays.length; dayIndex += 1) {
       if (dayIndex === currentDayIndex) continue;
-      const day = this.days[dayIndex];
+      const day = this.viewDays[dayIndex];
       if (!day || !this.#eventOverlapsDay(event, day)) continue;
       const hiddenIds = layout.hiddenEventIdsByDay.get(dayIndex) ?? [];
       if (!hiddenIds.includes(eventId)) return true;
@@ -924,7 +931,7 @@ export class CalendarView extends BaseElement {
     const cellWidth = 100 / cols;
     const inlineInsetPx = this.#isMonthView ? 3 : 2;
     const inlineEndInsetPx = 2;
-    const day = this.days[dayIndex];
+    const day = this.viewDays[dayIndex];
     if (!day) return null;
     const formattedHiddenCount = new Intl.NumberFormat(this.locale).format(hiddenCount);
     const fullDateLabel = new Intl.DateTimeFormat(this.locale, { dateStyle: "full" }).format(
@@ -1168,11 +1175,11 @@ export class CalendarView extends BaseElement {
   };
 
   #renderDayNumber(day: Temporal.PlainDate, dayIndex: number): TemplateResult {
-    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
-    const totalDays = this.days.length;
+    const cols = this.#isMonthView ? this.daysPerRow : this.daysPerWeek;
+    const totalDays = this.viewDays.length;
     if (cols <= 0 || totalDays <= 0) return html``;
 
-    const days = this.days;
+    const days = this.viewDays;
     const currentDay = this.currentTime.toPlainDate();
     const monthFormatter = new Intl.DateTimeFormat(this.locale, { month: "short" });
     const dayFormatter = new Intl.NumberFormat(this.locale);
@@ -1540,17 +1547,17 @@ export class CalendarView extends BaseElement {
     clientY: number
   ): { dayIndex: number; time: Temporal.PlainTime; dateTime: Temporal.PlainDateTime } | null {
     const section = this.renderRoot.querySelector("section");
-    if (!section || this.#days <= 0) return null;
+    if (!section || this.daysPerWeek <= 0) return null;
     const bounds = section.getBoundingClientRect();
     if (!Number.isFinite(bounds.width) || !Number.isFinite(bounds.height)) return null;
     if (bounds.width <= 0 || bounds.height <= 0) return null;
-    const days = this.days;
+    const days = this.viewDays;
     if (!days.length) return null;
 
     const boundedX = Math.max(0, Math.min(bounds.width - Number.EPSILON, clientX - bounds.left));
     const boundedY = Math.max(0, Math.min(bounds.height - Number.EPSILON, clientY - bounds.top));
-    const visualDayIndex = Math.floor((boundedX / bounds.width) * this.#days);
-    const dayIndex = this.#isRtl ? this.#days - visualDayIndex - 1 : visualDayIndex;
+    const visualDayIndex = Math.floor((boundedX / bounds.width) * this.daysPerWeek);
+    const dayIndex = this.#isRtl ? this.daysPerWeek - visualDayIndex - 1 : visualDayIndex;
     const day = days[dayIndex];
     if (!day) return null;
 
@@ -1565,14 +1572,14 @@ export class CalendarView extends BaseElement {
 
   #resolveAllDayHitFromPoint(clientX: number, clientY: number): CreateHit | null {
     const section = this.renderRoot.querySelector("section");
-    if (!section || this.#days <= 0) return null;
+    if (!section || this.daysPerWeek <= 0) return null;
     const bounds = section.getBoundingClientRect();
     if (!Number.isFinite(bounds.width) || !Number.isFinite(bounds.height)) return null;
     if (bounds.width <= 0 || bounds.height <= 0) return null;
-    const days = this.days;
+    const days = this.viewDays;
     if (!days.length) return null;
 
-    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    const cols = this.#isMonthView ? this.daysPerRow : this.daysPerWeek;
     const rows = this.#isMonthView ? this.gridRows : 1;
     if (cols <= 0 || rows <= 0) return null;
 
@@ -1640,7 +1647,7 @@ export class CalendarView extends BaseElement {
     segmentDirection: "horizontal" | "vertical";
     style: Record<string, string>;
   }> {
-    if (this.#days <= 0) return [];
+    if (this.daysPerWeek <= 0) return [];
     const pending = this.#pendingCreatePointer;
     if (!pending || !pending.dragActivated) return [];
 
@@ -1676,7 +1683,7 @@ export class CalendarView extends BaseElement {
 
     const startDate = startDateTime.toPlainDate();
     const endDate = endDateTime.toPlainDate();
-    const visibleDays = this.days;
+    const visibleDays = this.viewDays;
     const segmentDayIndices = visibleDays
       .map((day, index) => ({ day, index }))
       .filter(({ day }) => {
@@ -1706,8 +1713,8 @@ export class CalendarView extends BaseElement {
           endDateTime.millisecond / 3_600_000;
         const top = isStartDay ? (startHour / 24) * 100 : 0;
         const bottom = isEndDay ? Math.max(0, 100 - (endHour / 24) * 100) : 0;
-        const visualDayIndex = this.#toVisualColumnIndex(dayIndex, this.#days);
-        const left = (visualDayIndex / this.#days) * 100;
+        const visualDayIndex = this.#toVisualColumnIndex(dayIndex, this.daysPerWeek);
+        const left = (visualDayIndex / this.daysPerWeek) * 100;
 
         return {
           firstSegment: segmentIndex === 0,
@@ -1731,7 +1738,7 @@ export class CalendarView extends BaseElement {
       });
     }
 
-    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    const cols = this.#isMonthView ? this.daysPerRow : this.daysPerWeek;
     if (cols <= 0) return [];
     const laneIndex = this.#getAllDayCreateLaneIndex();
     const rowSegments = new Map<number, { startCol: number; endCol: number }>();
@@ -1788,7 +1795,7 @@ export class CalendarView extends BaseElement {
     const bounds = section.getBoundingClientRect();
     if (!Number.isFinite(bounds.height) || bounds.height <= 0) return 0;
 
-    const cols = this.#isMonthView ? this.daysPerRow : this.#days;
+    const cols = this.#isMonthView ? this.daysPerRow : this.daysPerWeek;
     const rows = this.#isMonthView ? this.gridRows : 1;
     if (cols <= 0 || rows <= 0) return 0;
     const activeRowIndex = this.#isMonthView ? Math.floor(pending.currentDayIndex / cols) : 0;
@@ -1899,7 +1906,7 @@ export class CalendarView extends BaseElement {
     const dayFormatter = new Intl.NumberFormat(this.locale);
     const monthFormatter = new Intl.DateTimeFormat(this.locale, { month: "short" });
     const compactMonthView = this.#isCompactMonthView;
-    const days = this.days;
+    const days = this.viewDays;
     const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
     const startsNewMonth =
       previousDay === null || previousDay.month !== day.month || previousDay.year !== day.year;
@@ -1972,8 +1979,8 @@ export class CalendarView extends BaseElement {
   };
 
   #renderCurrentTimeIndicator() {
-    const days = this.days;
-    if (!days.length || this.#days <= 0) return "";
+    const days = this.viewDays;
+    if (!days.length || this.daysPerWeek <= 0) return "";
 
     const currentDateTime = this.currentTime;
     const currentDay = currentDateTime.toPlainDate();
@@ -1990,9 +1997,9 @@ export class CalendarView extends BaseElement {
     if (hourFloat < 0 || hourFloat > this.hours) return "";
 
     const top = (hourFloat / this.hours) * 100;
-    const visualDayIndex = this.#toVisualColumnIndex(currentDayIndex, this.#days);
-    const left = (visualDayIndex / this.#days) * 100;
-    const width = (1 / this.#days) * 100;
+    const visualDayIndex = this.#toVisualColumnIndex(currentDayIndex, this.daysPerWeek);
+    const left = (visualDayIndex / this.daysPerWeek) * 100;
+    const width = (1 / this.daysPerWeek) * 100;
 
     return html`
       <div
@@ -2113,7 +2120,7 @@ export class CalendarView extends BaseElement {
       };
     }
 
-    const dayCount = this.days.length;
+    const dayCount = this.viewDays.length;
     const cols = this.#isMonthView ? this.daysPerRow : dayCount;
     if (!dayCount || cols <= 0) {
       return {
@@ -2129,7 +2136,7 @@ export class CalendarView extends BaseElement {
     const visibleEvents = this.#sortedEvents;
     const eventColorsById = new Map(visibleEvents.map(([id, event]) => [id, event.color]));
     const layout = buildAllDayLayout({
-      renderedDays: this.days,
+      viewDays: this.viewDays,
       daysPerRow: cols,
       items: visibleEvents.map(([id, event]) => this.#toAllDayLayoutItem(id, event)),
     });
@@ -2349,7 +2356,7 @@ export class CalendarView extends BaseElement {
 
   protected willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
-    if (changedProperties.has("days") || changedProperties.has("variant")) {
+    if (changedProperties.has("daysPerWeek") || changedProperties.has("variant")) {
       this.#syncCompactMonthState();
     }
     if (changedProperties.has("variant") || changedProperties.has("visibleHours")) {

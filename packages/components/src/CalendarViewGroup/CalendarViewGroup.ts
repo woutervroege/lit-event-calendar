@@ -12,6 +12,7 @@ import type {
   CalendarPresentationMode,
   CalendarViewMode,
 } from "../types/CalendarViewGroup.js";
+import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 
@@ -33,8 +34,8 @@ export class CalendarViewGroup extends BaseElement {
   #view: CalendarViewMode = "month";
   #presentation: CalendarPresentationMode = "grid";
   #startDate?: string;
-  weekStart?: WeekdayNumber;
-  #daysPerWeek = 7;
+  weekStart?: number;
+  #daysPerWeekStored = 7;
   declare events?: EventsMap;
   locale?: string;
   timezone?: string;
@@ -91,6 +92,18 @@ export class CalendarViewGroup extends BaseElement {
     return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
 
+  get daysPerWeek(): number {
+    return clampDaysPerWeek(this.#daysPerWeekStored);
+  }
+
+  set daysPerWeek(value: number | string | null | undefined) {
+    const next = daysPerWeekFromInput(value);
+    if (Object.is(next, this.#daysPerWeekStored)) return;
+    const previous = this.#daysPerWeekStored;
+    this.#daysPerWeekStored = next;
+    this.requestUpdate("daysPerWeek", previous);
+  }
+
   render() {
     return html`
       <div class="calendar-view-group">
@@ -121,17 +134,6 @@ export class CalendarViewGroup extends BaseElement {
 
   set presentation(value: CalendarPresentationMode | string | null | undefined) {
     this.#presentation = value === "list" ? "list" : "grid";
-  }
-
-  get daysPerWeek(): number {
-    return this.#daysPerWeek;
-  }
-
-  set daysPerWeek(value: number | string | null | undefined) {
-    const rawValue = typeof value === "string" ? Number(value) : value;
-    const numeric = Number(rawValue);
-    const nextValue = Number.isFinite(numeric) ? Math.max(1, Math.min(7, Math.floor(numeric))) : 7;
-    this.#daysPerWeek = nextValue;
   }
 
   get month(): number {
@@ -175,7 +177,7 @@ export class CalendarViewGroup extends BaseElement {
     }
 
     const start = this.#weekRangeStartDate;
-    const rangeLengthDays = Math.max(1, Math.min(7, Math.floor(Number(this.daysPerWeek) || 7)));
+    const rangeLengthDays = this.daysPerWeek;
     const end = start.add({ days: rangeLengthDays - 1 });
     return this.#weekRangeLabelParts(start, end, locale);
   }
@@ -200,7 +202,7 @@ export class CalendarViewGroup extends BaseElement {
   }
 
   get nextWeek(): string {
-    return this.#weekRangeStartDate.add({ days: this.#weekStepDays }).toString();
+    return this.#weekRangeStartDate.add({ days: this.daysPerWeek }).toString();
   }
 
   get nextMonth(): string {
@@ -246,7 +248,7 @@ export class CalendarViewGroup extends BaseElement {
       return html`
         <calendar-agenda-view
           start-date=${this.#agendaRangeStartDate.toString()}
-          .days=${this.#agendaRangeDays}
+          .daysPerWeek=${this.#agendaRangeDays}
           .events=${this.events}
           .locale=${this.locale}
           .timezone=${this.timezone}
@@ -372,11 +374,7 @@ export class CalendarViewGroup extends BaseElement {
       });
     }
 
-    return this.#weekRangeStartDate.add({ days: this.#weekStepDays * step });
-  }
-
-  get #weekStepDays(): number {
-    return Math.max(1, Math.min(7, Math.floor(Number(this.daysPerWeek) || 7)));
+    return this.#weekRangeStartDate.add({ days: this.daysPerWeek * step });
   }
 
   get #weekStartDate(): Temporal.PlainDate {
@@ -385,7 +383,7 @@ export class CalendarViewGroup extends BaseElement {
 
   get #weekRangeStartDate(): Temporal.PlainDate {
     // Full-week mode stays aligned to locale week start; partial-week modes use a sliding anchor.
-    if (this.#weekStepDays < 7) return this.#resolvedStartDate;
+    if (this.daysPerWeek < 7) return this.#resolvedStartDate;
     return this.#weekStartDate;
   }
 
@@ -410,7 +408,7 @@ export class CalendarViewGroup extends BaseElement {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
+    if (isWeekdayNumber(this.weekStart)) return this.weekStart as WeekdayNumber;
     const localeFirstDay = getLocaleWeekInfo(this.locale).firstDay;
     if (isWeekdayNumber(localeFirstDay)) return localeFirstDay;
     return 1;

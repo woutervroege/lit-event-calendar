@@ -17,16 +17,16 @@ type PlacedEvent = {
 };
 
 export function buildAllDayLayout({
-  renderedDays,
+  viewDays,
   daysPerRow,
   items,
 }: {
-  renderedDays: Temporal.PlainDate[];
+  viewDays: Temporal.PlainDate[];
   daysPerRow: number;
   items: AllDayLayoutItem[];
 }): AllDayLayout {
   const activeCountsByDay = new Map<number, number>();
-  if (!renderedDays.length || daysPerRow <= 0 || !items.length) {
+  if (!viewDays.length || daysPerRow <= 0 || !items.length) {
     return { placedEvents: [], activeCountsByDay, maxEventsOnAnyDay: 0, daysPerRow };
   }
 
@@ -35,7 +35,7 @@ export function buildAllDayLayout({
   let maxEventsOnAnyDay = 0;
 
   for (const item of items) {
-    const range = getVisibleIndexRange(renderedDays, item.start, item.endInclusive);
+    const range = getVisibleIndexRange(viewDays, item.start, item.endInclusive);
     if (!range) continue;
 
     for (let dayIndex = range.startIndex; dayIndex <= range.endIndex; dayIndex += 1) {
@@ -128,27 +128,27 @@ export function computeHiddenAllDayEventIdsByDay(
 }
 
 function getVisibleIndexRange(
-  renderedDays: Temporal.PlainDate[],
+  viewDays: Temporal.PlainDate[],
   startInclusive: Temporal.PlainDate,
   endInclusive: Temporal.PlainDate
 ): { startIndex: number; endIndex: number } | null {
   if (Temporal.PlainDate.compare(endInclusive, startInclusive) < 0) return null;
 
-  const firstVisibleDay = renderedDays[0];
-  const lastVisibleDay = renderedDays[renderedDays.length - 1];
+  const firstVisibleDay = viewDays[0];
+  const lastVisibleDay = viewDays[viewDays.length - 1];
   if (Temporal.PlainDate.compare(endInclusive, firstVisibleDay) < 0) return null;
   if (Temporal.PlainDate.compare(startInclusive, lastVisibleDay) > 0) return null;
 
   let startIndex = 0;
   while (
-    startIndex < renderedDays.length &&
-    Temporal.PlainDate.compare(renderedDays[startIndex], startInclusive) < 0
+    startIndex < viewDays.length &&
+    Temporal.PlainDate.compare(viewDays[startIndex], startInclusive) < 0
   ) {
     startIndex += 1;
   }
 
-  let endIndex = renderedDays.length - 1;
-  while (endIndex >= 0 && Temporal.PlainDate.compare(renderedDays[endIndex], endInclusive) > 0) {
+  let endIndex = viewDays.length - 1;
+  while (endIndex >= 0 && Temporal.PlainDate.compare(viewDays[endIndex], endInclusive) > 0) {
     endIndex -= 1;
   }
 

@@ -22,7 +22,7 @@ const meta: Meta = {
   },
   argTypes: {
     startDate: { control: "text", description: "Start date (YYYY-MM-DD)" },
-    days: { control: { type: "number", min: 1, max: 42 }, description: "Number of days" },
+    daysPerWeek: { control: { type: "number", min: 1, max: 42 }, description: "Visible day columns" },
     locale: {
       control: "select",
       options: localeOptions,
@@ -46,7 +46,7 @@ const meta: Meta = {
   },
   args: {
     startDate: "2025-01-05",
-    days: 7,
+    daysPerWeek: 7,
     variant: "timed",
     timezone: "Europe/Amsterdam",
     labelsHidden: false,
@@ -60,7 +60,7 @@ const meta: Meta = {
   render: (args) => {
     const el = document.createElement("calendar-view") as StoryCalendarViewElement;
     el.setAttribute("start-date", args.startDate);
-    el.setAttribute("days", String(args.days));
+    el.setAttribute("days-per-week", String(args.daysPerWeek));
     el.setAttribute("variant", args.variant);
     el.setAttribute("snap-interval", String(args.snapInterval));
     if (args.visibleHours === "auto" || args.visibleHours === undefined || args.visibleHours === null) {
@@ -103,7 +103,7 @@ type Story = StoryObj;
 export const Month: Story = {
   args: {
     startDate: "2025-01-05",
-    days: 42,
+    daysPerWeek: 42,
     snapInterval: 5,
     variant: "all-day",
     events: sampleEvents,
@@ -112,24 +112,24 @@ export const Month: Story = {
 };
 
 export const AllDay: Story = {
-  args: { ...Month.args, ...{ variant: "all-day", days: 5 } },
+  args: { ...Month.args, ...{ variant: "all-day", daysPerWeek: 5 } },
 };
 
 export const Day: Story = {
   args: {
     ...Month.args,
-    ...{ variant: "timed", days: 1, startDate: "2025-01-06" },
+    ...{ variant: "timed", daysPerWeek: 1, startDate: "2025-01-06" },
   },
 };
 
 export const Week: Story = {
-  args: { ...Day.args, ...{ days: 7 } },
+  args: { ...Day.args, ...{ daysPerWeek: 7 } },
 };
 
 export const TimezoneShiftAmsterdam: Story = {
   args: {
     ...Day.args,
-    days: 1,
+    daysPerWeek: 1,
     startDate: "2025-01-06",
     variant: "timed",
     timezone: "Europe/Amsterdam",

@@ -1,11 +1,12 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
-import { customElement } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../EventCard/EventCard.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
+import { clampAgendaDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
 import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarAgendaView.css?inline";
@@ -31,7 +32,7 @@ type AgendaDay = {
 @customElement("calendar-agenda-view")
 export class CalendarAgendaView extends BaseElement {
   #startDate?: string;
-  #days = 31;
+  #daysPerWeekStored = 31;
   declare events?: EventsMap;
   locale?: string;
   timezone?: string;
@@ -40,7 +41,6 @@ export class CalendarAgendaView extends BaseElement {
   static get properties() {
     return {
       startDate: { type: String, attribute: "start-date" },
-      days: { type: Number },
       events: {
         type: Object,
         converter: {
@@ -71,14 +71,17 @@ export class CalendarAgendaView extends BaseElement {
     this.#startDate = nextValue;
   }
 
-  get days(): number {
-    return this.#days;
+  @property({ type: Number, attribute: "days-per-week" })
+  get daysPerWeek(): number {
+    return clampAgendaDaysPerWeek(this.#daysPerWeekStored);
   }
 
-  set days(value: number | string | null | undefined) {
-    const rawValue = typeof value === "string" ? Number(value) : value;
-    const numeric = Number(rawValue);
-    this.#days = Number.isFinite(numeric) ? Math.max(1, Math.floor(numeric)) : 31;
+  set daysPerWeek(value: number | string | null | undefined) {
+    const next = daysPerWeekFromInput(value);
+    if (Object.is(next, this.#daysPerWeekStored)) return;
+    const previous = this.#daysPerWeekStored;
+    this.#daysPerWeekStored = next;
+    this.requestUpdate("daysPerWeek", previous);
   }
 
   static get styles() {
@@ -170,7 +173,7 @@ export class CalendarAgendaView extends BaseElement {
   get #agendaDays(): AgendaDay[] {
     const grouped = new Map<string, AgendaItem[]>();
     const rangeStart = this.startDate;
-    const rangeEndExclusive = rangeStart.add({ days: this.days });
+    const rangeEndExclusive = rangeStart.add({ days: this.daysPerWeek });
 
     for (const [id, event] of this.#eventsAsEntries) {
       if (event.isRemoved) continue;

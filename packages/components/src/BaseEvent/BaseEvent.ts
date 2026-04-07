@@ -30,8 +30,9 @@ export abstract class BaseEvent extends BaseElement {
   protected dragOffsetX = 0;
   protected dragOffsetY = 0;
 
+  /** Dates visible in the parent calendar strip (from `calendar-view`). */
   @property({ type: Array })
-  renderedDays: Temporal.PlainDate[] = [];
+  viewDays: Temporal.PlainDate[] = [];
 
   @property({ type: String })
   summary = "";
@@ -187,18 +188,19 @@ export abstract class BaseEvent extends BaseElement {
     return end ? Temporal.PlainDateTime.compare(end, this.currentTime) <= 0 : false;
   }
 
-  get days(): Temporal.PlainDate[] {
-    const days: Temporal.PlainDate[] = [];
+  /** This event’s span on the calendar: one plain date per day from start through end (inclusive). */
+  get renderedDays(): Temporal.PlainDate[] {
+    const span: Temporal.PlainDate[] = [];
     const startDate = this.startDate;
     const endDate = this.endDate;
-    if (!startDate || !endDate) return days;
+    if (!startDate || !endDate) return span;
 
     let current: Temporal.PlainDate = startDate;
     while (Temporal.PlainDate.compare(current, endDate) <= 0) {
-      days.push(current);
+      span.push(current);
       current = current.add({ days: 1 });
     }
-    return days;
+    return span;
   }
 
   protected get startInputValue(): string | null {
@@ -230,11 +232,11 @@ export abstract class BaseEvent extends BaseElement {
   protected get renderedDayBounds():
     | { firstDay: Temporal.PlainDate; lastDay: Temporal.PlainDate }
     | null {
-    if (!this.renderedDays.length) return null;
+    if (!this.viewDays.length) return null;
 
-    let firstDay = this.renderedDays[0];
-    let lastDay = this.renderedDays[0];
-    for (const day of this.renderedDays) {
+    let firstDay = this.viewDays[0];
+    let lastDay = this.viewDays[0];
+    for (const day of this.viewDays) {
       if (Temporal.PlainDate.compare(day, firstDay) < 0) firstDay = day;
       if (Temporal.PlainDate.compare(day, lastDay) > 0) lastDay = day;
     }

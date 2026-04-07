@@ -8,21 +8,13 @@ import componentStyle from "./CalendarTimeSidebar.css?inline";
 @customElement("calendar-time-sidebar")
 export class CalendarTimeSidebar extends BaseElement {
   locale?: string;
-  hours = 24;
+  /** Raw property value; `get hours()` clamps to 1–24. */
+  #hoursRaw = 24;
 
   static get properties() {
     return {
       locale: { type: String },
-      hours: {
-        type: Number,
-        converter: {
-          fromAttribute: (value: string | null): number => {
-            const parsed = Number(value);
-            if (!Number.isFinite(parsed)) return 24;
-            return Math.max(1, Math.min(24, Math.floor(parsed)));
-          },
-        },
-      },
+      hours: { type: Number },
     } as const;
   }
 
@@ -30,12 +22,27 @@ export class CalendarTimeSidebar extends BaseElement {
     return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
 
+  get hours(): number {
+    const parsed = Number(this.#hoursRaw);
+    return !Number.isFinite(parsed) ? 24 : Math.max(1, Math.min(24, Math.floor(parsed)));
+  }
+
+  set hours(value: number | string | null | undefined) {
+    const n = Number(value);
+    const next = Number.isFinite(n) ? n : NaN;
+    if (Object.is(next, this.#hoursRaw)) return;
+    const previous = this.#hoursRaw;
+    this.#hoursRaw = next;
+    this.requestUpdate("hours", previous);
+  }
+
   render() {
     const direction = getLocaleDirection(this.locale);
-    const hourlyLabels = getHourlyTimeLabels(this.locale, this.hours);
+    const hours = this.hours;
+    const hourlyLabels = getHourlyTimeLabels(this.locale, hours);
     const endLabel = getHourlyTimeLabels(this.locale, 1)[0] ?? "00:00";
     const labels = [...hourlyLabels, endLabel];
-    const hourSlots = Math.max(1, this.hours);
+    const hourSlots = Math.max(1, hours);
 
     return html`
       <div class="time-sidebar" dir=${direction}>

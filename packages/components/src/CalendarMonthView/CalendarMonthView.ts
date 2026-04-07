@@ -20,7 +20,7 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
 export class CalendarMonthView extends BaseElement {
   month = Temporal.Now.plainDateISO().month;
   year = Temporal.Now.plainDateISO().year;
-  weekStart?: WeekdayNumber;
+  weekStart?: number;
   declare events?: EventsMap;
   locale?: string;
   timezone?: string;
@@ -33,19 +33,7 @@ export class CalendarMonthView extends BaseElement {
     return {
       month: { type: Number },
       year: { type: Number },
-      weekStart: {
-        type: Number,
-        attribute: "week-start",
-        reflect: true,
-        converter: {
-          fromAttribute: (v: string | null): WeekdayNumber | undefined => {
-            if (v === null) return undefined;
-            const day = Number(v);
-            return isWeekdayNumber(day) ? day : undefined;
-          },
-          toAttribute: (v: number | undefined): string | null => (v ? String(v) : null),
-        },
-      },
+      weekStart: { type: Number, attribute: "week-start", reflect: true },
       events: {
         type: Object,
         converter: {
@@ -80,7 +68,7 @@ export class CalendarMonthView extends BaseElement {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
+    if (isWeekdayNumber(this.weekStart)) return this.weekStart as WeekdayNumber;
     return this.#weekStartFromLocale(this.locale);
   }
 
@@ -96,12 +84,12 @@ export class CalendarMonthView extends BaseElement {
         <calendar-weekday-header
           .locale=${this.locale}
           .weekStart=${this.weekStart}
-          days="7"
+          days-per-week="7"
         ></calendar-weekday-header>
         <calendar-view
           class="month-grid"
           start-date=${this.startDate.toString()}
-          days="42"
+          days-per-week="42"
           variant="all-day"
           .events=${this.events}
           locale=${ifDefined(this.locale)}

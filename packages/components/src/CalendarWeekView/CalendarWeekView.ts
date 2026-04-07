@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { html, unsafeCSS } from "lit";
-import { customElement } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { styleMap } from "lit/directives/style-map.js";
 import "../CalendarView/CalendarView.js";
@@ -10,6 +10,7 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
 import type { AllDayLayoutItem } from "../types/AllDayLayout.js";
 import { buildAllDayLayout } from "../utils/AllDayLayout.js";
+import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getLocaleDirection, getLocaleWeekInfo } from "../utils/Locale.js";
 import componentStyle from "./CalendarWeekView.css?inline";
 import "../SwipeContainer/SwipeContainer.js";
@@ -27,8 +28,8 @@ export class CalendarWeekView extends BaseElement {
   #startDate?: string;
   weekNumber = Temporal.Now.plainDateISO().weekOfYear;
   year = Temporal.Now.plainDateISO().year;
-  weekStart?: WeekdayNumber;
-  daysPerWeek = 7;
+  weekStart?: number;
+  #daysPerWeekStored = 7;
   declare events?: EventsMap;
   locale?: string;
   timezone?: string;
@@ -51,32 +52,7 @@ export class CalendarWeekView extends BaseElement {
       startDate: { type: String, attribute: "start-date" },
       weekNumber: { type: Number, attribute: "week-number" },
       year: { type: Number },
-      weekStart: {
-        type: Number,
-        attribute: "week-start",
-        reflect: true,
-        converter: {
-          fromAttribute: (v: string | null): WeekdayNumber | undefined => {
-            if (v === null) return undefined;
-            const day = Number(v);
-            return isWeekdayNumber(day) ? day : undefined;
-          },
-          toAttribute: (v: number | undefined): string | null => (v ? String(v) : null),
-        },
-      },
-      daysPerWeek: {
-        type: Number,
-        attribute: "days-per-week",
-        reflect: true,
-        converter: {
-          fromAttribute: (v: string | null): number => {
-            const n = Number(v);
-            if (!Number.isFinite(n)) return 7;
-            return Math.max(1, Math.min(7, Math.floor(n)));
-          },
-          toAttribute: (v: number): string => String(v),
-        },
-      },
+      weekStart: { type: Number, attribute: "week-start", reflect: true },
       events: {
         type: Object,
         converter: {
@@ -94,6 +70,19 @@ export class CalendarWeekView extends BaseElement {
       defaultEventColor: { type: String, attribute: "default-event-color" },
       defaultCalendarId: { type: String, attribute: "default-source-id" },
     } as const;
+  }
+
+  @property({ type: Number, attribute: "days-per-week", reflect: true })
+  get daysPerWeek(): number {
+    return clampDaysPerWeek(this.#daysPerWeekStored);
+  }
+
+  set daysPerWeek(value: number | string | null | undefined) {
+    const next = daysPerWeekFromInput(value);
+    if (Object.is(next, this.#daysPerWeekStored)) return;
+    const previous = this.#daysPerWeekStored;
+    this.#daysPerWeekStored = next;
+    this.requestUpdate("daysPerWeek", previous);
   }
 
   static get styles() {
@@ -133,7 +122,7 @@ export class CalendarWeekView extends BaseElement {
   }
 
   get #resolvedWeekStart(): WeekdayNumber {
-    if (isWeekdayNumber(this.weekStart)) return this.weekStart;
+    if (isWeekdayNumber(this.weekStart)) return this.weekStart as WeekdayNumber;
     return this.#weekStartFromLocale(this.locale);
   }
 
@@ -147,7 +136,7 @@ export class CalendarWeekView extends BaseElement {
     return this.#cachedTimedEvents;
   }
 
-  get #renderedDays(): Temporal.PlainDate[] {
+  get #viewDays(): Temporal.PlainDate[] {
     return Array.from({ length: this.daysPerWeek }, (_, dayOffset) =>
       this.#gridStartDate.add({ days: dayOffset })
     );
@@ -161,10 +150,10 @@ export class CalendarWeekView extends BaseElement {
   }
 
   get #allDayVisibleRowCount(): number {
-    const renderedDays = this.#renderedDays;
+    const viewDays = this.#viewDays;
     const layout = buildAllDayLayout({
-      renderedDays,
-      daysPerRow: renderedDays.length,
+      viewDays,
+      daysPerRow: viewDays.length,
       items: this.#allDayLayoutItems,
     });
     return Math.max(1, layout.maxEventsOnAnyDay);
@@ -330,12 +319,12 @@ export class CalendarWeekView extends BaseElement {
               class="week-weekday-header"
               .locale=${this.locale}
               .weekStart=${headerWeekStart}
-              .days=${this.daysPerWeek}
+              .daysPerWeek=${this.daysPerWeek}
             ></calendar-weekday-header>
             <calendar-view
               class="week-all-day-view"
               .startDate=${this.#gridStartDate}
-              days=${String(this.daysPerWeek)}
+              days-per-week=${String(this.daysPerWeek)}
               variant="all-day"
               .events=${this.#allDayEvents}
               .rtl=${this.rtl}
@@ -361,7 +350,7 @@ export class CalendarWeekView extends BaseElement {
           <calendar-view
             class="week-timed-view"
             .startDate=${this.#gridStartDate}
-            days=${String(this.daysPerWeek)}
+            days-per-week=${String(this.daysPerWeek)}
             variant="timed"
             .events=${this.#timedEvents}
             .visibleHours=${clampedVisibleHours ?? 24}

@@ -90,7 +90,7 @@ export class EventCalendar extends BaseElement {
   #view: CalendarViewMode = "month";
   #presentation: CalendarPresentationMode = "grid";
   #startDate?: string;
-  #daysPerWeek = 7;
+  daysPerWeek = 7;
   #threeDayRangeEnabled = false;
   #rangeLabelText = "";
   #rangeLabelParts: Array<{ text: string; isYear: boolean }> = [];
@@ -187,19 +187,6 @@ export class EventCalendar extends BaseElement {
           : Temporal.PlainDate.from(value).toString();
     if (this.#startDate === nextValue) return;
     this.#startDate = nextValue;
-    this.requestUpdate();
-  }
-
-  get daysPerWeek(): number {
-    return this.#daysPerWeek;
-  }
-
-  set daysPerWeek(value: number | string | null | undefined) {
-    const rawValue = typeof value === "string" ? Number(value) : value;
-    const numeric = Number(rawValue);
-    const nextValue = Number.isFinite(numeric) ? Math.max(1, Math.min(7, Math.floor(numeric))) : 7;
-    if (this.#daysPerWeek === nextValue) return;
-    this.#daysPerWeek = nextValue;
     this.requestUpdate();
   }
 

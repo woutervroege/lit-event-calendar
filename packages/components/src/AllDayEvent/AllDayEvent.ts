@@ -186,13 +186,13 @@ export class AllDayEvent extends BaseEvent {
     const endDayIndex = Math.min(startDayIndex + this.daysPerRow, renderedDays.length);
     const rowDayKeys = new Set(renderedDays.slice(startDayIndex, endDayIndex));
 
-    return this.days
+    return this.renderedDays
       .map((day) => day.toString())
       .filter((key) => rowDayKeys.has(key));
   }
 
   #getVisibleDayKeys(renderedDays: string[]): string[] {
-    return this.days.map((day) => day.toString()).filter((day) => renderedDays.includes(day));
+    return this.renderedDays.map((day) => day.toString()).filter((day) => renderedDays.includes(day));
   }
 
   #getStackIndex(renderedDays: string[], options?: { ignoreLock?: boolean }): number {
@@ -275,16 +275,16 @@ export class AllDayEvent extends BaseEvent {
       rowIndex: number;
       stackIndex: number;
     }> = [];
-    const renderedDays = this.renderedDays.map((day) => day.toString());
-    if (!renderedDays.length) return insets;
+    const viewDayStrings = this.viewDays.map((day) => day.toString());
+    if (!viewDayStrings.length) return insets;
 
-    const visibleDayIndexes = this.days
-      .map((day) => renderedDays.indexOf(day.toString()))
+    const visibleDayIndexes = this.renderedDays
+      .map((day) => viewDayStrings.indexOf(day.toString()))
       .filter((dayIndex) => dayIndex >= 0)
       .sort((a, b) => a - b);
     if (!visibleDayIndexes.length) return insets;
 
-    const totalCols = this.daysPerRow > 0 ? this.daysPerRow : renderedDays.length;
+    const totalCols = this.daysPerRow > 0 ? this.daysPerRow : viewDayStrings.length;
     const rowSegments = new Map<number, { startColIndex: number; endColIndex: number }>();
 
     visibleDayIndexes.forEach((dayIndex) => {
@@ -304,7 +304,7 @@ export class AllDayEvent extends BaseEvent {
     Array.from(rowSegments.entries())
       .sort((a, b) => a[0] - b[0])
       .forEach(([rowIndex, segment]) => {
-        const stackIndex = this.#getStackIndexForPosition(renderedDays, rowIndex);
+        const stackIndex = this.#getStackIndexForPosition(viewDayStrings, rowIndex);
         let runStartColIndex: number | null = null;
         for (let colIndex = segment.startColIndex; colIndex <= segment.endColIndex; colIndex += 1) {
           const dayIndex = this.daysPerRow > 0 ? rowIndex * this.daysPerRow + colIndex : colIndex;
@@ -322,7 +322,7 @@ export class AllDayEvent extends BaseEvent {
               runStartColIndex,
               widthInColumns,
               totalCols,
-              renderedDays,
+              viewDayStrings,
               stackIndex
             )
           );
@@ -344,7 +344,7 @@ export class AllDayEvent extends BaseEvent {
     const startTime = this.startTime;
     if (!startDate || !startTime) return "";
 
-    const isStartVisible = this.renderedDays.some(
+    const isStartVisible = this.viewDays.some(
       (day) => Temporal.PlainDate.compare(day, startDate) === 0
     );
     if (!isStartVisible) return "";
@@ -369,8 +369,8 @@ export class AllDayEvent extends BaseEvent {
       return;
     }
 
-    const renderedDays = this.renderedDays;
-    if (!renderedDays || !renderedDays.length || !this.#hasValidHoverDayIndex(hover, renderedDays)) {
+    const viewPortDays = this.viewDays;
+    if (!viewPortDays || !viewPortDays.length || !this.#hasValidHoverDayIndex(hover, viewPortDays)) {
       this.#clearPreviewDisplayTime();
       return;
     }
@@ -414,17 +414,17 @@ export class AllDayEvent extends BaseEvent {
 
   #hasValidHoverDayIndex(
     hover: { dayIndex: number },
-    renderedDays: Temporal.PlainDate[]
+    viewPortDays: Temporal.PlainDate[]
   ): boolean {
     const { dayIndex } = hover;
-    return dayIndex != null && dayIndex >= 0 && dayIndex < renderedDays.length;
+    return dayIndex != null && dayIndex >= 0 && dayIndex < viewPortDays.length;
   }
 
   render() {
     const dayInsets = this.dayInsets;
     const visibleDayInsets = dayInsets;
     const isFocusable = visibleDayInsets.length > 0;
-    const canResizeStart = this.days.length > 1 && !this.interactionDisabled;
+    const canResizeStart = this.renderedDays.length > 1 && !this.interactionDisabled;
     const colorStyles = getEventColorStyles(this.color);
     const isDragging = this.interactionController.isDragging;
     const hasOffset = this.dragOffsetX !== 0 || this.dragOffsetY !== 0;
@@ -583,8 +583,8 @@ export class AllDayEvent extends BaseEvent {
   }
 
   protected override onDragStart() {
-    const renderedDays = this.renderedDays.map((day) => day.toString());
-    this.#lockedStackIndex = this.#getStackIndex(renderedDays, { ignoreLock: true });
+    const viewDayStrings = this.viewDays.map((day) => day.toString());
+    this.#lockedStackIndex = this.#getStackIndex(viewDayStrings, { ignoreLock: true });
   }
 
   protected override onDragEnd() {
@@ -602,12 +602,12 @@ export class AllDayEvent extends BaseEvent {
     const startDate = this.startDate;
     if (!startDate) return 0;
 
-    const renderedDays = this.renderedDays.map((day) => day.toString());
-    const dayIndex = renderedDays.indexOf(startDate.toString());
+    const viewDayStrings = this.viewDays.map((day) => day.toString());
+    const dayIndex = viewDayStrings.indexOf(startDate.toString());
     if (dayIndex < 0) return 0;
 
     const rowIndex = this.daysPerRow > 0 ? Math.floor(dayIndex / this.daysPerRow) : 0;
-    const stackIndex = this.#getStackIndexForPosition(renderedDays, rowIndex);
+    const stackIndex = this.#getStackIndexForPosition(viewDayStrings, rowIndex);
     return stackIndex * this.#getEventHeightPx();
   }
 
