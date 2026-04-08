@@ -81,6 +81,7 @@ export class CalendarGridView extends BaseElement {
   defaultCalendarId?: string;
   #dragHoverDayIndex: number | null = null;
   #dragHoverTime: Temporal.PlainTime | null = null;
+  #dragHoverMaxHeightPx: number | null = null;
   #pendingCreatePointer: {
     pointerId: number;
     pointerType: string;
@@ -616,6 +617,10 @@ export class CalendarGridView extends BaseElement {
         hoverStyle["--_lc-hover-width"] = `${width}%`;
         hoverStyle["--_lc-hover-top"] = `${top}%`;
         hoverStyle["--_lc-hover-height"] = `${slotHeight}%`;
+        hoverStyle["--_lc-hover-max-height"] =
+          this.#dragHoverMaxHeightPx && this.#dragHoverMaxHeightPx > 0
+            ? `${this.#dragHoverMaxHeightPx}px`
+            : "100%";
       }
     }
 
@@ -2106,18 +2111,31 @@ export class CalendarGridView extends BaseElement {
 
     const hover = event.detail;
     if (!hover) {
-      if (this.#dragHoverDayIndex === null && this.#dragHoverTime === null) return;
+      if (
+        this.#dragHoverDayIndex === null &&
+        this.#dragHoverTime === null &&
+        this.#dragHoverMaxHeightPx === null
+      ) {
+        return;
+      }
       this.#dragHoverDayIndex = null;
       this.#dragHoverTime = null;
+      this.#dragHoverMaxHeightPx = null;
     } else {
       const nextDayIndex = hover.dayIndex ?? null;
       const nextTime = hover.time ?? null;
+      const nextGhostMaxHeightPx =
+        typeof hover.ghostMaxHeightPx === "number" && Number.isFinite(hover.ghostMaxHeightPx)
+          ? Math.max(0, hover.ghostMaxHeightPx)
+          : null;
       const unchanged =
         this.#dragHoverDayIndex === nextDayIndex &&
-        (this.#dragHoverTime?.toString() ?? null) === (nextTime?.toString() ?? null);
+        (this.#dragHoverTime?.toString() ?? null) === (nextTime?.toString() ?? null) &&
+        this.#dragHoverMaxHeightPx === nextGhostMaxHeightPx;
       if (unchanged) return;
       this.#dragHoverDayIndex = nextDayIndex;
       this.#dragHoverTime = nextTime;
+      this.#dragHoverMaxHeightPx = nextGhostMaxHeightPx;
     }
     this.requestUpdate();
   };

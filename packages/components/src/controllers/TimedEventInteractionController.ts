@@ -45,6 +45,7 @@ export class TimedEventInteractionController {
   #mode: InteractionMode = "timed";
   #dragOffsetX = 0;
   #dragOffsetY = 0;
+  #dragGhostMaxHeightPx: number | null = null;
   #highlightedDayIndex: number | null = null;
   #highlightedTime: Temporal.PlainTime | null = null;
   #pendingTouchInteraction: {
@@ -334,6 +335,7 @@ export class TimedEventInteractionController {
     this.#savedHeight = this.#host.clientHeight;
     this.#savedStart = this.#toPlainDateTimeOrNull(this.#host.start);
     this.#savedEnd = this.#toPlainDateTimeOrNull(this.#host.end);
+    this.#dragGhostMaxHeightPx = this.#resolveDragGhostMaxHeightPx(e);
 
     this.#initializeBoundsAndDayIndex(e);
     this.#initializeGrabOffsets(e);
@@ -752,6 +754,7 @@ export class TimedEventInteractionController {
     this.#bounds = null;
     this.#savedStart = null;
     this.#savedEnd = null;
+    this.#dragGhostMaxHeightPx = null;
 
     if (oldPointerId !== undefined) {
       this.#pointerCaptureTarget?.releasePointerCapture(oldPointerId);
@@ -789,6 +792,7 @@ export class TimedEventInteractionController {
     this.#isDragging = false;
     this.#highlightedDayIndex = null;
     this.#highlightedTime = null;
+    this.#dragGhostMaxHeightPx = null;
 
     this.#dispatchDragHover(null);
 
@@ -837,6 +841,27 @@ export class TimedEventInteractionController {
 
     const host = rootNode.host;
     return host instanceof HTMLElement && host.tagName === "EVENT-CARD";
+  }
+
+  #resolveDragGhostMaxHeightPx(event: PointerEvent): number | null {
+    const targets = [event.target, ...event.composedPath()];
+    for (const target of targets) {
+      const eventCard = this.#toEventCardHost(target);
+      if (!eventCard) continue;
+      const height = eventCard.getBoundingClientRect().height;
+      if (!Number.isFinite(height) || height <= 0) continue;
+      return height;
+    }
+    return null;
+  }
+
+  #toEventCardHost(target: EventTarget | null): HTMLElement | null {
+    if (!(target instanceof HTMLElement)) return null;
+    if (target.tagName === "EVENT-CARD") return target;
+    const rootNode = target.getRootNode();
+    if (!(rootNode instanceof ShadowRoot)) return null;
+    const host = rootNode.host;
+    return host instanceof HTMLElement && host.tagName === "EVENT-CARD" ? host : null;
   }
 
   #dispatchUpdate() {
@@ -1029,11 +1054,18 @@ export class TimedEventInteractionController {
       time: Temporal.PlainTime | null;
       clientX: number;
       clientY: number;
+      ghostMaxHeightPx?: number | null;
     } | null
   ) {
+    const detail = hover
+      ? {
+          ...hover,
+          ghostMaxHeightPx: this.#dragGhostMaxHeightPx,
+        }
+      : null;
     this.#host.dispatchEvent(
       new CustomEvent("interaction-drag-hover", {
-        detail: hover,
+        detail,
         bubbles: true,
         composed: true,
       })

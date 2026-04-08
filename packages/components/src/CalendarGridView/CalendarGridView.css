@@ -131,7 +131,7 @@ section::before {
   left: var(--_lc-hover-left, 0);
   top: var(--_lc-hover-top, 0);
   width: var(--_lc-hover-width, 0);
-  height: var(--_lc-hover-height, 0);
+  height: min(var(--_lc-hover-height, 0), var(--_lc-hover-max-height, 100%));
   background: var(--_lc-grid-ghost-color);
 }
 
@@ -143,28 +143,10 @@ section[data-drag-hover]::before {
 }
 
 section[data-touch-creating] event-card.create-preview-card {
-  --_lc-event-focus-ring-width: 0px;
-  --_lc-event-focus-ring-gap: 0px;
-  --_lc-event-focus-ring-inset-width: 3px;
-  --_lc-event-focus-ring-color: var(
-    --_lc-event-focus-ring,
-    light-dark(
-      var(
-        --_lc-event-focus-ring-light,
-        var(
-          --_lc-event-text-color,
-          var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
-        )
-      ),
-      var(
-        --_lc-event-focus-ring-light,
-        var(
-          --_lc-event-text-color,
-          var(--_lc-focus-ring-color, light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%)))
-        )
-      )
-    )
-  );
+  --_lc-event-focus-ring-width: 3px;
+  --_lc-event-focus-ring-gap: -2px;
+  --_lc-event-focus-ring-inset-width: 0px;
+  --_lc-event-focus-ring-color: var(--_lc-event-accent-color);
   --_lc-event-card-overlap-shadow: 0 0 0 transparent;
 }
 

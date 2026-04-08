@@ -5,6 +5,7 @@
   @apply absolute w-full;
   container-type: size;
   container-name: event-card;
+  min-height: var(--_lc-event-height, 32px);
   touch-action: var(--_lc-event-card-touch-action, none);
   --_lc-event-card-bg: var(
     --_lc-event-card-bg-active,
@@ -24,12 +25,14 @@
   --_lc-event-focus-ring-inset-width: 0px;
   --_lc-event-recurring-icon-size: 13px;
   --_lc-event-card-segment-radius: var(--lc-event-card-radius, var(--radius-sm));
+  --_lc-resize-handle-color: var(--_lc-event-card-text-color);
 }
 
 :host([layout="flow"]) {
   @apply static block w-full touch-auto;
   container-type: inline-size;
   container-name: event-card;
+  min-height: 0;
   --_lc-event-recurring-icon-size: 14px;
 }
 
@@ -307,4 +310,8 @@
 
 ::slotted(*) {
   position: absolute;
+}
+
+::slotted(resize-handle) {
+  --_lc-resize-handle-color: var(--_lc-event-card-text-color);
 }
