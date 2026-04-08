@@ -348,9 +348,8 @@ export function attachRequestEventHandlers(
         if (isCalendarEventException(seriesEvent)) {
           nextEvents.set(key, {
             ...applySharedUpdate(seriesEvent),
+            // Keep detached exception timing untouched, only move linkage.
             recurrenceId: shiftRecurrenceId(seriesEvent.recurrenceId, seriesEvent.start, startShift),
-            start: applyDateValueShift(seriesEvent.start, startShift),
-            end: applyDateValueShift(seriesEvent.end, endShift),
             isException: true,
           });
           continue;

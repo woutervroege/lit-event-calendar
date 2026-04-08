@@ -1,19 +1,19 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import type {
   CalendarEventDateValue,
   CalendarEventPendingByCalendarId,
-  CalendarEventPendingOptions,
   CalendarEventPendingByOperation,
   CalendarEventPendingGroups,
   CalendarEventPendingOperation,
+  CalendarEventPendingOptions,
   CalendarEventPendingResult,
   CalendarEventView,
   CalendarEventViewEntry as EventEntry,
   CalendarEventViewMap as EventsMap,
 } from "../types/CalendarEvent.js";
 import type { WeekdayNumber } from "../types/Weekday.js";
+import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 
 export function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
   return Boolean(value && Number.isInteger(value) && value >= 1 && value <= 7);
@@ -68,13 +68,19 @@ export abstract class CalendarViewBase extends BaseElement {
     return this.#currentTime ?? Temporal.Now.zonedDateTimeISO(this.timezone).toString();
   }
 
-  set currentTime(
-    currentTime: Temporal.PlainDateTime | Temporal.ZonedDateTime | string | null | undefined
-  ) {
+  set currentTime(currentTime:
+    | Temporal.PlainDateTime
+    | Temporal.ZonedDateTime
+    | string
+    | null
+    | undefined) {
     this.#currentTime = currentTime?.toString() ?? undefined;
   }
 
-  getRenderedEvents(range: { start: CalendarEventDateValue; end: CalendarEventDateValue }): EventsMap {
+  getRenderedEvents(range: {
+    start: CalendarEventDateValue;
+    end: CalendarEventDateValue;
+  }): EventsMap {
     const toPlainDateTime = (value: CalendarEventDateValue): Temporal.PlainDateTime => {
       if (value instanceof Temporal.ZonedDateTime) {
         return value.withTimeZone(this.timezone).toPlainDateTime();
@@ -94,7 +100,10 @@ export abstract class CalendarViewBase extends BaseElement {
       return value;
     };
 
-    const toRecurrenceId = (value: Temporal.PlainDateTime, template: CalendarEventDateValue): string => {
+    const toRecurrenceId = (
+      value: Temporal.PlainDateTime,
+      template: CalendarEventDateValue
+    ): string => {
       const pad = (segment: number) => String(segment).padStart(2, "0");
       const date = `${value.year}${pad(value.month)}${pad(value.day)}`;
       if (template instanceof Temporal.PlainDate) return date;
@@ -230,7 +239,8 @@ export abstract class CalendarViewBase extends BaseElement {
       if (!pendingOp) continue;
       if (!event.calendarId || !event.eventId) continue;
 
-      const byEventId = grouped.get(event.calendarId) ?? new Map<string, CalendarEventPendingByOperation>();
+      const byEventId =
+        grouped.get(event.calendarId) ?? new Map<string, CalendarEventPendingByOperation>();
       const byOperation = byEventId.get(event.eventId) ?? this.#createPendingOperationMap();
       const bucket = byOperation.get(pendingOp);
       if (!bucket) continue;
@@ -241,10 +251,7 @@ export abstract class CalendarViewBase extends BaseElement {
     return grouped;
   }
 
-  protected resolveWeekStart(
-    weekStart: number | undefined,
-    lang: string
-  ): WeekdayNumber {
+  protected resolveWeekStart(weekStart: number | undefined, lang: string): WeekdayNumber {
     if (isWeekdayNumber(weekStart)) return weekStart as WeekdayNumber;
     const firstDay = getLocaleWeekInfo(lang).firstDay;
     if (isWeekdayNumber(firstDay)) return firstDay;
@@ -309,5 +316,4 @@ export abstract class CalendarViewBase extends BaseElement {
       ["deleted", new Map()],
     ]);
   }
-
 }
