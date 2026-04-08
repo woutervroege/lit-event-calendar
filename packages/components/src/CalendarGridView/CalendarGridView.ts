@@ -1122,6 +1122,8 @@ export class CalendarGridView extends CalendarViewBase {
     const target = detailTarget ?? (event.target as EventBase | null);
     if (!target?.eventId || !target.start || !target.end) return;
     const { event: current, recurrenceId } = this.#resolveSourceEvent(target.eventId);
+    const nextStart = this.#coerceUpdatedEventDateValue(target.start, current?.start);
+    const nextEnd = this.#coerceUpdatedEventDateValue(target.end, current?.end);
     const detail: EventUpdateRequestDetail = {
       envelope: {
         eventId: current?.eventId ?? target.eventId,
@@ -1131,8 +1133,8 @@ export class CalendarGridView extends CalendarViewBase {
         isRecurring: current ? isCalendarEventRecurring(current) : undefined,
       },
       content: {
-        start: target.start,
-        end: target.end,
+        start: nextStart,
+        end: nextEnd,
         summary: target.summary,
         color: target.color,
       },
@@ -2187,6 +2189,16 @@ export class CalendarGridView extends CalendarViewBase {
       return Temporal.ZonedDateTime.from(value).withTimeZone(this.timezone).toPlainDateTime();
     }
     return Temporal.PlainDateTime.from(value);
+  }
+
+  #coerceUpdatedEventDateValue(
+    updatedValue: Temporal.PlainDateTime,
+    sourceValue: EventInput["start"] | undefined
+  ): EventInput["start"] {
+    if (sourceValue instanceof Temporal.PlainDate) {
+      return updatedValue.toPlainDate();
+    }
+    return updatedValue;
   }
 
   #toEventDateTimeString(value: EventInput["start"]): string {
