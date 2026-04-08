@@ -2,6 +2,9 @@ import { Temporal } from "@js-temporal/polyfill";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import type {
+  CalendarEventPendingGroups,
+  CalendarEventPendingOperation,
+  CalendarEventView,
   CalendarEventViewEntry as EventEntry,
   CalendarEventViewMap as EventsMap,
 } from "../types/CalendarEvent.js";
@@ -66,6 +69,22 @@ export abstract class CalendarViewBase extends BaseElement {
     this.#currentTime = currentTime?.toString() ?? undefined;
   }
 
+  get pendingEvents(): CalendarEventPendingGroups {
+    const grouped: CalendarEventPendingGroups = new Map([
+      ["created", new Map()],
+      ["updated", new Map()],
+      ["deleted", new Map()],
+    ]);
+    for (const [id, event] of this.events ?? []) {
+      const pendingOp = this.#resolvePendingOperation(event);
+      if (!pendingOp) continue;
+      const bucket = grouped.get(this.#pendingGroupKeyFromOperation(pendingOp));
+      if (!bucket) continue;
+      bucket.set(id, event);
+    }
+    return grouped;
+  }
+
   protected resolveWeekStart(
     weekStart: number | undefined,
     lang: string
@@ -106,5 +125,20 @@ export abstract class CalendarViewBase extends BaseElement {
     if (!notCancelled && event.cancelable) {
       event.preventDefault();
     }
+  }
+
+  #resolvePendingOperation(event: CalendarEventView): CalendarEventPendingOperation | undefined {
+    if (event.pendingOp === "create" || event.pendingOp === "update" || event.pendingOp === "delete") {
+      return event.pendingOp;
+    }
+    return undefined;
+  }
+
+  #pendingGroupKeyFromOperation(
+    pendingOp: CalendarEventPendingOperation
+  ): "created" | "updated" | "deleted" {
+    if (pendingOp === "create") return "created";
+    if (pendingOp === "update") return "updated";
+    return "deleted";
   }
 }

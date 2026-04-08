@@ -139,7 +139,7 @@ export function attachRequestEventHandlers(
       summary: detail.content.summary ?? "New event",
       color: detail.content.color ?? "#0ea5e9",
       calendarId: detail.envelope.calendarId,
-      isOptimistic: true,
+      pendingOp: "create",
     });
     el.events = optimisticEvents;
 
@@ -160,7 +160,7 @@ export function attachRequestEventHandlers(
       committedEvents.set(eventId, {
         ...created,
         summary: committedSummary,
-        isOptimistic: false,
+        pendingOp: undefined,
       });
       el.events = committedEvents;
     }, 300);
@@ -303,8 +303,8 @@ export function attachRequestEventHandlers(
       logDeleteCommittedInstance(committedDetail);
       nextEvents.set(eventKey, {
         ...current,
+        pendingOp: "delete",
         isException: true,
-        isRemoved: true,
       });
       el.events = nextEvents;
       return;

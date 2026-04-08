@@ -170,7 +170,7 @@ export class CalendarListView extends CalendarViewBase {
     const rangeEndExclusive = rangeStart.add({ days: this.daysPerWeek });
 
     for (const [id, event] of this.#eventsAsEntries) {
-      if (event.isRemoved) continue;
+      if (event.pendingOp === "delete") continue;
       const start = this.#toPlainDateTime(event.start);
       const end = this.#toPlainDateTime(event.end);
       if (Temporal.PlainDateTime.compare(end, start) <= 0) continue;

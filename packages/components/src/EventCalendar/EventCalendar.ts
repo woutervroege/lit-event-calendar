@@ -5,7 +5,12 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarViewGroup } from "../CalendarViewGroup/CalendarViewGroup.js";
-import type { CalendarEventViewMap as EventsMap } from "../types/CalendarEvent.js";
+import type {
+  CalendarEventPendingGroups,
+  CalendarEventPendingOperation,
+  CalendarEventView,
+  CalendarEventViewMap as EventsMap,
+} from "../types/CalendarEvent.js";
 import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
 import type { TabSwitchOption } from "../types/TabSwitch.js";
 import type { WeekdayNumber } from "../types/Weekday.js";
@@ -190,6 +195,22 @@ export class EventCalendar extends BaseElement {
     if (this.#startDate === nextValue) return;
     this.#startDate = nextValue;
     this.requestUpdate();
+  }
+
+  get pendingEvents(): CalendarEventPendingGroups {
+    const grouped: CalendarEventPendingGroups = new Map([
+      ["created", new Map()],
+      ["updated", new Map()],
+      ["deleted", new Map()],
+    ]);
+    for (const [id, event] of this.events ?? []) {
+      const pendingOp = this.#resolvePendingOperation(event);
+      if (!pendingOp) continue;
+      const bucket = grouped.get(this.#pendingGroupKeyFromOperation(pendingOp));
+      if (!bucket) continue;
+      bucket.set(id, event);
+    }
+    return grouped;
   }
 
   get #calendarViewGroup(): CalendarViewGroup | null {
@@ -406,6 +427,21 @@ export class EventCalendar extends BaseElement {
     this.#threeDayRangeEnabled = this.view === "week" && this.daysPerWeek === 3;
     this.#rangeLabelText = target.rangeLabel;
     this.#rangeLabelParts = target.rangeLabelParts;
+  }
+
+  #resolvePendingOperation(event: CalendarEventView): CalendarEventPendingOperation | undefined {
+    if (event.pendingOp === "create" || event.pendingOp === "update" || event.pendingOp === "delete") {
+      return event.pendingOp;
+    }
+    return undefined;
+  }
+
+  #pendingGroupKeyFromOperation(
+    pendingOp: CalendarEventPendingOperation
+  ): "created" | "updated" | "deleted" {
+    if (pendingOp === "create") return "created";
+    if (pendingOp === "update") return "updated";
+    return "deleted";
   }
 
   #reemit = (event: Event) => {

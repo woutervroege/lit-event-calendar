@@ -5,14 +5,16 @@ export type CalendarEventDateValue =
   | Temporal.PlainDateTime
   | Temporal.ZonedDateTime;
 
+export type CalendarEventPendingOperation = "create" | "update" | "delete";
+export type CalendarEventPendingGroupKey = "created" | "updated" | "deleted";
+
 export type CalendarEventEnvelope = {
   calendarId?: string;
   eventId?: string;
   recurrenceId?: string;
   isRecurring?: boolean;
   isException?: boolean;
-  isOptimistic?: boolean;
-  isRemoved?: boolean;
+  pendingOp?: CalendarEventPendingOperation;
 };
 
 export type CalendarEventContent = {
@@ -34,3 +36,4 @@ export type CalendarEventEntry = [id: string, event: CalendarEvent];
 export type CalendarEventViewEntry = [id: string, event: CalendarEventView];
 export type CalendarEventMap = Map<string, CalendarEvent>;
 export type CalendarEventViewMap = Map<string, CalendarEventView>;
+export type CalendarEventPendingGroups = Map<CalendarEventPendingGroupKey, CalendarEventViewMap>;

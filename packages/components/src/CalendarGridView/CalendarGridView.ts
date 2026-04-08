@@ -148,7 +148,7 @@ export class CalendarGridView extends BaseElement {
     const viewport = this.#renderedViewportRange;
     if (!viewport) return [];
     return this.#eventsAsEntries.filter(
-      ([, event]) => !event.isRemoved && this.#eventOverlapsViewport(event, viewport)
+      ([, event]) => event.pendingOp !== "delete" && this.#eventOverlapsViewport(event, viewport)
     );
   }
 
