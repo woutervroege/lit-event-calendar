@@ -6,8 +6,12 @@ import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarViewGroup } from "../CalendarViewGroup/CalendarViewGroup.js";
 import type {
+  CalendarEventPendingByCalendarId,
+  CalendarEventPendingOptions,
+  CalendarEventPendingByOperation,
   CalendarEventPendingGroups,
   CalendarEventPendingOperation,
+  CalendarEventPendingResult,
   CalendarEventView,
   CalendarEventViewMap as EventsMap,
 } from "../types/CalendarEvent.js";
@@ -197,18 +201,43 @@ export class EventCalendar extends BaseElement {
     this.requestUpdate();
   }
 
-  get pendingEvents(): CalendarEventPendingGroups {
-    const grouped: CalendarEventPendingGroups = new Map([
-      ["created", new Map()],
-      ["updated", new Map()],
-      ["deleted", new Map()],
-    ]);
+  get pendingByCalendarId(): CalendarEventPendingByCalendarId {
+    return this.getPendingEvents({ groupBy: "calendarId" });
+  }
+
+  getPendingEvents(options: { groupBy: "pendingOp" }): CalendarEventPendingGroups;
+  getPendingEvents(options: { groupBy: "calendarId" }): CalendarEventPendingByCalendarId;
+  getPendingEvents(options: CalendarEventPendingOptions = {}): CalendarEventPendingResult {
+    if (options.groupBy === "calendarId") return this.#collectPendingByCalendarId();
+    return this.#collectPendingByOperation();
+  }
+
+  #collectPendingByOperation(): CalendarEventPendingGroups {
+    const grouped: CalendarEventPendingGroups = this.#createPendingGroupsMap();
     for (const [id, event] of this.events ?? []) {
       const pendingOp = this.#resolvePendingOperation(event);
       if (!pendingOp) continue;
-      const bucket = grouped.get(this.#pendingGroupKeyFromOperation(pendingOp));
+      const bucket = grouped.get(pendingOp);
       if (!bucket) continue;
       bucket.set(id, event);
+    }
+    return grouped;
+  }
+
+  #collectPendingByCalendarId(): CalendarEventPendingByCalendarId {
+    const grouped: CalendarEventPendingByCalendarId = new Map();
+    for (const [id, event] of this.events ?? []) {
+      const pendingOp = this.#resolvePendingOperation(event);
+      if (!pendingOp) continue;
+      if (!event.calendarId || !event.eventId) continue;
+
+      const byEventId = grouped.get(event.calendarId) ?? new Map<string, CalendarEventPendingByOperation>();
+      const byOperation = byEventId.get(event.eventId) ?? this.#createPendingOperationMap();
+      const bucket = byOperation.get(pendingOp);
+      if (!bucket) continue;
+      bucket.set(id, event);
+      byEventId.set(event.eventId, byOperation);
+      grouped.set(event.calendarId, byEventId);
     }
     return grouped;
   }
@@ -430,18 +459,30 @@ export class EventCalendar extends BaseElement {
   }
 
   #resolvePendingOperation(event: CalendarEventView): CalendarEventPendingOperation | undefined {
-    if (event.pendingOp === "create" || event.pendingOp === "update" || event.pendingOp === "delete") {
+    if (
+      event.pendingOp === "created" ||
+      event.pendingOp === "updated" ||
+      event.pendingOp === "deleted"
+    ) {
       return event.pendingOp;
     }
     return undefined;
   }
 
-  #pendingGroupKeyFromOperation(
-    pendingOp: CalendarEventPendingOperation
-  ): "created" | "updated" | "deleted" {
-    if (pendingOp === "create") return "created";
-    if (pendingOp === "update") return "updated";
-    return "deleted";
+  #createPendingGroupsMap(): CalendarEventPendingGroups {
+    return new Map([
+      ["created", new Map()],
+      ["updated", new Map()],
+      ["deleted", new Map()],
+    ]);
+  }
+
+  #createPendingOperationMap(): CalendarEventPendingByOperation {
+    return new Map([
+      ["created", new Map()],
+      ["updated", new Map()],
+      ["deleted", new Map()],
+    ]);
   }
 
   #reemit = (event: Event) => {

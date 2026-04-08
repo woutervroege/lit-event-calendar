@@ -23,7 +23,7 @@ import type { CalendarEventPendingGroups } from "../src/types/CalendarEvent.js";
 
 type StoryEventCalendarElement = HTMLElement & {
   events: Map<string, CalendarEvent>;
-  pendingEvents: CalendarEventPendingGroups;
+  getPendingEvents: (options?: { groupBy?: "pendingOp" | "calendarId" }) => unknown;
 };
 
 type RequestHandlingMode = "sync" | "unsynced";
@@ -63,9 +63,10 @@ function summarizePendingGroups(pendingEvents: CalendarEventPendingGroups) {
 }
 
 function reportPendingEvents(el: StoryEventCalendarElement, reason: string) {
+  const pendingEvents = el.getPendingEvents({ groupBy: "pendingOp" }) as CalendarEventPendingGroups;
   logPendingEvents({
     reason,
-    pendingEvents: summarizePendingGroups(el.pendingEvents),
+    pendingEvents: summarizePendingGroups(pendingEvents),
   });
 }
 
@@ -84,7 +85,7 @@ function attachUnsyncedRequestEventHandlers(el: StoryEventCalendarElement) {
       end: detail.content.end,
       summary: detail.content.summary ?? "New event",
       color: detail.content.color ?? "#0ea5e9",
-      pendingOp: "create",
+      pendingOp: "created",
     });
     el.events = nextEvents;
     reportPendingEvents(el, "create");
@@ -108,7 +109,7 @@ function attachUnsyncedRequestEventHandlers(el: StoryEventCalendarElement) {
       summary: detail.content.summary ?? current.summary,
       color: detail.content.color ?? current.color,
       // Keep creates as creates; persisted events become pending updates.
-      pendingOp: current.pendingOp === "create" ? "create" : "update",
+      pendingOp: current.pendingOp === "created" ? "created" : "updated",
     });
     el.events = nextEvents;
     reportPendingEvents(el, "update");
@@ -127,7 +128,7 @@ function attachUnsyncedRequestEventHandlers(el: StoryEventCalendarElement) {
     const nextEvents = new Map(el.events);
     nextEvents.set(eventKey, {
       ...current,
-      pendingOp: "delete",
+      pendingOp: "deleted",
     });
     el.events = nextEvents;
     reportPendingEvents(el, "delete");
