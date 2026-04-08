@@ -64,6 +64,17 @@ function resolveSeriesEventKeys(
     .map(([key]) => key);
 }
 
+function resolveMasterSeriesKey(
+  events: Map<string, CalendarEvent>,
+  envelope: { eventId?: string; calendarId?: string }
+): string | undefined {
+  for (const [key, event] of events.entries()) {
+    if (!isSameSeries(event, envelope)) continue;
+    if (event.recurrenceRule && !event.recurrenceId) return key;
+  }
+  return undefined;
+}
+
 function preserveDateOnlyShape(
   nextValue: CalendarEvent["start"] | null | undefined,
   currentValue: CalendarEvent["start"]
@@ -470,6 +481,17 @@ export function attachRequestEventHandlers(
       },
     };
     logDeleteCommittedInstance(committedDetail);
+    if (isCalendarEventException(current) && current.recurrenceId) {
+      const masterKey = resolveMasterSeriesKey(nextEvents, {
+        eventId: current.eventId,
+        calendarId: current.calendarId,
+      });
+      const masterEvent = masterKey ? nextEvents.get(masterKey) : undefined;
+      if (masterKey && masterEvent) {
+        const nextPendingOp = masterEvent.pendingOp === "created" ? "created" : "updated";
+        nextEvents.set(masterKey, withExcludedRecurrence(masterEvent, current.recurrenceId, nextPendingOp));
+      }
+    }
     nextEvents.delete(eventKey);
     el.events = nextEvents;
   });
