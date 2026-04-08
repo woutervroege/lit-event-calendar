@@ -33,13 +33,16 @@ function resolveEventMapKey(
   const eventId = envelope.eventId;
   if (!eventId) return undefined;
   if (events.has(eventId)) return eventId;
+  let fallbackSeriesKey: string | undefined;
   for (const [key, event] of events.entries()) {
     if (event.eventId !== eventId) continue;
     if (envelope.calendarId !== undefined && event.calendarId !== envelope.calendarId) continue;
-    if (envelope.recurrenceId !== undefined && event.recurrenceId !== envelope.recurrenceId) continue;
-    return key;
+    if (envelope.recurrenceId === undefined || event.recurrenceId === envelope.recurrenceId) return key;
+    if (event.recurrenceId === undefined && fallbackSeriesKey === undefined) {
+      fallbackSeriesKey = key;
+    }
   }
-  return undefined;
+  return fallbackSeriesKey;
 }
 
 function isSameSeries(
@@ -109,6 +112,58 @@ function applyDateValueShift(
   if (value instanceof Temporal.PlainDateTime) return value.add(shift);
   if (value instanceof Temporal.ZonedDateTime) return value.add(shift);
   return value;
+}
+
+function parseRecurrenceStart(
+  recurrenceId: string,
+  template: CalendarEvent["start"]
+): CalendarEvent["start"] | null {
+  const dateMatch = /^(\d{4})(\d{2})(\d{2})$/.exec(recurrenceId);
+  if (dateMatch) {
+    const [, year, month, day] = dateMatch;
+    const plainDate = Temporal.PlainDate.from({
+      year: Number(year),
+      month: Number(month),
+      day: Number(day),
+    });
+    if (template instanceof Temporal.PlainDate) return plainDate;
+    const plainDateTime = plainDate.toPlainDateTime({
+      hour: template.hour,
+      minute: template.minute,
+      second: template.second,
+    });
+    if (template instanceof Temporal.PlainDateTime) return plainDateTime;
+    return plainDateTime.toZonedDateTime(template.timeZoneId);
+  }
+
+  const dateTimeMatch = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})$/.exec(recurrenceId);
+  if (!dateTimeMatch) return null;
+  const [, year, month, day, hour, minute, second] = dateTimeMatch;
+  const plainDateTime = Temporal.PlainDateTime.from({
+    year: Number(year),
+    month: Number(month),
+    day: Number(day),
+    hour: Number(hour),
+    minute: Number(minute),
+    second: Number(second),
+  });
+  if (template instanceof Temporal.PlainDate) return plainDateTime.toPlainDate();
+  if (template instanceof Temporal.PlainDateTime) return plainDateTime;
+  return plainDateTime.toZonedDateTime(template.timeZoneId);
+}
+
+function withExcludedRecurrence(
+  event: CalendarEvent,
+  recurrenceId: string,
+  pendingOp?: CalendarEvent["pendingOp"]
+): CalendarEvent {
+  const exclusionDates = new Set(event.exclusionDates ?? []);
+  exclusionDates.add(recurrenceId);
+  return {
+    ...event,
+    exclusionDates,
+    pendingOp: pendingOp ?? event.pendingOp,
+  };
 }
 
 export function attachRequestEventHandlers(
@@ -182,14 +237,19 @@ export function attachRequestEventHandlers(
       isRecurring && !(detail.envelope.isException ?? isCalendarEventException(current));
     const nextStartForCurrent = toNextEventValue(detail.content.start, current.start, preserveDateOnly);
     const nextEndForCurrent = toNextEventValue(detail.content.end, current.end, preserveDateOnly);
-    const startShift = computeDateValueShift(current.start, nextStartForCurrent);
-    const endShift = computeDateValueShift(current.end, nextEndForCurrent);
+    const occurrenceStart =
+      current.recurrenceRule && !current.recurrenceId && detail.envelope.recurrenceId
+        ? parseRecurrenceStart(detail.envelope.recurrenceId, current.start) ?? current.start
+        : current.start;
+    const baseDuration = computeDateValueShift(current.start, current.end);
+    const occurrenceEnd = applyDateValueShift(occurrenceStart, baseDuration);
+    const startShift = computeDateValueShift(occurrenceStart, nextStartForCurrent);
+    const endShift = computeDateValueShift(occurrenceEnd, nextEndForCurrent);
     const applySharedUpdate = (targetEvent: CalendarEvent): CalendarEvent => ({
       ...targetEvent,
       summary: detail.content.summary ?? targetEvent.summary,
       color: detail.content.color ?? targetEvent.color,
       calendarId: detail.envelope.calendarId ?? targetEvent.calendarId,
-      recurrenceId: targetEvent.recurrenceId ?? detail.envelope.recurrenceId,
       isException: detail.envelope.isException ?? targetEvent.isException,
     });
     if (!isRecurring || !shouldPromptForSeries) {
@@ -201,6 +261,20 @@ export function attachRequestEventHandlers(
         },
       };
       logUpdateCommittedInstance(committedDetail);
+      const recurrenceId = detail.envelope.recurrenceId;
+      if (isRecurring && recurrenceId && current.recurrenceRule && !current.recurrenceId) {
+        const nextEvents = new Map(el.events);
+        nextEvents.set(eventKey, withExcludedRecurrence(current, recurrenceId));
+        nextEvents.set(`${eventKey}::${recurrenceId}`, {
+          ...applySharedUpdate(current),
+          recurrenceId,
+          start: nextStartForCurrent,
+          end: nextEndForCurrent,
+          isException: true,
+        });
+        el.events = nextEvents;
+        return;
+      }
       el.events = new Map(el.events).set(eventKey, {
         ...applySharedUpdate(current),
         start: nextStartForCurrent,
@@ -251,6 +325,19 @@ export function attachRequestEventHandlers(
       },
     };
     logUpdateCommittedInstance(committedDetail);
+    const recurrenceId = detail.envelope.recurrenceId;
+    if (recurrenceId && current.recurrenceRule && !current.recurrenceId) {
+      nextEvents.set(eventKey, withExcludedRecurrence(current, recurrenceId));
+      nextEvents.set(`${eventKey}::${recurrenceId}`, {
+        ...applySharedUpdate(current),
+        recurrenceId,
+        start: nextStartForCurrent,
+        end: nextEndForCurrent,
+        isException: true,
+      });
+      el.events = nextEvents;
+      return;
+    }
     nextEvents.set(eventKey, {
       ...applySharedUpdate(current),
       start: nextStartForCurrent,
@@ -304,6 +391,13 @@ export function attachRequestEventHandlers(
         },
       };
       logDeleteCommittedInstance(committedDetail);
+      const recurrenceId = detail.envelope.recurrenceId;
+      if (recurrenceId && current.recurrenceRule && !current.recurrenceId) {
+        nextEvents.set(eventKey, withExcludedRecurrence(current, recurrenceId));
+        nextEvents.delete(`${eventKey}::${recurrenceId}`);
+        el.events = nextEvents;
+        return;
+      }
       nextEvents.set(eventKey, {
         ...current,
         pendingOp: "deleted",

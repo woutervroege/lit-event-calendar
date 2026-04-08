@@ -1069,20 +1069,20 @@ export class CalendarGridView extends CalendarViewBase {
         : null;
     const target = detailTarget ?? (event.currentTarget as EventBase | null);
     if (!target?.eventId || !target.start || !target.end) return;
-    const current = this.events?.get(target.eventId);
+    const { event: current, recurrenceId } = this.#resolveSourceEvent(target.eventId);
     const detail: EventSelectionRequestDetail = {
       envelope: {
         eventId: current?.eventId ?? target.eventId,
         calendarId: current?.calendarId,
-        recurrenceId: current?.recurrenceId,
+        recurrenceId,
         isException: current ? isCalendarEventException(current) : undefined,
         isRecurring: current ? isCalendarEventRecurring(current) : undefined,
       },
       content: {
-        start: current?.start ?? target.start,
-        end: current?.end ?? target.end,
-        summary: current?.summary ?? target.summary,
-        color: current?.color ?? target.color,
+        start: target.start,
+        end: target.end,
+        summary: target.summary,
+        color: target.color,
       },
       trigger: selectDetail?.trigger ?? "click",
       pointerType: selectDetail?.pointerType ?? "mouse",
@@ -1121,12 +1121,12 @@ export class CalendarGridView extends CalendarViewBase {
         : null;
     const target = detailTarget ?? (event.target as EventBase | null);
     if (!target?.eventId || !target.start || !target.end) return;
-    const current = this.events?.get(target.eventId);
+    const { event: current, recurrenceId } = this.#resolveSourceEvent(target.eventId);
     const detail: EventUpdateRequestDetail = {
       envelope: {
-        eventId: target.eventId,
+        eventId: current?.eventId ?? target.eventId,
         calendarId: current?.calendarId,
-        recurrenceId: current?.recurrenceId,
+        recurrenceId,
         isException: current ? isCalendarEventException(current) : undefined,
         isRecurring: current ? isCalendarEventRecurring(current) : undefined,
       },
@@ -1196,14 +1196,14 @@ export class CalendarGridView extends CalendarViewBase {
       event instanceof CustomEvent ? ((event.detail as EventBase | null) ?? null) : null;
     const target = detailTarget ?? (event.target as EventBase | null);
     if (!target?.eventId) return;
-    const current = this.events?.get(target.eventId);
+    const { event: current, recurrenceId } = this.#resolveSourceEvent(target.eventId);
     const calendarId = current?.calendarId;
-    const eventId = current?.eventId;
+    const eventId = current?.eventId ?? target.eventId;
     const detail: EventDeleteRequestDetail = {
       envelope: {
         calendarId,
         eventId,
-        recurrenceId: current?.recurrenceId,
+        recurrenceId,
         isRecurring: current ? isCalendarEventRecurring(current) : undefined,
       },
     };
@@ -2191,6 +2191,19 @@ export class CalendarGridView extends CalendarViewBase {
 
   #toEventDateTimeString(value: EventInput["start"]): string {
     return value.toString();
+  }
+
+  #resolveSourceEvent(renderedEventId: string): { event: EventInput | undefined; recurrenceId?: string } {
+    const separatorIndex = renderedEventId.indexOf("::");
+    const sourceKey =
+      separatorIndex === -1 ? renderedEventId : renderedEventId.slice(0, separatorIndex);
+    const recurrenceId =
+      separatorIndex === -1 ? undefined : renderedEventId.slice(separatorIndex + 2);
+    const event = this.events?.get(renderedEventId) ?? this.events?.get(sourceKey);
+    return {
+      event,
+      recurrenceId: recurrenceId ?? event?.recurrenceId,
+    };
   }
 
   #isAllDayEvent(event: EventInput): boolean {

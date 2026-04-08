@@ -98,8 +98,12 @@ function resolveEventContent(event: CalendarEventLike): CalendarEventContent {
 
 export function isCalendarEventException(event: CalendarEventLike): boolean {
   const envelope = resolveEventEnvelope(event);
+  if (envelope.isException === true) return true;
   if (!envelope.recurrenceId) return false;
-  return !isCalendarEventExcluded(event);
+  if (isCalendarEventExcluded(event)) return false;
+  const content = resolveEventContent(event);
+  // Detached occurrence overrides usually have recurrenceId without carrying the series rule.
+  return !Boolean(content.recurrenceRule);
 }
 
 export function isCalendarEventExcluded(event: CalendarEventLike): boolean {
@@ -110,8 +114,8 @@ export function isCalendarEventExcluded(event: CalendarEventLike): boolean {
 }
 
 export function isCalendarEventRecurring(event: CalendarEventLike): boolean {
-  if (isCalendarEventException(event) || isCalendarEventExcluded(event)) return false;
+  if (isCalendarEventExcluded(event) || isCalendarEventException(event)) return false;
   const envelope = resolveEventEnvelope(event);
   const content = resolveEventContent(event);
-  return Boolean(content.recurrenceRule || envelope.isRecurring);
+  return Boolean(content.recurrenceRule || envelope.isRecurring || envelope.recurrenceId);
 }
