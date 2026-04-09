@@ -1,0 +1,133 @@
+import { Meta, Canvas } from "@storybook/addon-docs/blocks";
+import * as EventOpsPlaygroundStories from "./EventOpsPlayground.stories";
+
+<Meta title="Calendar/EventOps/API" />
+
+# EventOps API
+
+## Headless calendar operations
+
+The `EventsAPI` is a framework-agnostic state engine for calendar operations.
+It powers create/update/move/resize/delete flows and recurrence-aware behavior
+without coupling to a specific UI.
+
+This page is the Storybook-native reference for the EventOps layer.
+
+---
+
+## Quick start
+
+```ts
+import { EventsAPI } from "../src/domain/event-ops";
+
+const api = new EventsAPI(initialEvents, { timezone: "Europe/Amsterdam" });
+
+const result = api.move({
+  target: { key: "series-master" },
+  scope: "series",
+  delta: Temporal.Duration.from({ hours: 1 }),
+});
+
+setEvents(result.nextState);
+```
+
+---
+
+## Main methods
+
+```ts
+api.create(input);
+api.update(input);
+api.move(input);
+api.resizeStart(input);
+api.resizeEnd(input);
+api.remove(input);
+api.addExclusion(input);
+api.removeExclusion(input);
+api.addException(input);
+api.removeException(input);
+api.expand({ start, end });
+api.getState();
+api.get(target);
+```
+
+---
+
+## Targeting model
+
+- `target: { key }`  
+  Direct key lookup in the event map.
+- `target: { eventId, calendarId?, recurrenceId? }`  
+  Semantic lookup for event identity.
+
+---
+
+## Scope model
+
+- `scope: "single"` applies only to one instance/event.
+- `scope: "series"` applies to the full recurring series where relevant.
+
+---
+
+## Recurrence semantics
+
+- Recurrence expansion is handled by EventOps recurrence logic.
+- `exclusionDates` suppress master-generated occurrences.
+- Detached exceptions suppress generated master occurrences using `eventId + recurrenceId`.
+- Removing an exception can keep suppression with `asExclusion: true`.
+
+---
+
+## What the API returns
+
+Every mutating call returns:
+
+- `nextState`: normalized calendar state map
+- `changes`: structured list of created/updated/removed records
+- `effects`: non-state effects (warnings/decisions)
+
+This lets you keep state updates deterministic while still reacting to domain signals.
+
+---
+
+## Common patterns
+
+### Update from UI request
+
+```ts
+const result = api.update({
+  target: { eventId, calendarId, recurrenceId },
+  scope: "single",
+  patch: {
+    start: nextStart,
+    end: nextEnd,
+    summary: nextSummary,
+    color: nextColor,
+  },
+});
+
+setEvents(result.nextState);
+```
+
+### Convert single recurring move into detached exception
+
+```ts
+const result = api.addException({
+  target: { key: "series-master" },
+  recurrenceId: "20250120T090000",
+  event: {
+    start: Temporal.PlainDateTime.from("2025-01-20T13:00:00"),
+    end: Temporal.PlainDateTime.from("2025-01-20T14:00:00"),
+    summary: "Rescheduled",
+    color: "#0ea5e9",
+  },
+});
+```
+
+---
+
+## Interactive playground
+
+Use this live story to execute EventOps methods and inspect state, changes/effects, and expanded occurrences.
+
+<Canvas of={EventOpsPlaygroundStories.ApiMethods} />
