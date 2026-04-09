@@ -15,6 +15,7 @@
     "chromatic": "npx chromatic"
   },
   "dependencies": {
+    "@lit-calendar/events-api": "workspace:*",
     "@js-temporal/polyfill": "^0.5.1",
     "@lit/context": "^1.1.6",
     "lit": "^3.3.1",

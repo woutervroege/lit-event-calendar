@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { Temporal } from "@js-temporal/polyfill";
-import type { CalendarEventViewMap } from "../../types/CalendarEvent.js";
+import type { CalendarEventViewMap } from "./calendar-types.js";
 import { EventsAPI } from "./reducer.js";
+import { createDailySeriesState, createWeeklySeriesWithExceptionState } from "./testing/mockEvents.js";
 
 describe("EventsAPI", () => {
   it("moves a series and shifts exclusions while preserving exception timing", () => {
@@ -85,20 +86,11 @@ describe("EventsAPI", () => {
   });
 
   it("resizing series start should shift exclusions with the new occurrence start", () => {
-    const state: CalendarEventViewMap = new Map([
-      [
-        "daily",
-        {
-          eventId: "daily@example.test",
-          start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
-          end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
-          summary: "Daily",
-          color: "#10B981",
-          recurrenceRule: { freq: "DAILY", interval: 1, count: 3 },
-          exclusionDates: new Set(["20250114T090000"]),
-        },
-      ],
-    ]);
+    const state = createDailySeriesState();
+    state.set("daily", {
+      ...state.get("daily")!,
+      exclusionDates: new Set(["20250114T090000"]),
+    });
     const api = new EventsAPI(state);
 
     api.resizeStart({
@@ -108,24 +100,13 @@ describe("EventsAPI", () => {
     });
 
     const next = api.getState();
-    // Desired behavior: exclusion should follow the series start shift.
     expect(next.get("daily")?.exclusionDates?.has("20250114T083000")).toBe(true);
     expect(next.get("daily")?.exclusionDates?.has("20250114T090000")).toBe(false);
   });
 
   it("resizing series start should not resize detached exceptions", () => {
     const state: CalendarEventViewMap = new Map([
-      [
-        "daily",
-        {
-          eventId: "daily@example.test",
-          start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
-          end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
-          summary: "Daily",
-          color: "#10B981",
-          recurrenceRule: { freq: "DAILY", interval: 1, count: 3 },
-        },
-      ],
+      ...createDailySeriesState(),
       [
         "daily::20250115T090000",
         {
@@ -149,7 +130,6 @@ describe("EventsAPI", () => {
 
     const next = api.getState();
     const exception = next.get("daily::20250115T090000");
-    // Desired behavior: detached exception keeps its own timing.
     expect(exception?.start.toString()).toBe("2025-01-15T11:00:00");
     expect(exception?.end.toString()).toBe("2025-01-15T11:15:00");
   });
@@ -199,38 +179,7 @@ describe("EventsAPI", () => {
   });
 
   it("moving a detached exception keeps original recurrence anchor and suppresses master occurrence", () => {
-    const state: CalendarEventViewMap = new Map([
-      [
-        "weekly",
-        {
-          eventId: "weekly@example.test",
-          start: Temporal.PlainDateTime.from("2025-01-20T09:00:00"),
-          end: Temporal.PlainDateTime.from("2025-01-20T10:00:00"),
-          summary: "Weekly",
-          color: "#0ea5e9",
-          recurrenceRule: {
-            freq: "WEEKLY",
-            interval: 1,
-            byDay: [{ day: "MO" }],
-            count: 4,
-          },
-          exclusionDates: new Set(),
-        },
-      ],
-      [
-        "weekly::20250120T090000",
-        {
-          eventId: "weekly@example.test",
-          recurrenceId: "20250120T090000",
-          start: Temporal.PlainDateTime.from("2025-01-20T13:00:00"),
-          end: Temporal.PlainDateTime.from("2025-01-20T14:00:00"),
-          summary: "Weekly (moved)",
-          color: "#0ea5e9",
-          isException: true,
-        },
-      ],
-    ]);
-    const api = new EventsAPI(state);
+    const api = new EventsAPI(createWeeklySeriesWithExceptionState());
 
     api.move({
       target: { key: "weekly::20250120T090000" },
@@ -253,4 +202,3 @@ describe("EventsAPI", () => {
     expect(Array.from(expanded.keys())).toEqual(["weekly::20250120T090000"]);
   });
 });
-

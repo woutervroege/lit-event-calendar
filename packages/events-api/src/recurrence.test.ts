@@ -31,4 +31,3 @@ describe("recurrence helpers", () => {
     expect(shifted).toBe("20250118T100000");
   });
 });
-
