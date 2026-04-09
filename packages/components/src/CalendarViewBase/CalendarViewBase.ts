@@ -1,5 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { BaseElement } from "../BaseElement/BaseElement.js";
+import { expandEvents } from "../domain/event-ops/expand.js";
 import type {
   CalendarEventDateValue,
   CalendarEventPendingByCalendarId,
@@ -81,132 +82,7 @@ export abstract class CalendarViewBase extends BaseElement {
     start: CalendarEventDateValue;
     end: CalendarEventDateValue;
   }): EventsMap {
-    const toPlainDateTime = (value: CalendarEventDateValue): Temporal.PlainDateTime => {
-      if (value instanceof Temporal.ZonedDateTime) {
-        return value.withTimeZone(this.timezone).toPlainDateTime();
-      }
-      if (value instanceof Temporal.PlainDateTime) return value;
-      return value.toPlainDateTime({ hour: 0, minute: 0, second: 0 });
-    };
-
-    const fromPlainDateTime = (
-      value: Temporal.PlainDateTime,
-      template: CalendarEventDateValue
-    ): CalendarEventDateValue => {
-      if (template instanceof Temporal.PlainDate) return value.toPlainDate();
-      if (template instanceof Temporal.ZonedDateTime) {
-        return value.toZonedDateTime(template.timeZoneId);
-      }
-      return value;
-    };
-
-    const toRecurrenceId = (
-      value: Temporal.PlainDateTime,
-      template: CalendarEventDateValue
-    ): string => {
-      const pad = (segment: number) => String(segment).padStart(2, "0");
-      const date = `${value.year}${pad(value.month)}${pad(value.day)}`;
-      if (template instanceof Temporal.PlainDate) return date;
-      return `${date}T${pad(value.hour)}${pad(value.minute)}${pad(value.second)}`;
-    };
-
-    const addByFrequency = (
-      value: Temporal.PlainDateTime,
-      frequency: "SECONDLY" | "MINUTELY" | "HOURLY" | "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY",
-      interval: number
-    ): Temporal.PlainDateTime => {
-      if (frequency === "SECONDLY") return value.add({ seconds: interval });
-      if (frequency === "MINUTELY") return value.add({ minutes: interval });
-      if (frequency === "HOURLY") return value.add({ hours: interval });
-      if (frequency === "DAILY") return value.add({ days: interval });
-      if (frequency === "WEEKLY") return value.add({ weeks: interval });
-      if (frequency === "MONTHLY") return value.add({ months: interval });
-      return value.add({ years: interval });
-    };
-
-    const rangeOverlaps = (
-      start: Temporal.PlainDateTime,
-      end: Temporal.PlainDateTime,
-      rangeStart: Temporal.PlainDateTime,
-      rangeEnd: Temporal.PlainDateTime
-    ): boolean => {
-      if (Temporal.PlainDateTime.compare(end, start) <= 0) return false;
-      return (
-        Temporal.PlainDateTime.compare(start, rangeEnd) < 0 &&
-        Temporal.PlainDateTime.compare(end, rangeStart) > 0
-      );
-    };
-
-    const rangeStart = toPlainDateTime(range.start);
-    const rangeEnd = toPlainDateTime(range.end);
-    if (Temporal.PlainDateTime.compare(rangeEnd, rangeStart) <= 0) return new Map();
-
-    const detachedExceptionKeys = new Set<string>();
-    for (const [, event] of this.events ?? []) {
-      if (event.pendingOp === "deleted") continue;
-      if (!event.eventId || !event.recurrenceId) continue;
-      detachedExceptionKeys.add(`${event.eventId}::${event.recurrenceId}`);
-    }
-
-    const renderedEvents: EventsMap = new Map();
-    for (const [id, event] of this.events ?? []) {
-      if (event.pendingOp === "deleted") continue;
-      if (event.recurrenceRule && !event.recurrenceId) {
-        const recurrenceRule = event.recurrenceRule;
-        const baseStart = toPlainDateTime(event.start);
-        const baseEnd = toPlainDateTime(event.end);
-        if (Temporal.PlainDateTime.compare(baseEnd, baseStart) <= 0) continue;
-
-        const interval = Math.max(1, recurrenceRule.interval ?? 1);
-        const until =
-          "until" in recurrenceRule && recurrenceRule.until
-            ? toPlainDateTime(recurrenceRule.until)
-            : undefined;
-        const count = "count" in recurrenceRule ? recurrenceRule.count : undefined;
-
-        let generated = 0;
-        let occurrenceStart = baseStart;
-        let occurrenceEnd = baseEnd;
-
-        while (true) {
-          if (count !== undefined && generated >= count) break;
-          if (until && Temporal.PlainDateTime.compare(occurrenceStart, until) > 0) break;
-          if (Temporal.PlainDateTime.compare(occurrenceStart, rangeEnd) >= 0) break;
-
-          const recurrenceId = toRecurrenceId(occurrenceStart, event.start);
-          const isExcluded = event.exclusionDates?.has(recurrenceId) ?? false;
-          const hasDetachedException =
-            Boolean(event.eventId) &&
-            detachedExceptionKeys.has(`${event.eventId}::${recurrenceId}`);
-          if (
-            !isExcluded &&
-            !hasDetachedException &&
-            rangeOverlaps(occurrenceStart, occurrenceEnd, rangeStart, rangeEnd)
-          ) {
-            renderedEvents.set(`${id}::${recurrenceId}`, {
-              ...event,
-              recurrenceId,
-              start: fromPlainDateTime(occurrenceStart, event.start),
-              end: fromPlainDateTime(occurrenceEnd, event.end),
-            });
-          }
-
-          generated += 1;
-          const nextStart = addByFrequency(occurrenceStart, recurrenceRule.freq, interval);
-          const nextEnd = addByFrequency(occurrenceEnd, recurrenceRule.freq, interval);
-          if (Temporal.PlainDateTime.compare(nextStart, occurrenceStart) <= 0) break;
-          occurrenceStart = nextStart;
-          occurrenceEnd = nextEnd;
-        }
-        continue;
-      }
-
-      const start = toPlainDateTime(event.start);
-      const end = toPlainDateTime(event.end);
-      if (!rangeOverlaps(start, end, rangeStart, rangeEnd)) continue;
-      renderedEvents.set(id, event);
-    }
-    return renderedEvents;
+    return expandEvents(this.events ?? new Map(), range, { timezone: this.timezone });
   }
 
   get pendingByCalendarId(): CalendarEventPendingByCalendarId {
