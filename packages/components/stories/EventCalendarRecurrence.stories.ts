@@ -187,6 +187,18 @@ export const WeeklyWeekdays: Story = {
   },
 };
 
+export const WeeklyWeekStartSunday: Story = {
+  args: {
+    recurrenceRule: {
+      freq: "WEEKLY",
+      interval: 1,
+      wkst: "SU",
+      byDay: [{ day: "SU" }, { day: "MO" }, { day: "WE" }],
+      until: "2025-02-28T00:00:00",
+    },
+  },
+};
+
 export const BiWeeklyTuesdayThursday: Story = {
   args: {
     recurrenceRule: {
