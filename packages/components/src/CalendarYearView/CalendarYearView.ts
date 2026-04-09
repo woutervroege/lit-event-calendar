@@ -60,11 +60,11 @@ export class CalendarYearView extends CalendarViewBase {
                 .defaultEventSummary=${this.defaultEventSummary}
                 .defaultEventColor=${this.defaultEventColor}
                 .defaultCalendarId=${this.defaultCalendarId}
-                @day-selection-requested=${this.forwardCalendarEvent}
-                @event-create-requested=${this.forwardCalendarEvent}
-                @event-selection-requested=${this.forwardCalendarEvent}
-                @event-update-requested=${this.forwardCalendarEvent}
-                @event-delete-requested=${this.forwardCalendarEvent}
+                @day-selection=${this.forwardCalendarEvent}
+                @event-create=${this.forwardCalendarEvent}
+                @event-selection=${this.forwardCalendarEvent}
+                @event-update=${this.forwardCalendarEvent}
+                @event-delete=${this.forwardCalendarEvent}
               ></calendar-month-view>
             </section>
           `

@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { Temporal } from "@js-temporal/polyfill";
-import { attachRequestEventHandlers } from "./StoryRequestHandlers.js";
-import type { CalendarEvent } from "./StoryData.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventUpdateRequestDetail } from "../../src/types/CalendarEventRequests.js";
+import type { CalendarEvent } from "./StoryData.js";
+import { attachRequestEventHandlers } from "./StoryRequestHandlers.js";
 
 class MockCalendarElement extends EventTarget {
   events: Map<string, CalendarEvent> = new Map();
@@ -39,10 +39,15 @@ describe("StoryRequestHandlers recurring updates", () => {
   });
 
   it("applies series occurrence move delta relative to occurrence start", () => {
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true)
+    );
     const el = new MockCalendarElement();
     el.events = createSeriesEventMap();
-    attachRequestEventHandlers(el as unknown as HTMLElement & { events: Map<string, CalendarEvent> });
+    attachRequestEventHandlers(
+      el as unknown as HTMLElement & { events: Map<string, CalendarEvent> }
+    );
 
     const detail: EventUpdateRequestDetail = {
       envelope: {
@@ -61,7 +66,7 @@ describe("StoryRequestHandlers recurring updates", () => {
     };
 
     el.dispatchEvent(
-      new CustomEvent("event-update-requested", {
+      new CustomEvent("event-update", {
         detail,
         cancelable: true,
       })
@@ -77,10 +82,15 @@ describe("StoryRequestHandlers recurring updates", () => {
   });
 
   it("applies series occurrence resize-start relative to occurrence start", () => {
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true)
+    );
     const el = new MockCalendarElement();
     el.events = createSeriesEventMap();
-    attachRequestEventHandlers(el as unknown as HTMLElement & { events: Map<string, CalendarEvent> });
+    attachRequestEventHandlers(
+      el as unknown as HTMLElement & { events: Map<string, CalendarEvent> }
+    );
 
     const detail: EventUpdateRequestDetail = {
       envelope: {
@@ -99,7 +109,7 @@ describe("StoryRequestHandlers recurring updates", () => {
     };
 
     el.dispatchEvent(
-      new CustomEvent("event-update-requested", {
+      new CustomEvent("event-update", {
         detail,
         cancelable: true,
       })
@@ -113,10 +123,15 @@ describe("StoryRequestHandlers recurring updates", () => {
   });
 
   it("creates detached exception when moving occurrence to another day", () => {
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true)
+    );
     const el = new MockCalendarElement();
     el.events = createSeriesEventMap();
-    attachRequestEventHandlers(el as unknown as HTMLElement & { events: Map<string, CalendarEvent> });
+    attachRequestEventHandlers(
+      el as unknown as HTMLElement & { events: Map<string, CalendarEvent> }
+    );
 
     const detail: EventUpdateRequestDetail = {
       envelope: {
@@ -135,7 +150,7 @@ describe("StoryRequestHandlers recurring updates", () => {
     };
 
     el.dispatchEvent(
-      new CustomEvent("event-update-requested", {
+      new CustomEvent("event-update", {
         detail,
         cancelable: true,
       })
@@ -149,14 +164,19 @@ describe("StoryRequestHandlers recurring updates", () => {
     expect(exception?.isException).toBe(true);
   });
 
-  it("rolls back optimistic exception when event-exception-requested is cancelled", () => {
-    vi.stubGlobal("confirm", vi.fn(() => true));
+  it("rolls back optimistic exception when event-exception is cancelled", () => {
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true)
+    );
     const el = new MockCalendarElement();
     el.events = createSeriesEventMap();
-    el.addEventListener("event-exception-requested", (event) => {
+    el.addEventListener("event-exception", (event) => {
       event.preventDefault();
     });
-    attachRequestEventHandlers(el as unknown as HTMLElement & { events: Map<string, CalendarEvent> });
+    attachRequestEventHandlers(
+      el as unknown as HTMLElement & { events: Map<string, CalendarEvent> }
+    );
 
     const detail: EventUpdateRequestDetail = {
       envelope: {
@@ -174,7 +194,7 @@ describe("StoryRequestHandlers recurring updates", () => {
       },
     };
 
-    const updateEvent = new CustomEvent("event-update-requested", {
+    const updateEvent = new CustomEvent("event-update", {
       detail,
       cancelable: true,
     });
@@ -188,4 +208,3 @@ describe("StoryRequestHandlers recurring updates", () => {
     expect(updateEvent.defaultPrevented).toBe(true);
   });
 });
-

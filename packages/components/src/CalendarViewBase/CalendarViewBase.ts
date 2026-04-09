@@ -1,7 +1,9 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { ContextConsumer } from "@lit/context";
 import { BaseElement } from "../BaseElement/BaseElement.js";
+import { type EventsAPIContextValue, eventsAPIContext } from "../context/EventsAPIContext.js";
 import { expandEvents } from "../domain/event-ops/expand.js";
+import type { EventOperation } from "../domain/event-ops/index.js";
 import {
   fromCreateRequest,
   fromDeleteRequest,
@@ -10,8 +12,6 @@ import {
   parseRecurrenceId,
   shiftDateValue,
 } from "../domain/event-ops/index.js";
-import type { EventOperation } from "../domain/event-ops/index.js";
-import { eventsAPIContext, type EventsAPIContextValue } from "../context/EventsAPIContext.js";
 import type {
   CalendarEventDateValue,
   CalendarEventPendingByCalendarId,
@@ -116,7 +116,10 @@ export abstract class CalendarViewBase extends BaseElement {
     return true;
   }
 
-  protected applyUpdateRequestToEventsAPI(detail: EventUpdateRequestDetail): { handled: boolean; accepted: boolean } {
+  protected applyUpdateRequestToEventsAPI(detail: EventUpdateRequestDetail): {
+    handled: boolean;
+    accepted: boolean;
+  } {
     if (!this.#eventsAPI || !detail.envelope.eventId) return { handled: false, accepted: true };
     const events = this.#eventsAPI.getState() ?? new Map();
     const eventKey = this.#resolveEventMapKey(events, detail.envelope);
@@ -131,7 +134,9 @@ export abstract class CalendarViewBase extends BaseElement {
       current.recurrenceRule && !current.recurrenceId && recurrenceId
         ? (parseRecurrenceId(recurrenceId, current.start) ?? current.start)
         : current.start;
-    const baseDuration = this.#toPlainDateTime(current.start).until(this.#toPlainDateTime(current.end));
+    const baseDuration = this.#toPlainDateTime(current.start).until(
+      this.#toPlainDateTime(current.end)
+    );
     const occurrenceEnd = shiftDateValue(occurrenceStart, baseDuration);
     const updateKind = this.#getUpdateKind(
       occurrenceStart,
@@ -161,13 +166,15 @@ export abstract class CalendarViewBase extends BaseElement {
         source: "move",
       };
       const accepted = this.dispatchEvent(
-        new CustomEvent("event-exception-requested", {
+        new CustomEvent("event-exception", {
           detail: exceptionRequestedDetail,
           composed: true,
           cancelable: true,
         })
       );
-      const keepException = window.confirm("Save this as an exception?\n\nOK = keep\nCancel = revert");
+      const keepException = window.confirm(
+        "Save this as an exception?\n\nOK = keep\nCancel = revert"
+      );
       if (!accepted || !keepException) {
         return { handled: true, accepted: false };
       }
@@ -231,7 +238,9 @@ export abstract class CalendarViewBase extends BaseElement {
       }
 
       if (updateKind === "move") {
-        const delta = this.#toPlainDateTime(occurrenceStart).until(this.#toPlainDateTime(detail.content.start));
+        const delta = this.#toPlainDateTime(occurrenceStart).until(
+          this.#toPlainDateTime(detail.content.start)
+        );
         const moveInput = moveFromUpdateRequest(detail, delta);
         this.#applyEventsAPIOperation({
           type: "move",
@@ -245,7 +254,9 @@ export abstract class CalendarViewBase extends BaseElement {
       }
 
       if (updateKind === "resize-start") {
-        const startDelta = this.#toPlainDateTime(occurrenceStart).until(this.#toPlainDateTime(detail.content.start));
+        const startDelta = this.#toPlainDateTime(occurrenceStart).until(
+          this.#toPlainDateTime(detail.content.start)
+        );
         this.#applyEventsAPIOperation({
           type: "resize-start",
           input: {
@@ -258,7 +269,9 @@ export abstract class CalendarViewBase extends BaseElement {
       }
 
       if (updateKind === "resize-end") {
-        const endDelta = this.#toPlainDateTime(occurrenceEnd).until(this.#toPlainDateTime(detail.content.end));
+        const endDelta = this.#toPlainDateTime(occurrenceEnd).until(
+          this.#toPlainDateTime(detail.content.end)
+        );
         this.#applyEventsAPIOperation({
           type: "resize-end",
           input: {
@@ -289,7 +302,9 @@ export abstract class CalendarViewBase extends BaseElement {
     }
 
     if (updateKind === "move") {
-      const delta = this.#toPlainDateTime(occurrenceStart).until(this.#toPlainDateTime(detail.content.start));
+      const delta = this.#toPlainDateTime(occurrenceStart).until(
+        this.#toPlainDateTime(detail.content.start)
+      );
       const moveInput = moveFromUpdateRequest(detail, delta);
       this.#applyEventsAPIOperation({
         type: "move",
@@ -507,8 +522,10 @@ export abstract class CalendarViewBase extends BaseElement {
     for (const [key, event] of events.entries()) {
       if (event.eventId !== envelope.eventId) continue;
       if (envelope.calendarId !== undefined && event.calendarId !== envelope.calendarId) continue;
-      if (envelope.recurrenceId === undefined || event.recurrenceId === envelope.recurrenceId) return key;
-      if (event.recurrenceId === undefined && fallbackSeriesKey === undefined) fallbackSeriesKey = key;
+      if (envelope.recurrenceId === undefined || event.recurrenceId === envelope.recurrenceId)
+        return key;
+      if (event.recurrenceId === undefined && fallbackSeriesKey === undefined)
+        fallbackSeriesKey = key;
     }
     return fallbackSeriesKey;
   }
@@ -527,23 +544,39 @@ export abstract class CalendarViewBase extends BaseElement {
     nextStart: CalendarEventView["start"],
     nextEnd: CalendarEventView["start"]
   ): "move" | "resize-start" | "resize-end" | "update" {
-    const sameStart = Temporal.PlainDateTime.compare(this.#toPlainDateTime(currentStart), this.#toPlainDateTime(nextStart)) === 0;
-    const sameEnd = Temporal.PlainDateTime.compare(this.#toPlainDateTime(currentEnd), this.#toPlainDateTime(nextEnd)) === 0;
+    const sameStart =
+      Temporal.PlainDateTime.compare(
+        this.#toPlainDateTime(currentStart),
+        this.#toPlainDateTime(nextStart)
+      ) === 0;
+    const sameEnd =
+      Temporal.PlainDateTime.compare(
+        this.#toPlainDateTime(currentEnd),
+        this.#toPlainDateTime(nextEnd)
+      ) === 0;
     if (sameStart && sameEnd) return "update";
     if (!sameStart && sameEnd) return "resize-start";
     if (sameStart && !sameEnd) return "resize-end";
-    const oldDuration = this.#toPlainDateTime(currentStart).until(this.#toPlainDateTime(currentEnd));
+    const oldDuration = this.#toPlainDateTime(currentStart).until(
+      this.#toPlainDateTime(currentEnd)
+    );
     const newDuration = this.#toPlainDateTime(nextStart).until(this.#toPlainDateTime(nextEnd));
-    return oldDuration.total({ unit: "seconds" }) === newDuration.total({ unit: "seconds" }) ? "move" : "update";
+    return oldDuration.total({ unit: "seconds" }) === newDuration.total({ unit: "seconds" })
+      ? "move"
+      : "update";
   }
 
-  #movedToDifferentDay(currentStart: CalendarEventView["start"], nextStart: CalendarEventView["start"]): boolean {
+  #movedToDifferentDay(
+    currentStart: CalendarEventView["start"],
+    nextStart: CalendarEventView["start"]
+  ): boolean {
     return (
-      Temporal.PlainDate.compare(this.#toPlainDateTime(currentStart).toPlainDate(), this.#toPlainDateTime(nextStart).toPlainDate()) !==
-      0
+      Temporal.PlainDate.compare(
+        this.#toPlainDateTime(currentStart).toPlainDate(),
+        this.#toPlainDateTime(nextStart).toPlainDate()
+      ) !== 0
     );
   }
-
 
   #resolvePendingOperation(event: CalendarEventView): CalendarEventPendingOperation | undefined {
     if (

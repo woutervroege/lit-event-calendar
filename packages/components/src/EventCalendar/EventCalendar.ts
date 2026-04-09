@@ -8,10 +8,10 @@ import "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarViewGroup } from "../CalendarViewGroup/CalendarViewGroup.js";
 import type {
   CalendarEventPendingByCalendarId,
-  CalendarEventPendingOptions,
   CalendarEventPendingByOperation,
   CalendarEventPendingGroups,
   CalendarEventPendingOperation,
+  CalendarEventPendingOptions,
   CalendarEventPendingResult,
   CalendarEventView,
   CalendarEventViewMap as EventsMap,
@@ -20,13 +20,13 @@ import type { CalendarPresentationMode, CalendarViewMode } from "../types/Calend
 import type { TabSwitchOption } from "../types/TabSwitch.js";
 import type { WeekdayNumber } from "../types/Weekday.js";
 import "../TabSwitch/TabSwitch.js";
+import { type EventsAPIContextValue, eventsAPIContext } from "../context/EventsAPIContext.js";
+import type { EventOperation } from "../domain/event-ops/index.js";
+import { EventsAPI } from "../domain/event-ops/index.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import { renderGridIcon } from "../icons/GridIcon.js";
 import { renderListIcon } from "../icons/ListIcon.js";
 import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
-import { EventsAPI } from "../domain/event-ops/index.js";
-import type { EventOperation } from "../domain/event-ops/index.js";
-import { eventsAPIContext, type EventsAPIContextValue } from "../context/EventsAPIContext.js";
 import componentStyle from "./EventCalendar.css?inline";
 
 type ViewUnit = Extract<CalendarViewMode, "day" | "week" | "month" | "year">;
@@ -253,7 +253,8 @@ export class EventCalendar extends BaseElement {
       if (!pendingOp) continue;
       if (!event.calendarId || !event.eventId) continue;
 
-      const byEventId = grouped.get(event.calendarId) ?? new Map<string, CalendarEventPendingByOperation>();
+      const byEventId =
+        grouped.get(event.calendarId) ?? new Map<string, CalendarEventPendingByOperation>();
       const byOperation = byEventId.get(event.eventId) ?? this.#createPendingOperationMap();
       const bucket = byOperation.get(pendingOp);
       if (!bucket) continue;
@@ -428,11 +429,11 @@ export class EventCalendar extends BaseElement {
           .defaultCalendarId=${this.defaultCalendarId}
           @view-changed=${this.#syncFromViewGroup}
           @start-date-changed=${this.#syncFromViewGroup}
-          @day-selection-requested=${this.#syncFromViewGroup}
-          @event-create-requested=${this.#reemit}
-          @event-selection-requested=${this.#reemit}
-          @event-update-requested=${this.#reemit}
-          @event-delete-requested=${this.#reemit}
+          @day-selection=${this.#syncFromViewGroup}
+          @event-create=${this.#reemit}
+          @event-selection=${this.#reemit}
+          @event-update=${this.#reemit}
+          @event-delete=${this.#reemit}
         ></calendar-grid-view-group>
       </div>
     `;

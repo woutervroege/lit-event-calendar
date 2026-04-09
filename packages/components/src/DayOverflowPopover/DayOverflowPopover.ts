@@ -127,7 +127,7 @@ export class DayOverflowPopover extends BaseElement {
 
   #handleDaySelectionRequest = (event: MouseEvent) => {
     this.dispatchEvent(
-      new CustomEvent("day-label-selection-requested", {
+      new CustomEvent("day-label-selection", {
         detail: {
           trigger: "click",
           pointerType: "mouse",
@@ -143,7 +143,7 @@ export class DayOverflowPopover extends BaseElement {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     this.dispatchEvent(
-      new CustomEvent("day-label-selection-requested", {
+      new CustomEvent("day-label-selection", {
         detail: {
           trigger: "keyboard",
           pointerType: "keyboard",

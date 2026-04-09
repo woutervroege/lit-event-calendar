@@ -8,8 +8,8 @@ import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
 import { CalendarViewBase, isWeekdayNumber } from "../CalendarViewBase/CalendarViewBase.js";
 import type { AllDayLayoutItem } from "../types/AllDayLayout.js";
 import type {
-  CalendarEventView as EventInput,
   CalendarEventViewEntry as EventEntry,
+  CalendarEventView as EventInput,
   CalendarEventViewMap as EventsMap,
 } from "../types/CalendarEvent.js";
 import type { WeekdayNumber } from "../types/Weekday.js";
@@ -135,12 +135,11 @@ export class CalendarWeekView extends CalendarViewBase {
   }
 
   get #allDayLayoutItems(): AllDayLayoutItem[] {
-    return this.#renderedAllDayEntries
-      .map(([id, event]) => ({
-        id,
-        start: this.#toPlainDateTime(event.start).toPlainDate(),
-        endInclusive: this.#toPlainDateTime(event.end).subtract({ nanoseconds: 1 }).toPlainDate(),
-      }));
+    return this.#renderedAllDayEntries.map(([id, event]) => ({
+      id,
+      start: this.#toPlainDateTime(event.start).toPlainDate(),
+      endInclusive: this.#toPlainDateTime(event.end).subtract({ nanoseconds: 1 }).toPlainDate(),
+    }));
   }
 
   get #renderedAllDayEntries(): EventEntry[] {
@@ -340,11 +339,11 @@ export class CalendarWeekView extends CalendarViewBase {
                 "--_lc-section-bg":
                   "var(--lg-background-color, var(--_lc-surface-bg, light-dark(#fff, #222)))",
               })}
-              @event-create-requested=${this.forwardCalendarEvent}
-              @event-selection-requested=${this.forwardCalendarEvent}
-              @event-update-requested=${this.forwardCalendarEvent}
-              @event-delete-requested=${this.forwardCalendarEvent}
-              @day-selection-requested=${this.forwardCalendarEvent}
+              @event-create=${this.forwardCalendarEvent}
+              @event-selection=${this.forwardCalendarEvent}
+              @event-update=${this.forwardCalendarEvent}
+              @event-delete=${this.forwardCalendarEvent}
+              @day-selection=${this.forwardCalendarEvent}
               @interaction-lock-change=${this.#handleInteractionLockChange}
             >
             </calendar-grid-view>
@@ -362,11 +361,11 @@ export class CalendarWeekView extends CalendarViewBase {
             .timezone=${this.timezone}
             current-time=${this.currentTime}
             .snapInterval=${this.snapInterval}
-            @event-create-requested=${this.forwardCalendarEvent}
-            @event-selection-requested=${this.forwardCalendarEvent}
-            @event-update-requested=${this.forwardCalendarEvent}
-            @event-delete-requested=${this.forwardCalendarEvent}
-            @day-selection-requested=${this.forwardCalendarEvent}
+            @event-create=${this.forwardCalendarEvent}
+            @event-selection=${this.forwardCalendarEvent}
+            @event-update=${this.forwardCalendarEvent}
+            @event-delete=${this.forwardCalendarEvent}
+            @day-selection=${this.forwardCalendarEvent}
             @interaction-lock-change=${this.#handleInteractionLockChange}
           >
           </calendar-grid-view>

@@ -1041,7 +1041,7 @@ export class CalendarGridView extends CalendarViewBase {
         ?outside-visible-month=${outsideVisibleMonth}
         ?is-weekend=${this.#weekendDays.has(day.dayOfWeek)}
         .events=${popoverEvents}
-        @day-label-selection-requested=${(event: Event) =>
+        @day-label-selection=${(event: Event) =>
           this.#handlePopoverDaySelection(day, dayIndex, event)}
         @toggle=${this.#handleOverflowPopoverToggle}
         @select=${this.#handleEventSelect}
@@ -1090,7 +1090,7 @@ export class CalendarGridView extends CalendarViewBase {
       sourceEvent: selectDetail?.sourceEvent ?? event,
     };
     this.dispatchEvent(
-      new CustomEvent("event-selection-requested", {
+      new CustomEvent("event-selection", {
         detail,
       })
     );
@@ -1153,7 +1153,7 @@ export class CalendarGridView extends CalendarViewBase {
       return;
     }
     const updateRequested = this.dispatchEvent(
-      new CustomEvent("event-update-requested", {
+      new CustomEvent("event-update", {
         detail,
         cancelable: true,
       })
@@ -1258,7 +1258,7 @@ export class CalendarGridView extends CalendarViewBase {
     }
 
     this.dispatchEvent(
-      new CustomEvent("event-delete-requested", {
+      new CustomEvent("event-delete", {
         detail,
         cancelable: true,
       })
@@ -1377,7 +1377,7 @@ export class CalendarGridView extends CalendarViewBase {
     sourceEvent: Event
   ) {
     this.dispatchEvent(
-      new CustomEvent("day-selection-requested", {
+      new CustomEvent("day-selection", {
         detail: {
           date: day.toString(),
           dayIndex,
@@ -1982,9 +1982,9 @@ export class CalendarGridView extends CalendarViewBase {
     if (this.applyCreateRequestToEventsAPI(detail)) {
       return;
     }
-    console.info("event-create-requested", detail);
+    console.info("event-create", detail);
     this.dispatchEvent(
-      new CustomEvent("event-create-requested", {
+      new CustomEvent("event-create", {
         detail,
         cancelable: true,
       })

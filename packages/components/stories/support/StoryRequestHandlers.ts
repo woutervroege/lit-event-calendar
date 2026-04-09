@@ -11,7 +11,10 @@ import {
   resizeStartFromUpdateRequest,
   shiftDateValue,
 } from "../../src/domain/event-ops/index.js";
-import { isCalendarEventException, isCalendarEventRecurring } from "../../src/types/CalendarEvent.js";
+import {
+  isCalendarEventException,
+  isCalendarEventRecurring,
+} from "../../src/types/CalendarEvent.js";
 import type {
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
@@ -29,17 +32,17 @@ type AttachRequestHandlersOptions = {
   onPendingChanged?: () => void;
 };
 
-const logCreateRequested = action("event-create-requested");
-const logCreateCancelled = action("event-create-requested (cancelled)");
-const logUpdateRequested = action("event-update-requested");
+const logCreateRequested = action("event-create");
+const logCreateCancelled = action("event-create (cancelled)");
+const logUpdateRequested = action("event-update");
 const logUpdateCommittedInstance = action("event-update-committed-instance");
 const logUpdateCommittedSeries = action("event-update-committed-series");
-const logDeleteRequested = action("event-delete-requested");
+const logDeleteRequested = action("event-delete");
 const logDeleteCommittedInstance = action("event-delete-committed-instance");
 const logDeleteCommittedSeries = action("event-delete-committed-series");
-const logDeleteCancelled = action("event-delete-requested (cancelled)");
-const logSelectionRequested = action("event-selection-requested");
-const logExceptionRequested = action("event-exception-requested");
+const logDeleteCancelled = action("event-delete (cancelled)");
+const logSelectionRequested = action("event-selection");
+const logExceptionRequested = action("event-exception");
 
 function cloneEventMap(events: Map<string, CalendarEvent>): Map<string, CalendarEvent> {
   return new Map(
@@ -64,7 +67,8 @@ function resolveEventMapKey(
   for (const [key, event] of events.entries()) {
     if (event.eventId !== eventId) continue;
     if (envelope.calendarId !== undefined && event.calendarId !== envelope.calendarId) continue;
-    if (envelope.recurrenceId === undefined || event.recurrenceId === envelope.recurrenceId) return key;
+    if (envelope.recurrenceId === undefined || event.recurrenceId === envelope.recurrenceId)
+      return key;
     if (event.recurrenceId === undefined && fallbackSeriesKey === undefined) {
       fallbackSeriesKey = key;
     }
@@ -109,8 +113,10 @@ function getUpdateKind(
   nextStart: CalendarEvent["start"],
   nextEnd: CalendarEvent["start"]
 ): "move" | "resize-start" | "resize-end" | "update" {
-  const sameStart = Temporal.PlainDateTime.compare(toPlainDateTime(currentStart), toPlainDateTime(nextStart)) === 0;
-  const sameEnd = Temporal.PlainDateTime.compare(toPlainDateTime(currentEnd), toPlainDateTime(nextEnd)) === 0;
+  const sameStart =
+    Temporal.PlainDateTime.compare(toPlainDateTime(currentStart), toPlainDateTime(nextStart)) === 0;
+  const sameEnd =
+    Temporal.PlainDateTime.compare(toPlainDateTime(currentEnd), toPlainDateTime(nextEnd)) === 0;
   if (sameStart && sameEnd) return "update";
   if (!sameStart && sameEnd) return "resize-start";
   if (sameStart && !sameEnd) return "resize-end";
@@ -122,10 +128,15 @@ function getUpdateKind(
   return unchangedDuration ? "move" : "update";
 }
 
-function movedToDifferentDay(currentStart: CalendarEvent["start"], nextStart: CalendarEvent["start"]): boolean {
+function movedToDifferentDay(
+  currentStart: CalendarEvent["start"],
+  nextStart: CalendarEvent["start"]
+): boolean {
   return (
-    Temporal.PlainDate.compare(toPlainDateTime(currentStart).toPlainDate(), toPlainDateTime(nextStart).toPlainDate()) !==
-    0
+    Temporal.PlainDate.compare(
+      toPlainDateTime(currentStart).toPlainDate(),
+      toPlainDateTime(nextStart).toPlainDate()
+    ) !== 0
   );
 }
 
@@ -145,14 +156,14 @@ export function attachRequestEventHandlers(
   const preserveDateOnly = options.preserveDateOnlyShape ?? false;
   const mode = options.mode ?? "sync";
 
-  el.addEventListener("event-selection-requested", (event: Event) => {
+  el.addEventListener("event-selection", (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const detail = event.detail as EventSelectionRequestDetail | null;
     if (!detail?.envelope.eventId) return;
     logSelectionRequested(detail);
   });
 
-  el.addEventListener("event-create-requested", (event: Event) => {
+  el.addEventListener("event-create", (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const detail = event.detail as EventCreateRequestDetail | null;
     if (!detail?.content.start || !detail.content.end) return;
@@ -194,7 +205,7 @@ export function attachRequestEventHandlers(
     }, 300);
   });
 
-  el.addEventListener("event-update-requested", (event: Event) => {
+  el.addEventListener("event-update", (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const detail = event.detail as EventUpdateRequestDetail | null;
     if (!detail?.envelope.eventId) return;
@@ -263,14 +274,16 @@ export function attachRequestEventHandlers(
       };
       logExceptionRequested(exceptionRequestDetail);
       const notCancelled = el.dispatchEvent(
-        new CustomEvent("event-exception-requested", {
+        new CustomEvent("event-exception", {
           detail: exceptionRequestDetail,
           cancelable: true,
           composed: true,
         })
       );
       const keepException =
-        mode === "sync" ? window.confirm("Save this as an exception?\n\nOK = keep\nCancel = revert") : true;
+        mode === "sync"
+          ? window.confirm("Save this as an exception?\n\nOK = keep\nCancel = revert")
+          : true;
       if (!notCancelled || !keepException) {
         if (event.cancelable) event.preventDefault();
         el.events = previousEvents;
@@ -427,7 +440,7 @@ export function attachRequestEventHandlers(
     applyApiResult(el, api, options.onPendingChanged);
   });
 
-  el.addEventListener("event-delete-requested", (event: Event) => {
+  el.addEventListener("event-delete", (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const detail = event.detail as EventDeleteRequestDetail | null;
     if (!detail) return;
@@ -489,7 +502,10 @@ export function attachRequestEventHandlers(
     });
     if (recurrenceId && current.recurrenceRule && !current.recurrenceId) {
       api.addExclusion({ target: { key: eventKey }, recurrenceId });
-      api.removeException({ target: { key: `${eventKey}::${recurrenceId}` }, options: { asExclusion: true } });
+      api.removeException({
+        target: { key: `${eventKey}::${recurrenceId}` },
+        options: { asExclusion: true },
+      });
     } else if (isCalendarEventException(current)) {
       api.removeException({
         target: { key: eventKey },
@@ -512,4 +528,3 @@ export function attachUnsyncedRequestEventHandlers(
     mode: "unsynced",
   });
 }
-

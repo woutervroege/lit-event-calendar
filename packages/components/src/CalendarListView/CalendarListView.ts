@@ -5,10 +5,8 @@ import { styleMap } from "lit/directives/style-map.js";
 import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import "../EventCard/EventCard.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
+import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
 import { isCalendarEventException, isCalendarEventRecurring } from "../types/CalendarEvent.js";
-import type {
-  CalendarEventView as EventInput,
-} from "../types/CalendarEvent.js";
 import { clampAgendaDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
 import { resolveLocale } from "../utils/Locale.js";
@@ -140,7 +138,7 @@ export class CalendarListView extends CalendarViewBase {
 
   #handleEventClick(item: AgendaItem, sourceEvent: MouseEvent) {
     this.dispatchEvent(
-      new CustomEvent("event-selection-requested", {
+      new CustomEvent("event-selection", {
         detail: {
           envelope: {
             eventId: item.event.eventId ?? item.id,

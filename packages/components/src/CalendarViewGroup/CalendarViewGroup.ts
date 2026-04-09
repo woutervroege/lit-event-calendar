@@ -12,6 +12,7 @@ import type { WeekdayNumber } from "../types/Weekday.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
+
 type RangeLabelPart = {
   text: string;
   isYear: boolean;
@@ -229,8 +230,8 @@ export class CalendarViewGroup extends CalendarViewBase {
           .lang=${this.lang}
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
-          @day-selection-requested=${this.#handleDaySelectionRequested}
-          @event-selection-requested=${this.forwardComposedCalendarEvent}
+          @day-selection=${this.#handleDaySelectionRequested}
+          @event-selection=${this.forwardComposedCalendarEvent}
         ></calendar-list-view>
       `;
     }
@@ -254,11 +255,11 @@ export class CalendarViewGroup extends CalendarViewBase {
           .defaultEventColor=${this.defaultEventColor}
           .defaultCalendarId=${this.defaultCalendarId}
           @active-date-changed=${this.#handleWeekActiveDateChanged}
-          @day-selection-requested=${this.#handleDaySelectionRequested}
-          @event-create-requested=${this.forwardComposedCalendarEvent}
-          @event-selection-requested=${this.forwardComposedCalendarEvent}
-          @event-update-requested=${this.forwardComposedCalendarEvent}
-          @event-delete-requested=${this.forwardComposedCalendarEvent}
+          @day-selection=${this.#handleDaySelectionRequested}
+          @event-create=${this.forwardComposedCalendarEvent}
+          @event-selection=${this.forwardComposedCalendarEvent}
+          @event-update=${this.forwardComposedCalendarEvent}
+          @event-delete=${this.forwardComposedCalendarEvent}
         ></calendar-week-view>
       `;
     }
@@ -275,11 +276,11 @@ export class CalendarViewGroup extends CalendarViewBase {
           .defaultEventSummary=${this.defaultEventSummary}
           .defaultEventColor=${this.defaultEventColor}
           .defaultCalendarId=${this.defaultCalendarId}
-          @day-selection-requested=${this.#handleDaySelectionRequested}
-          @event-create-requested=${this.forwardComposedCalendarEvent}
-          @event-selection-requested=${this.forwardComposedCalendarEvent}
-          @event-update-requested=${this.forwardComposedCalendarEvent}
-          @event-delete-requested=${this.forwardComposedCalendarEvent}
+          @day-selection=${this.#handleDaySelectionRequested}
+          @event-create=${this.forwardComposedCalendarEvent}
+          @event-selection=${this.forwardComposedCalendarEvent}
+          @event-update=${this.forwardComposedCalendarEvent}
+          @event-delete=${this.forwardComposedCalendarEvent}
         ></calendar-year-view>
       `;
     }
@@ -296,11 +297,11 @@ export class CalendarViewGroup extends CalendarViewBase {
         .defaultEventSummary=${this.defaultEventSummary}
         .defaultEventColor=${this.defaultEventColor}
         .defaultCalendarId=${this.defaultCalendarId}
-        @day-selection-requested=${this.#handleDaySelectionRequested}
-        @event-create-requested=${this.forwardComposedCalendarEvent}
-        @event-selection-requested=${this.forwardComposedCalendarEvent}
-        @event-update-requested=${this.forwardComposedCalendarEvent}
-        @event-delete-requested=${this.forwardComposedCalendarEvent}
+        @day-selection=${this.#handleDaySelectionRequested}
+        @event-create=${this.forwardComposedCalendarEvent}
+        @event-selection=${this.forwardComposedCalendarEvent}
+        @event-update=${this.forwardComposedCalendarEvent}
+        @event-delete=${this.forwardComposedCalendarEvent}
       ></calendar-month-view>
     `;
   }
