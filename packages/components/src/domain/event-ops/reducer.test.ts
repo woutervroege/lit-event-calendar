@@ -112,5 +112,46 @@ describe("EventsAPI", () => {
     expect(next.get("daily")?.exclusionDates?.has("20250114T083000")).toBe(true);
     expect(next.get("daily")?.exclusionDates?.has("20250114T090000")).toBe(false);
   });
+
+  it("resizing series start should not resize detached exceptions", () => {
+    const state: CalendarEventViewMap = new Map([
+      [
+        "daily",
+        {
+          eventId: "daily@example.test",
+          start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
+          end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
+          summary: "Daily",
+          color: "#10B981",
+          recurrenceRule: { freq: "DAILY", interval: 1, count: 3 },
+        },
+      ],
+      [
+        "daily::20250115T090000",
+        {
+          eventId: "daily@example.test",
+          recurrenceId: "20250115T090000",
+          start: Temporal.PlainDateTime.from("2025-01-15T11:00:00"),
+          end: Temporal.PlainDateTime.from("2025-01-15T11:15:00"),
+          summary: "Daily (moved)",
+          color: "#10B981",
+          isException: true,
+        },
+      ],
+    ]);
+    const api = new EventsAPI(state);
+
+    api.resizeStart({
+      target: { key: "daily" },
+      scope: "series",
+      toStart: Temporal.PlainDateTime.from("2025-01-13T08:30:00"),
+    });
+
+    const next = api.getState();
+    const exception = next.get("daily::20250115T090000");
+    // Desired behavior: detached exception keeps its own timing.
+    expect(exception?.start.toString()).toBe("2025-01-15T11:00:00");
+    expect(exception?.end.toString()).toBe("2025-01-15T11:15:00");
+  });
 });
 
