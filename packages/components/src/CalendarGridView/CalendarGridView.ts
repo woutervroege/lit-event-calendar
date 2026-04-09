@@ -1153,7 +1153,7 @@ export class CalendarGridView extends CalendarViewBase {
       return;
     }
     const updateRequested = this.dispatchEvent(
-      new CustomEvent("event-update", {
+      new CustomEvent("event-updated", {
         detail,
         cancelable: true,
       })
@@ -1258,7 +1258,7 @@ export class CalendarGridView extends CalendarViewBase {
     }
 
     this.dispatchEvent(
-      new CustomEvent("event-delete", {
+      new CustomEvent("event-deleted", {
         detail,
         cancelable: true,
       })
@@ -1982,9 +1982,9 @@ export class CalendarGridView extends CalendarViewBase {
     if (this.applyCreateRequestToEventsAPI(detail)) {
       return;
     }
-    console.info("event-create", detail);
+    console.info("event-created", detail);
     this.dispatchEvent(
-      new CustomEvent("event-create", {
+      new CustomEvent("event-created", {
         detail,
         cancelable: true,
       })

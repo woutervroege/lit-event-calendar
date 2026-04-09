@@ -430,10 +430,10 @@ export class EventCalendar extends BaseElement {
           @view-changed=${this.#syncFromViewGroup}
           @start-date-changed=${this.#syncFromViewGroup}
           @day-selection=${this.#syncFromViewGroup}
-          @event-create=${this.#reemit}
+          @event-created=${this.#reemit}
           @event-selection=${this.#reemit}
-          @event-update=${this.#reemit}
-          @event-delete=${this.#reemit}
+          @event-updated=${this.#reemit}
+          @event-deleted=${this.#reemit}
         ></calendar-grid-view-group>
       </div>
     `;

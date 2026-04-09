@@ -339,10 +339,10 @@ export class CalendarWeekView extends CalendarViewBase {
                 "--_lc-section-bg":
                   "var(--lg-background-color, var(--_lc-surface-bg, light-dark(#fff, #222)))",
               })}
-              @event-create=${this.forwardCalendarEvent}
+              @event-created=${this.forwardCalendarEvent}
               @event-selection=${this.forwardCalendarEvent}
-              @event-update=${this.forwardCalendarEvent}
-              @event-delete=${this.forwardCalendarEvent}
+              @event-updated=${this.forwardCalendarEvent}
+              @event-deleted=${this.forwardCalendarEvent}
               @day-selection=${this.forwardCalendarEvent}
               @interaction-lock-change=${this.#handleInteractionLockChange}
             >
@@ -361,10 +361,10 @@ export class CalendarWeekView extends CalendarViewBase {
             .timezone=${this.timezone}
             current-time=${this.currentTime}
             .snapInterval=${this.snapInterval}
-            @event-create=${this.forwardCalendarEvent}
+            @event-created=${this.forwardCalendarEvent}
             @event-selection=${this.forwardCalendarEvent}
-            @event-update=${this.forwardCalendarEvent}
-            @event-delete=${this.forwardCalendarEvent}
+            @event-updated=${this.forwardCalendarEvent}
+            @event-deleted=${this.forwardCalendarEvent}
             @day-selection=${this.forwardCalendarEvent}
             @interaction-lock-change=${this.#handleInteractionLockChange}
           >

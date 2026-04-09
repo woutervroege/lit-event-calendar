@@ -256,10 +256,10 @@ export class CalendarViewGroup extends CalendarViewBase {
           .defaultCalendarId=${this.defaultCalendarId}
           @active-date-changed=${this.#handleWeekActiveDateChanged}
           @day-selection=${this.#handleDaySelectionRequested}
-          @event-create=${this.forwardComposedCalendarEvent}
+          @event-created=${this.forwardComposedCalendarEvent}
           @event-selection=${this.forwardComposedCalendarEvent}
-          @event-update=${this.forwardComposedCalendarEvent}
-          @event-delete=${this.forwardComposedCalendarEvent}
+          @event-updated=${this.forwardComposedCalendarEvent}
+          @event-deleted=${this.forwardComposedCalendarEvent}
         ></calendar-week-view>
       `;
     }
@@ -277,10 +277,10 @@ export class CalendarViewGroup extends CalendarViewBase {
           .defaultEventColor=${this.defaultEventColor}
           .defaultCalendarId=${this.defaultCalendarId}
           @day-selection=${this.#handleDaySelectionRequested}
-          @event-create=${this.forwardComposedCalendarEvent}
+          @event-created=${this.forwardComposedCalendarEvent}
           @event-selection=${this.forwardComposedCalendarEvent}
-          @event-update=${this.forwardComposedCalendarEvent}
-          @event-delete=${this.forwardComposedCalendarEvent}
+          @event-updated=${this.forwardComposedCalendarEvent}
+          @event-deleted=${this.forwardComposedCalendarEvent}
         ></calendar-year-view>
       `;
     }
@@ -298,10 +298,10 @@ export class CalendarViewGroup extends CalendarViewBase {
         .defaultEventColor=${this.defaultEventColor}
         .defaultCalendarId=${this.defaultCalendarId}
         @day-selection=${this.#handleDaySelectionRequested}
-        @event-create=${this.forwardComposedCalendarEvent}
+        @event-created=${this.forwardComposedCalendarEvent}
         @event-selection=${this.forwardComposedCalendarEvent}
-        @event-update=${this.forwardComposedCalendarEvent}
-        @event-delete=${this.forwardComposedCalendarEvent}
+        @event-updated=${this.forwardComposedCalendarEvent}
+        @event-deleted=${this.forwardComposedCalendarEvent}
       ></calendar-month-view>
     `;
   }

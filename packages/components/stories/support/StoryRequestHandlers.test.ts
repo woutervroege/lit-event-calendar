@@ -66,7 +66,7 @@ describe("StoryRequestHandlers recurring updates", () => {
     };
 
     el.dispatchEvent(
-      new CustomEvent("event-update", {
+      new CustomEvent("event-updated", {
         detail,
         cancelable: true,
       })
@@ -109,7 +109,7 @@ describe("StoryRequestHandlers recurring updates", () => {
     };
 
     el.dispatchEvent(
-      new CustomEvent("event-update", {
+      new CustomEvent("event-updated", {
         detail,
         cancelable: true,
       })
@@ -150,7 +150,7 @@ describe("StoryRequestHandlers recurring updates", () => {
     };
 
     el.dispatchEvent(
-      new CustomEvent("event-update", {
+      new CustomEvent("event-updated", {
         detail,
         cancelable: true,
       })
@@ -194,7 +194,7 @@ describe("StoryRequestHandlers recurring updates", () => {
       },
     };
 
-    const updateEvent = new CustomEvent("event-update", {
+    const updateEvent = new CustomEvent("event-updated", {
       detail,
       cancelable: true,
     });

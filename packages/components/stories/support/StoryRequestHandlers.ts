@@ -32,15 +32,15 @@ type AttachRequestHandlersOptions = {
   onPendingChanged?: () => void;
 };
 
-const logCreateRequested = action("event-create");
-const logCreateCancelled = action("event-create (cancelled)");
-const logUpdateRequested = action("event-update");
-const logUpdateCommittedInstance = action("event-update-committed-instance");
-const logUpdateCommittedSeries = action("event-update-committed-series");
-const logDeleteRequested = action("event-delete");
-const logDeleteCommittedInstance = action("event-delete-committed-instance");
-const logDeleteCommittedSeries = action("event-delete-committed-series");
-const logDeleteCancelled = action("event-delete (cancelled)");
+const logCreateRequested = action("event-created");
+const logCreateCancelled = action("event-created (cancelled)");
+const logUpdateRequested = action("event-updated");
+const logUpdateCommittedInstance = action("event-updated-committed-instance");
+const logUpdateCommittedSeries = action("event-updated-committed-series");
+const logDeleteRequested = action("event-deleted");
+const logDeleteCommittedInstance = action("event-deleted-committed-instance");
+const logDeleteCommittedSeries = action("event-deleted-committed-series");
+const logDeleteCancelled = action("event-deleted (cancelled)");
 const logSelectionRequested = action("event-selection");
 const logExceptionRequested = action("event-exception");
 
@@ -163,7 +163,7 @@ export function attachRequestEventHandlers(
     logSelectionRequested(detail);
   });
 
-  el.addEventListener("event-create", (event: Event) => {
+  el.addEventListener("event-created", (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const detail = event.detail as EventCreateRequestDetail | null;
     if (!detail?.content.start || !detail.content.end) return;
@@ -205,7 +205,7 @@ export function attachRequestEventHandlers(
     }, 300);
   });
 
-  el.addEventListener("event-update", (event: Event) => {
+  el.addEventListener("event-updated", (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const detail = event.detail as EventUpdateRequestDetail | null;
     if (!detail?.envelope.eventId) return;
@@ -440,7 +440,7 @@ export function attachRequestEventHandlers(
     applyApiResult(el, api, options.onPendingChanged);
   });
 
-  el.addEventListener("event-delete", (event: Event) => {
+  el.addEventListener("event-deleted", (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const detail = event.detail as EventDeleteRequestDetail | null;
     if (!detail) return;
