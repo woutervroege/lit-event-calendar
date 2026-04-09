@@ -67,5 +67,38 @@ describe("expandEvents", () => {
     const exception = rendered.get("daily::20250114T090000");
     expect(exception?.start.toString()).toBe("2025-01-14T11:00:00");
   });
+
+  it("expands monthly last Friday recurrences using byDay + bySetPos", () => {
+    const events: CalendarEventViewMap = new Map([
+      [
+        "monthly-last-friday",
+        {
+          eventId: "monthly-last-friday@example.test",
+          start: Temporal.PlainDateTime.from("2025-01-06T09:00:00"),
+          end: Temporal.PlainDateTime.from("2025-01-06T10:00:00"),
+          summary: "Monthly Last Friday",
+          color: "#0ea5e9",
+          recurrenceRule: {
+            freq: "MONTHLY",
+            interval: 1,
+            byDay: [{ day: "FR" }],
+            bySetPos: [-1],
+            count: 3,
+          },
+        },
+      ],
+    ]);
+
+    const rendered = expandEvents(events, {
+      start: Temporal.PlainDateTime.from("2025-01-01T00:00:00"),
+      end: Temporal.PlainDateTime.from("2025-04-01T00:00:00"),
+    });
+
+    expect(Array.from(rendered.keys())).toEqual([
+      "monthly-last-friday::20250131T090000",
+      "monthly-last-friday::20250228T090000",
+      "monthly-last-friday::20250328T090000",
+    ]);
+  });
 });
 
