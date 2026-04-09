@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import { Temporal } from "@js-temporal/polyfill";
+import { EventsAPI } from "@lit-calendar/events-api";
 import "../src/EventCalendar/EventCalendar.js";
-import { EventsAPI } from "../src/domain/event-ops/index.js";
 import type { CalendarEventViewMap } from "../src/types/CalendarEvent.js";
 
 type StoryEventCalendarElement = HTMLElement & { events: CalendarEventViewMap };

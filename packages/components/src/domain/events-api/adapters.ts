@@ -13,7 +13,7 @@ import type {
   ResizeEndInput,
   ResizeStartInput,
   UpdateInput,
-} from "./types.js";
+} from "@lit-calendar/events-api";
 
 export function toEventTarget(input: { eventId?: string; calendarId?: string; recurrenceId?: string }): EventTarget {
   if (!input.eventId) {
@@ -101,4 +101,3 @@ export function resizeEndFromUpdateRequest(detail: EventUpdateRequestDetail): Re
     toEnd: detail.content.end,
   };
 }
-

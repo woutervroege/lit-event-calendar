@@ -22,7 +22,7 @@ import { getEventColorStyles } from "../utils/EventColor.js";
 import { getLocaleDirection, getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import { formatShortTimeRange } from "../utils/TimeFormatting.js";
 import { isCalendarEventException, isCalendarEventRecurring } from "../types/CalendarEvent.js";
-import { parseRecurrenceId } from "../domain/event-ops/recurrence.js";
+import { parseRecurrenceId } from "@lit-calendar/events-api";
 import "../EventCard/EventCard.js";
 import type {
   AllDayLayoutItem,

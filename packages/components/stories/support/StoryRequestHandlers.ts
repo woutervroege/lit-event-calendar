@@ -1,16 +1,14 @@
 import { Temporal } from "@js-temporal/polyfill";
+import { EventsAPI, parseRecurrenceId, shiftDateValue } from "@lit-calendar/events-api";
 import { action } from "storybook/actions";
 import {
-  EventsAPI,
   fromCreateRequest,
   fromDeleteRequest,
   fromUpdateRequest,
   moveFromUpdateRequest,
-  parseRecurrenceId,
   resizeEndFromUpdateRequest,
   resizeStartFromUpdateRequest,
-  shiftDateValue,
-} from "../../src/domain/event-ops/index.js";
+} from "../../src/domain/events-api/adapters.js";
 import {
   isCalendarEventException,
   isCalendarEventRecurring,

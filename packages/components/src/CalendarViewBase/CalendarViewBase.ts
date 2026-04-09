@@ -1,17 +1,14 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { ContextConsumer } from "@lit/context";
+import { expandEvents, parseRecurrenceId, shiftDateValue, type EventOperation } from "@lit-calendar/events-api";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import { type EventsAPIContextValue, eventsAPIContext } from "../context/EventsAPIContext.js";
-import { expandEvents } from "../domain/event-ops/expand.js";
-import type { EventOperation } from "../domain/event-ops/index.js";
 import {
   fromCreateRequest,
   fromDeleteRequest,
   fromUpdateRequest,
   moveFromUpdateRequest,
-  parseRecurrenceId,
-  shiftDateValue,
-} from "../domain/event-ops/index.js";
+} from "../domain/events-api/adapters.js";
 import type {
   CalendarEventDateValue,
   CalendarEventPendingByCalendarId,

@@ -14,7 +14,7 @@ import type {
   ResizeEndInput,
   ResizeStartInput,
   UpdateInput,
-} from "../domain/event-ops/index.js";
+} from "@lit-calendar/events-api";
 
 export type EventsAPIContextValue = {
   getState: () => EventsState;
