@@ -83,5 +83,34 @@ describe("EventsAPI", () => {
     expect(next.has("daily::20250114T090000")).toBe(false);
     expect(next.get("daily")?.exclusionDates?.has("20250114T090000")).toBe(true);
   });
+
+  it("resizing series start should shift exclusions with the new occurrence start", () => {
+    const state: CalendarEventViewMap = new Map([
+      [
+        "daily",
+        {
+          eventId: "daily@example.test",
+          start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
+          end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
+          summary: "Daily",
+          color: "#10B981",
+          recurrenceRule: { freq: "DAILY", interval: 1, count: 3 },
+          exclusionDates: new Set(["20250114T090000"]),
+        },
+      ],
+    ]);
+    const api = new EventsAPI(state);
+
+    api.resizeStart({
+      target: { key: "daily" },
+      scope: "series",
+      toStart: Temporal.PlainDateTime.from("2025-01-13T08:30:00"),
+    });
+
+    const next = api.getState();
+    // Desired behavior: exclusion should follow the series start shift.
+    expect(next.get("daily")?.exclusionDates?.has("20250114T083000")).toBe(true);
+    expect(next.get("daily")?.exclusionDates?.has("20250114T090000")).toBe(false);
+  });
 });
 

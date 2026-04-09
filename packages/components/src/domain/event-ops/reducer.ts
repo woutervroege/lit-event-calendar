@@ -117,7 +117,7 @@ function ensureMinimumDuration(
 }
 
 function applyUpdateToEvent(event: CalendarEventView, patch: UpdateInput["patch"]): CalendarEventView {
-  let next = cloneEvent(event);
+  const next = cloneEvent(event);
   if (patch.summary !== undefined) next.summary = patch.summary;
   if (patch.color !== undefined) next.color = patch.color;
   if (patch.location !== undefined) next.location = patch.location;
@@ -228,10 +228,15 @@ function applyResizeStart(input: ResizeStartInput, context: ReduceContext): Appl
     if (!event) continue;
     const nextStart = input.scope === "series" ? shiftDateValue(event.start, seriesDelta) : input.toStart;
     const bounded = ensureMinimumDuration(nextStart, event.end, input.options?.minDuration);
+    const nextExclusionDates =
+      input.scope === "series" && event.recurrenceRule && !event.recurrenceId
+        ? shiftExclusionDates(event, seriesDelta)
+        : event.exclusionDates;
     const updated: CalendarEventView = {
       ...event,
       start: bounded.start,
       end: bounded.end,
+      exclusionDates: nextExclusionDates,
     };
     setUpdated(state, changes, updateKey, updated);
   }
