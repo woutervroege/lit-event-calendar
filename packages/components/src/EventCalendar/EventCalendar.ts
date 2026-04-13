@@ -533,7 +533,6 @@ export class EventCalendar extends BaseElement {
                 <div
                   id="event-calendar-calendars-panel"
                   class="event-calendar-calendars-panel"
-                  aria-label="Calendars"
                 >
                   <div class="event-calendar-calendars-panel-header">
                     <lc-button
@@ -585,9 +584,8 @@ export class EventCalendar extends BaseElement {
                     <lc-button
                       class="event-calendar-calendars-toggle"
                       .label=${getCalendarsMenuLabel(this.lang)}
-                      aria-haspopup="true"
-                      aria-expanded=${this.#calendarsOverlayOpen ? "true" : "false"}
-                      aria-controls="event-calendar-calendars-panel"
+                      .disclosureExpanded=${this.#calendarsOverlayOpen}
+                      .hasPopup=${"true"}
                       style=${EVENT_CALENDAR_MENU_BUTTON_STYLE}
                       @click=${this.#toggleCalendarsOverlay}
                     >
