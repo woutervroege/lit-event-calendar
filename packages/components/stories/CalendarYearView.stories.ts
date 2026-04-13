@@ -8,6 +8,7 @@ import {
   langControlLabels,
   langControlOptions,
   sampleEvents,
+  storyEventsFromArg,
   timezoneOptions,
   weekStartControlLabels,
   weekStartControlOptions,
@@ -73,8 +74,7 @@ const meta: Meta = {
     if (args.currentTime) {
       el.setAttribute("current-time", args.currentTime);
     }
-    const entries = Array.isArray(args.events) ? args.events : sampleEvents;
-    el.events = new Map(entries);
+    el.events = storyEventsFromArg(args.events, sampleEvents);
     return el;
   },
 };

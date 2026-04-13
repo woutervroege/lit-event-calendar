@@ -3,12 +3,9 @@ import type {
   CalendarEvent as ApiCalendarEvent,
   CalendarEventData,
   CalendarEventEnvelope,
+  CalendarEventsMap,
   CalendarRecurrenceRule,
 } from "@lit-calendar/events-api";
-import {
-  eventViewToApiEvent,
-  type CalendarEventView,
-} from "../../src/domain/events-api/eventMapBridge.js";
 import { resolveLocale } from "../../src/utils/Locale.js";
 
 export type CalendarEvent = ApiCalendarEvent;
@@ -16,18 +13,26 @@ export type CalendarEventSampleEntry = [string, ApiCalendarEvent];
 export type CalendarTemporalEvent = ApiCalendarEvent;
 export type CalendarTemporalEventEntry = [string, ApiCalendarEvent];
 
-// Backward-compatible aliases for existing stories.
 export type StoryEvent = CalendarEvent;
 export type StoryEventEntry = CalendarEventSampleEntry;
 export type WeekStoryEvent = CalendarTemporalEvent;
 export type WeekStoryEventEntry = CalendarTemporalEventEntry;
 
-type CalendarEventSeedInput = {
-  envelope: Pick<
-    CalendarEventEnvelope,
-    "calendarId" | "eventId" | "recurrenceId" | "isException" | "isRecurring"
-  >;
-  content: {
+/** Story `args.events`: default `CalendarEventsMap`, or an array of entries for controls. */
+export type StoryEventsArg = CalendarEventsMap | Array<[string, CalendarEvent]>;
+
+export function storyEventsFromArg(value: StoryEventsArg | undefined, fallback: CalendarEventsMap): CalendarEventsMap {
+  if (value === undefined) return new Map(fallback);
+  if (Array.isArray(value)) return new Map(value);
+  return new Map(value);
+}
+
+/** ISO strings in `data` → `calendarEventFromSeed` produces a canonical `CalendarEvent`. */
+type CalendarEventSeedInput = Pick<
+  CalendarEventEnvelope,
+  "calendarId" | "eventId" | "recurrenceId" | "isException" | "isRecurring"
+> & {
+  data: {
     start: string;
     end: string;
     summary: string;
@@ -53,313 +58,11 @@ type CalendarEventSeedInput = {
   };
 };
 
-export type CalendarEventSeedEntry = [string, CalendarEventSeedInput];
-
-/** Nested envelope + `CalendarEventData` after parsing story date strings. */
-export type StoryNestedCalendarEvent = {
-  envelope: Pick<
-    CalendarEventEnvelope,
-    "calendarId" | "eventId" | "recurrenceId" | "isException" | "isRecurring"
-  >;
-  content: CalendarEventData;
-};
-
 const CALENDAR_IDS = {
   work: "/calendars/wouter/work/",
   personal: "/calendars/wouter/personal/",
   travel: "/calendars/wouter/travel/",
 } as const;
-
-export const sampleCalendarEvents: [string, StoryNestedCalendarEvent][] = (
-  [
-    [
-      "event-flight-london-20250104",
-      {
-        envelope: { calendarId: CALENDAR_IDS.travel, eventId: "flight-london@example.test" },
-        content: {
-          start: "2025-01-04T08:30:00",
-          end: "2025-01-05T09:45:00",
-          summary: "Flight to London",
-          color: "#4564B5",
-          location: "Schiphol Airport",
-        },
-      },
-    ],
-    [
-      "event-hello-world-20250103",
-      {
-        envelope: { calendarId: CALENDAR_IDS.work, eventId: "hello-world@example.test" },
-        content: {
-          start: "2025-01-03T12:00:00",
-          end: "2025-01-07T18:00:00",
-          summary: "Hello World",
-          color: "#63e657",
-        },
-      },
-    ],
-    [
-      "event-team-meeting-20250106",
-      {
-        envelope: { calendarId: CALENDAR_IDS.work, eventId: "team-meeting@example.test" },
-        content: {
-          start: "2025-01-06T10:00:00",
-          end: "2025-01-07T11:15:00",
-          summary: "Team Meeting",
-          color: "#ff0000",
-          location: "Room Atlas",
-        },
-      },
-    ],
-    [
-      "event-amsterdam-zoned-20250104",
-      {
-        envelope: { calendarId: CALENDAR_IDS.travel, eventId: "amsterdam-zoned@example.test" },
-        content: {
-          start: "2025-01-04T12:00:00+01:00[Europe/Amsterdam]",
-          end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
-          summary: "Amsterdam Zoned Event",
-          color: "#f59e0b",
-        },
-      },
-    ],
-    [
-      "event-fiesta-20250106",
-      {
-        envelope: { calendarId: CALENDAR_IDS.personal, eventId: "fiesta@example.test" },
-        content: {
-          start: "2025-01-06T14:00:00",
-          end: "2025-01-06T15:00:00",
-          summary: "Fiesta",
-          color: "#084cb8",
-          location: "Cafe Mercado",
-        },
-      },
-    ],
-    [
-      "event-drinks-20250108-1630",
-      {
-        envelope: {
-          calendarId: CALENDAR_IDS.personal,
-          eventId: "drinks-weekly@example.test",
-        },
-        content: {
-          start: "2025-01-08T16:30:00",
-          end: "2025-01-08T17:30:00",
-          summary: "Drinks",
-          color: "#9f3cfa",
-          location: "Bar Noord",
-          recurrenceRule: {
-            freq: "WEEKLY",
-            interval: 1,
-            byDay: [{ day: "WE" }],
-            until: "2025-02-28T00:00:00",
-          },
-          exclusionDates: ["20250122T163000"],
-        },
-      },
-    ],
-    [
-      "event-daily-standup-20250113-0900",
-      {
-        envelope: {
-          calendarId: CALENDAR_IDS.work,
-          eventId: "daily-standup@example.test",
-        },
-        content: {
-          start: "2025-01-13T09:00:00",
-          end: "2025-01-13T09:15:00",
-          summary: "Daily Standup",
-          color: "#10B981",
-          recurrenceRule: {
-            freq: "DAILY",
-            interval: 1,
-            until: "2025-01-31T00:00:00",
-          },
-          exclusionDates: ["20250120T090000"],
-        },
-      },
-    ],
-    [
-      "event-daily-standup-exception-20250118-1100",
-      {
-        envelope: {
-          calendarId: CALENDAR_IDS.work,
-          eventId: "daily-standup@example.test",
-          recurrenceId: "20250118T090000",
-        },
-        content: {
-          start: "2025-01-18T11:00:00",
-          end: "2025-01-18T11:15:00",
-          summary: "Daily Standup (moved)",
-          color: "#10B981",
-        },
-      },
-    ],
-    [
-      "event-all-day-ops-rotation-20250106",
-      {
-        envelope: {
-          calendarId: CALENDAR_IDS.work,
-          eventId: "all-day-ops-rotation@example.test",
-        },
-        content: {
-          start: "2025-01-06",
-          end: "2025-01-07",
-          summary: "Ops Rotation (All day)",
-          color: "#0EA5E9",
-          recurrenceRule: {
-            freq: "WEEKLY",
-            interval: 1,
-            byDay: [{ day: "MO" }],
-            until: "2025-02-28",
-          },
-          exclusionDates: ["20250120"],
-        },
-      },
-    ],
-    [
-      "event-all-day-ops-rotation-exception-20250120",
-      {
-        envelope: {
-          calendarId: CALENDAR_IDS.work,
-          eventId: "all-day-ops-rotation@example.test",
-          recurrenceId: "20250120",
-        },
-        content: {
-          start: "2025-01-21",
-          end: "2025-01-22",
-          summary: "Ops Rotation (moved to Tuesday)",
-          color: "#0EA5E9",
-        },
-      },
-    ],
-    [
-      "event-meeting-john-20250110",
-      {
-        envelope: { calendarId: CALENDAR_IDS.personal, eventId: "meeting-with-john@example.test" },
-        content: {
-          start: "2025-01-08",
-          end: "2025-01-09",
-          summary: "Meeting with John",
-          color: "#E05ADD",
-        },
-      },
-    ],
-    [
-      "event-company-holiday-20250101",
-      {
-        envelope: { calendarId: CALENDAR_IDS.work, eventId: "company-holiday@example.test" },
-        content: {
-          start: "2025-01-01",
-          end: "2025-01-02",
-          summary: "Company Holiday",
-          color: "#0EA5E9",
-        },
-      },
-    ],
-    [
-      "event-product-planning-20250106",
-      {
-        envelope: { calendarId: CALENDAR_IDS.work, eventId: "product-planning@example.test" },
-        content: {
-          start: "2025-01-06",
-          end: "2025-01-08",
-          summary: "Product Planning Sprint",
-          color: "#22C55E",
-        },
-      },
-    ],
-    [
-      "event-design-qa-20250112",
-      {
-        envelope: { calendarId: CALENDAR_IDS.work, eventId: "design-qa@example.test" },
-        content: {
-          start: "2025-01-12",
-          end: "2025-01-14",
-          summary: "Design QA Window",
-          color: "#F97316",
-        },
-      },
-    ],
-    [
-      "event-team-offsite-20250115",
-      {
-        envelope: { calendarId: CALENDAR_IDS.work, eventId: "team-offsite@example.test" },
-        content: {
-          start: "2025-01-15",
-          end: "2025-01-18",
-          summary: "Team Offsite",
-          color: "#14B8A6",
-        },
-      },
-    ],
-    [
-      "event-release-freeze-20250119",
-      {
-        envelope: { calendarId: CALENDAR_IDS.work, eventId: "release-freeze@example.test" },
-        content: {
-          start: "2025-01-19",
-          end: "2025-01-21",
-          summary: "Release Freeze",
-          color: "#A855F7",
-        },
-      },
-    ],
-    [
-      "event-feb5-design-review-20250205",
-      {
-        envelope: { calendarId: CALENDAR_IDS.work, eventId: "feb5-design-review@example.test" },
-        content: {
-          start: "2025-02-05",
-          end: "2025-02-06",
-          summary: "Design Review",
-          color: "#6366F1",
-        },
-      },
-    ],
-    [
-      "event-feb5-eng-sync-20250205",
-      {
-        envelope: { calendarId: CALENDAR_IDS.work, eventId: "feb5-eng-sync@example.test" },
-        content: {
-          start: "2025-02-05",
-          end: "2025-02-06",
-          summary: "Engineering Sync",
-          color: "#0EA5E9",
-        },
-      },
-    ],
-  ] as Array<[id: string, event: CalendarEventSeedInput]>
-).map(([id, event]) => [id, toCalendarEvent(event)]);
-
-export const timezoneShiftCalendarEvents: [string, StoryNestedCalendarEvent][] = (
-  [
-    [
-      "event-amsterdam-noon-zoned",
-      {
-        envelope: { calendarId: CALENDAR_IDS.travel, eventId: "amsterdam-noon-zoned@example.test" },
-        content: {
-          start: "2025-01-06T12:00:00+01:00[Europe/Amsterdam]",
-          end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
-          summary: "Amsterdam Noon (zoned)",
-          color: "#f59e0b",
-        },
-      },
-    ],
-    [
-      "event-local-baseline-0900",
-      {
-        envelope: { calendarId: CALENDAR_IDS.work, eventId: "local-baseline@example.test" },
-        content: {
-          start: "2025-01-06T09:00:00",
-          end: "2025-01-06T10:00:00",
-          summary: "Local baseline (plain)",
-          color: "#4564B5",
-        },
-      },
-    ],
-  ] as Array<[id: string, event: CalendarEventSeedInput]>
-).map(([id, event]) => [id, toCalendarEvent(event)]);
 
 export function toTemporalDateLike(value: string): Temporal.PlainDateTime {
   if (!value.includes("T")) {
@@ -371,10 +74,11 @@ export function toTemporalDateLike(value: string): Temporal.PlainDateTime {
   return Temporal.PlainDateTime.from(value);
 }
 
-function toCalendarEvent(event: CalendarEventSeedInput): StoryNestedCalendarEvent {
+function calendarEventFromSeed(seed: CalendarEventSeedInput): ApiCalendarEvent {
+  const { data: raw, ...envelope } = seed;
   let recurrenceRule: CalendarRecurrenceRule | undefined;
-  if (event.content.recurrenceRule) {
-    const { until, count, ...baseRule } = event.content.recurrenceRule;
+  if (raw.recurrenceRule) {
+    const { until, count, ...baseRule } = raw.recurrenceRule;
     if (until !== undefined) {
       recurrenceRule = {
         ...baseRule,
@@ -389,48 +93,333 @@ function toCalendarEvent(event: CalendarEventSeedInput): StoryNestedCalendarEven
       recurrenceRule = baseRule;
     }
   }
-  const dateOnlySeed =
-    !event.content.start.includes("T") && !event.content.end.includes("T");
-  return {
-    envelope: { ...event.envelope },
-    content: {
-      start: toTemporalDateLike(event.content.start),
-      end: toTemporalDateLike(event.content.end),
-      allDay: dateOnlySeed ? true : undefined,
-      summary: event.content.summary,
-      color: event.content.color,
-      location: event.content.location,
-      recurrenceRule,
-      exclusionDates: event.content.exclusionDates
-        ? new Set(event.content.exclusionDates)
-        : undefined,
+  const dateOnlySeed = !raw.start.includes("T") && !raw.end.includes("T");
+  const data: CalendarEventData = {
+    start: toTemporalDateLike(raw.start),
+    end: toTemporalDateLike(raw.end),
+    allDay: dateOnlySeed ? true : undefined,
+    summary: raw.summary,
+    color: raw.color,
+    location: raw.location,
+    recurrenceRule,
+    exclusionDates: raw.exclusionDates ? new Set(raw.exclusionDates) : undefined,
+  };
+  return { ...envelope, data };
+}
+
+function buildEventsMapFromSeeds(rows: Array<[string, CalendarEventSeedInput]>): CalendarEventsMap {
+  return new Map(rows.map(([id, seed]) => [id, calendarEventFromSeed(seed)]));
+}
+
+export const sampleEventEntries: CalendarEventsMap = buildEventsMapFromSeeds([
+  [
+    "event-flight-london-20250104",
+    {
+      calendarId: CALENDAR_IDS.travel,
+      eventId: "flight-london@example.test",
+      data: {
+        start: "2025-01-04T08:30:00",
+        end: "2025-01-05T09:45:00",
+        summary: "Flight to London",
+        color: "#4564B5",
+        location: "Schiphol Airport",
+      },
     },
-  };
-}
-
-function toCalendarEventView(event: StoryNestedCalendarEvent): CalendarEventView {
-  return {
-    ...event.envelope,
-    ...event.content,
-  };
-}
-
-export const sampleEvents: StoryEventEntry[] = sampleCalendarEvents.map(([id, event]) => [
-  id,
-  eventViewToApiEvent(toCalendarEventView(event)),
+  ],
+  [
+    "event-hello-world-20250103",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "hello-world@example.test",
+      data: {
+        start: "2025-01-03T12:00:00",
+        end: "2025-01-07T18:00:00",
+        summary: "Hello World",
+        color: "#63e657",
+      },
+    },
+  ],
+  [
+    "event-team-meeting-20250106",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "team-meeting@example.test",
+      data: {
+        start: "2025-01-06T10:00:00",
+        end: "2025-01-07T11:15:00",
+        summary: "Team Meeting",
+        color: "#ff0000",
+        location: "Room Atlas",
+      },
+    },
+  ],
+  [
+    "event-amsterdam-zoned-20250104",
+    {
+      calendarId: CALENDAR_IDS.travel,
+      eventId: "amsterdam-zoned@example.test",
+      data: {
+        start: "2025-01-04T12:00:00+01:00[Europe/Amsterdam]",
+        end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
+        summary: "Amsterdam Zoned Event",
+        color: "#f59e0b",
+      },
+    },
+  ],
+  [
+    "event-fiesta-20250106",
+    {
+      calendarId: CALENDAR_IDS.personal,
+      eventId: "fiesta@example.test",
+      data: {
+        start: "2025-01-06T14:00:00",
+        end: "2025-01-06T15:00:00",
+        summary: "Fiesta",
+        color: "#084cb8",
+        location: "Cafe Mercado",
+      },
+    },
+  ],
+  [
+    "event-drinks-20250108-1630",
+    {
+      calendarId: CALENDAR_IDS.personal,
+      eventId: "drinks-weekly@example.test",
+      data: {
+        start: "2025-01-08T16:30:00",
+        end: "2025-01-08T17:30:00",
+        summary: "Drinks",
+        color: "#9f3cfa",
+        location: "Bar Noord",
+        recurrenceRule: {
+          freq: "WEEKLY",
+          interval: 1,
+          byDay: [{ day: "WE" }],
+          until: "2025-02-28T00:00:00",
+        },
+        exclusionDates: ["20250122T163000"],
+      },
+    },
+  ],
+  [
+    "event-daily-standup-20250113-0900",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "daily-standup@example.test",
+      data: {
+        start: "2025-01-13T09:00:00",
+        end: "2025-01-13T09:15:00",
+        summary: "Daily Standup",
+        color: "#10B981",
+        recurrenceRule: {
+          freq: "DAILY",
+          interval: 1,
+          until: "2025-01-31T00:00:00",
+        },
+        exclusionDates: ["20250120T090000"],
+      },
+    },
+  ],
+  [
+    "event-daily-standup-exception-20250118-1100",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "daily-standup@example.test",
+      recurrenceId: "20250118T090000",
+      data: {
+        start: "2025-01-18T11:00:00",
+        end: "2025-01-18T11:15:00",
+        summary: "Daily Standup (moved)",
+        color: "#10B981",
+      },
+    },
+  ],
+  [
+    "event-all-day-ops-rotation-20250106",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "all-day-ops-rotation@example.test",
+      data: {
+        start: "2025-01-06",
+        end: "2025-01-07",
+        summary: "Ops Rotation (All day)",
+        color: "#0EA5E9",
+        recurrenceRule: {
+          freq: "WEEKLY",
+          interval: 1,
+          byDay: [{ day: "MO" }],
+          until: "2025-02-28",
+        },
+        exclusionDates: ["20250120"],
+      },
+    },
+  ],
+  [
+    "event-all-day-ops-rotation-exception-20250120",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "all-day-ops-rotation@example.test",
+      recurrenceId: "20250120",
+      data: {
+        start: "2025-01-21",
+        end: "2025-01-22",
+        summary: "Ops Rotation (moved to Tuesday)",
+        color: "#0EA5E9",
+      },
+    },
+  ],
+  [
+    "event-meeting-john-20250110",
+    {
+      calendarId: CALENDAR_IDS.personal,
+      eventId: "meeting-with-john@example.test",
+      data: {
+        start: "2025-01-08",
+        end: "2025-01-09",
+        summary: "Meeting with John",
+        color: "#E05ADD",
+      },
+    },
+  ],
+  [
+    "event-company-holiday-20250101",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "company-holiday@example.test",
+      data: {
+        start: "2025-01-01",
+        end: "2025-01-02",
+        summary: "Company Holiday",
+        color: "#0EA5E9",
+      },
+    },
+  ],
+  [
+    "event-product-planning-20250106",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "product-planning@example.test",
+      data: {
+        start: "2025-01-06",
+        end: "2025-01-08",
+        summary: "Product Planning Sprint",
+        color: "#22C55E",
+      },
+    },
+  ],
+  [
+    "event-design-qa-20250112",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "design-qa@example.test",
+      data: {
+        start: "2025-01-12",
+        end: "2025-01-14",
+        summary: "Design QA Window",
+        color: "#F97316",
+      },
+    },
+  ],
+  [
+    "event-team-offsite-20250115",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "team-offsite@example.test",
+      data: {
+        start: "2025-01-15",
+        end: "2025-01-18",
+        summary: "Team Offsite",
+        color: "#14B8A6",
+      },
+    },
+  ],
+  [
+    "event-release-freeze-20250119",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "release-freeze@example.test",
+      data: {
+        start: "2025-01-19",
+        end: "2025-01-21",
+        summary: "Release Freeze",
+        color: "#A855F7",
+      },
+    },
+  ],
+  [
+    "event-feb5-design-review-20250205",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "feb5-design-review@example.test",
+      data: {
+        start: "2025-02-05",
+        end: "2025-02-06",
+        summary: "Design Review",
+        color: "#6366F1",
+      },
+    },
+  ],
+  [
+    "event-feb5-eng-sync-20250205",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "feb5-eng-sync@example.test",
+      data: {
+        start: "2025-02-05",
+        end: "2025-02-06",
+        summary: "Engineering Sync",
+        color: "#0EA5E9",
+      },
+    },
+  ],
 ]);
 
-export const timezoneShiftEvents: StoryEventEntry[] = timezoneShiftCalendarEvents.map(
-  ([id, event]) => [id, eventViewToApiEvent(toCalendarEventView(event))]
+export const timezoneShiftEvents: CalendarEventsMap = buildEventsMapFromSeeds([
+  [
+    "event-amsterdam-noon-zoned",
+    {
+      calendarId: CALENDAR_IDS.travel,
+      eventId: "amsterdam-noon-zoned@example.test",
+      data: {
+        start: "2025-01-06T12:00:00+01:00[Europe/Amsterdam]",
+        end: "2025-01-06T13:30:00+01:00[Europe/Amsterdam]",
+        summary: "Amsterdam Noon (zoned)",
+        color: "#f59e0b",
+      },
+    },
+  ],
+  [
+    "event-local-baseline-0900",
+    {
+      calendarId: CALENDAR_IDS.work,
+      eventId: "local-baseline@example.test",
+      data: {
+        start: "2025-01-06T09:00:00",
+        end: "2025-01-06T10:00:00",
+        summary: "Local baseline (plain)",
+        color: "#4564B5",
+      },
+    },
+  ],
+]);
+
+export const sampleEvents: CalendarEventsMap = sampleEventEntries;
+
+/** Shallow-cloned map so week split caches do not alias `sampleEvents` rows. */
+export const weekSplitEvents: CalendarEventsMap = new Map(
+  Array.from(sampleEvents.entries(), ([id, event]) => [
+    id,
+    {
+      ...event,
+      data: {
+        ...event.data,
+        exclusionDates: event.data.exclusionDates
+          ? new Set(event.data.exclusionDates)
+          : undefined,
+      },
+    },
+  ])
 );
-
-export const weekSplitEvents: WeekStoryEventEntry[] = sampleEvents.map(([id, event]) => [
-  id,
-  {
-    ...event,
-    data: { ...event.data },
-  },
-]);
 
 export const timezoneOptions =
   typeof Intl.supportedValuesOf === "function"

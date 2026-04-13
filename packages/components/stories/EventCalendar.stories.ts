@@ -9,6 +9,7 @@ import {
   langControlLabels,
   langControlOptions,
   sampleEvents,
+  storyEventsFromArg,
   timezoneOptions,
   weekStartControlLabels,
   weekStartControlOptions,
@@ -98,8 +99,7 @@ function renderCalendar(args: Record<string, unknown>, mode: RequestHandlingMode
     el.removeAttribute("default-source-id");
   }
 
-  const entries = Array.isArray(args.events) ? args.events : sampleEvents;
-  el.events = new Map(entries as Array<[string, CalendarEvent]>);
+  el.events = storyEventsFromArg(args.events, sampleEvents);
 
   if (mode === "unsynced") {
     attachUnsyncedRequestEventHandlers(el, {

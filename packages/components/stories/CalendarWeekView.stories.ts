@@ -8,6 +8,7 @@ import {
   langControlLabels,
   langControlOptions,
   timezoneOptions,
+  storyEventsFromArg,
   weekSplitEvents,
   weekStartControlLabels,
   weekStartControlOptions,
@@ -98,8 +99,7 @@ const meta: Meta = {
     } else {
       el.setAttribute("visible-hours", String(args.visibleHours));
     }
-    const entries = Array.isArray(args.events) ? args.events : weekSplitEvents;
-    el.events = new Map(entries);
+    el.events = storyEventsFromArg(args.events, weekSplitEvents);
     attachRequestEventHandlers(el, { preserveDateOnlyShape: true });
     return el;
   },

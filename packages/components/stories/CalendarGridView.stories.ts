@@ -7,6 +7,7 @@ import {
   langControlLabels,
   langControlOptions,
   sampleEvents,
+  storyEventsFromArg,
   timezoneOptions,
   timezoneShiftEvents,
 } from "./support/StoryData.js";
@@ -101,8 +102,7 @@ const meta: Meta = {
     } else {
       el.removeAttribute("default-source-id");
     }
-    const entries = Array.isArray(args.events) ? args.events : sampleEvents;
-    el.events = new Map(entries);
+    el.events = storyEventsFromArg(args.events, sampleEvents);
     attachRequestEventHandlers(el);
     return el;
   },
