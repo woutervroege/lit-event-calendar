@@ -4,6 +4,7 @@ import {
   expandEvents,
   parseRecurrenceId,
   shiftDateValue,
+  type ApplyResult,
   type CalendarEvent as ApiCalendarEvent,
   type CalendarEventPendingOperation,
   type CalendarEventsMap,
@@ -33,6 +34,7 @@ import type {
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
   EventExceptionRequestDetail,
+  EventKeyDetail,
   EventUpdateRequestDetail,
 } from "../types/CalendarEventRequests.js";
 import type { WeekdayNumber } from "../types/Weekday.js";
@@ -124,8 +126,12 @@ export abstract class CalendarViewBase extends BaseElement {
 
   protected applyCreateRequestToEventsAPI(detail: EventCreateRequestDetail): boolean {
     if (!this.#eventsAPI) return false;
-    this.#applyEventsAPIOperation({ type: "create", input: fromCreateRequest(detail) });
-    this.#emitCalendarRequestApplied("event-created", detail);
+    const result = this.#applyEventsAPIOperation({ type: "create", input: fromCreateRequest(detail) });
+    if (!result) return true;
+    const key = this.#notifyKeyFromApply(result, "");
+    if (key) {
+      this.#emitCalendarRequestApplied("event-created", { key });
+    }
     return true;
   }
 
@@ -191,7 +197,7 @@ export abstract class CalendarViewBase extends BaseElement {
       if (!accepted || !keepException) {
         return { handled: true, accepted: false };
       }
-      this.#applyEventsAPIOperation({
+      return this.#applyUpdateAndNotify(eventKey, {
         type: "add-exception",
         input: {
           target: { key: eventKey },
@@ -206,7 +212,6 @@ export abstract class CalendarViewBase extends BaseElement {
           },
         },
       });
-      return this.#returnUpdateHandled(detail);
     }
 
     if (shouldPromptForSeries) {
@@ -215,7 +220,7 @@ export abstract class CalendarViewBase extends BaseElement {
       );
       if (!commitSeries) {
         if (recurrenceId && data.recurrenceRule && !current.recurrenceId) {
-          this.#applyEventsAPIOperation({
+          return this.#applyUpdateAndNotify(eventKey, {
             type: "add-exception",
             input: {
               target: { key: eventKey },
@@ -230,9 +235,8 @@ export abstract class CalendarViewBase extends BaseElement {
               },
             },
           });
-          return this.#returnUpdateHandled(detail);
         }
-        this.#applyEventsAPIOperation({
+        return this.#applyUpdateAndNotify(eventKey, {
           type: "update",
           input: {
             target: { key: eventKey },
@@ -247,7 +251,6 @@ export abstract class CalendarViewBase extends BaseElement {
             },
           },
         });
-        return this.#returnUpdateHandled(detail);
       }
 
       if (updateKind === "move") {
@@ -255,7 +258,7 @@ export abstract class CalendarViewBase extends BaseElement {
           this.#toPlainDateTime(detail.content.start)
         );
         const moveInput = moveFromUpdateRequest(detail, delta);
-        this.#applyEventsAPIOperation({
+        return this.#applyUpdateAndNotify(eventKey, {
           type: "move",
           input: {
             ...moveInput,
@@ -263,14 +266,13 @@ export abstract class CalendarViewBase extends BaseElement {
             scope: "series",
           },
         });
-        return this.#returnUpdateHandled(detail);
       }
 
       if (updateKind === "resize-start") {
         const startDelta = this.#toPlainDateTime(occurrenceStart).until(
           this.#toPlainDateTime(detail.content.start)
         );
-        this.#applyEventsAPIOperation({
+        return this.#applyUpdateAndNotify(eventKey, {
           type: "resize-start",
           input: {
             target: { key: eventKey },
@@ -278,14 +280,13 @@ export abstract class CalendarViewBase extends BaseElement {
             toStart: shiftDateValue(data.start, startDelta),
           },
         });
-        return this.#returnUpdateHandled(detail);
       }
 
       if (updateKind === "resize-end") {
         const endDelta = this.#toPlainDateTime(occurrenceEnd).until(
           this.#toPlainDateTime(detail.content.end)
         );
-        this.#applyEventsAPIOperation({
+        return this.#applyUpdateAndNotify(eventKey, {
           type: "resize-end",
           input: {
             target: { key: eventKey },
@@ -293,10 +294,9 @@ export abstract class CalendarViewBase extends BaseElement {
             toEnd: shiftDateValue(currentEnd, endDelta),
           },
         });
-        return this.#returnUpdateHandled(detail);
       }
 
-      this.#applyEventsAPIOperation({
+      return this.#applyUpdateAndNotify(eventKey, {
         type: "update",
         input: {
           target: { key: eventKey },
@@ -311,7 +311,6 @@ export abstract class CalendarViewBase extends BaseElement {
           },
         },
       });
-      return this.#returnUpdateHandled(detail);
     }
 
     if (updateKind === "move") {
@@ -319,18 +318,17 @@ export abstract class CalendarViewBase extends BaseElement {
         this.#toPlainDateTime(detail.content.start)
       );
       const moveInput = moveFromUpdateRequest(detail, delta);
-      this.#applyEventsAPIOperation({
+      return this.#applyUpdateAndNotify(eventKey, {
         type: "move",
         input: {
           ...moveInput,
           target: { key: eventKey },
         },
       });
-      return this.#returnUpdateHandled(detail);
     }
 
     if (updateKind === "resize-start") {
-      this.#applyEventsAPIOperation({
+      return this.#applyUpdateAndNotify(eventKey, {
         type: "resize-start",
         input: {
           target: { key: eventKey },
@@ -338,11 +336,10 @@ export abstract class CalendarViewBase extends BaseElement {
           toStart: detail.content.start,
         },
       });
-      return this.#returnUpdateHandled(detail);
     }
 
     if (updateKind === "resize-end") {
-      this.#applyEventsAPIOperation({
+      return this.#applyUpdateAndNotify(eventKey, {
         type: "resize-end",
         input: {
           target: { key: eventKey },
@@ -350,18 +347,16 @@ export abstract class CalendarViewBase extends BaseElement {
           toEnd: detail.content.end,
         },
       });
-      return this.#returnUpdateHandled(detail);
     }
 
     const updateInput = fromUpdateRequest(detail);
-    this.#applyEventsAPIOperation({
+    return this.#applyUpdateAndNotify(eventKey, {
       type: "update",
       input: {
         ...updateInput,
         target: { key: eventKey },
       },
     });
-    return this.#returnUpdateHandled(detail);
   }
 
   protected applyDeleteRequestToEventsAPI(detail: EventDeleteRequestDetail): boolean {
@@ -384,7 +379,7 @@ export abstract class CalendarViewBase extends BaseElement {
         "Delete the whole series?\n\nOK = series\nCancel = only this instance"
       );
       if (commitSeries) {
-        this.#applyEventsAPIOperation({
+        return this.#applyDeleteAndNotify(eventKey, {
           type: "remove",
           input: {
             ...fromDeleteRequest(detail),
@@ -392,12 +387,11 @@ export abstract class CalendarViewBase extends BaseElement {
             scope: "series",
           },
         });
-        return this.#returnDeleteHandled(detail);
       }
     }
 
     if (isCalendarEventException(current)) {
-      this.#applyEventsAPIOperation({
+      return this.#applyDeleteAndNotify(eventKey, {
         type: "remove-exception",
         input: {
           target: { key: eventKey },
@@ -405,22 +399,20 @@ export abstract class CalendarViewBase extends BaseElement {
           options: { asExclusion: true },
         },
       });
-      return this.#returnDeleteHandled(detail);
     }
 
     if (isRecurring && recurrenceId && current.data.recurrenceRule && !current.recurrenceId) {
-      this.#applyEventsAPIOperation({
+      return this.#applyDeleteAndNotify(eventKey, {
         type: "add-exclusion",
         input: {
           target: { key: eventKey },
           recurrenceId,
         },
       });
-      return this.#returnDeleteHandled(detail);
     }
 
     const removeInput = fromDeleteRequest(detail);
-    this.#applyEventsAPIOperation({
+    return this.#applyDeleteAndNotify(eventKey, {
       type: "remove",
       input: {
         ...removeInput,
@@ -428,7 +420,6 @@ export abstract class CalendarViewBase extends BaseElement {
         scope: "single",
       },
     });
-    return this.#returnDeleteHandled(detail);
   }
 
   getRenderedEvents(range: {
@@ -522,7 +513,7 @@ export abstract class CalendarViewBase extends BaseElement {
 
   #emitCalendarRequestApplied(
     type: "event-created" | "event-updated" | "event-deleted",
-    detail: EventCreateRequestDetail | EventUpdateRequestDetail | EventDeleteRequestDetail
+    detail: EventKeyDetail
   ): void {
     this.dispatchEvent(
       new CustomEvent(type, {
@@ -534,20 +525,53 @@ export abstract class CalendarViewBase extends BaseElement {
     );
   }
 
-  #returnUpdateHandled(detail: EventUpdateRequestDetail): { handled: boolean; accepted: boolean } {
-    this.#emitCalendarRequestApplied("event-updated", detail);
+  #notifyKeyFromApply(result: ApplyResult, fallbackKey: string): string {
+    const created = result.changes.find((change) => change.type === "created");
+    if (created) return created.key;
+    const updated = result.changes.find((change) => change.type === "updated");
+    if (updated) return updated.key;
+    const removed = result.changes.find((change) => change.type === "removed");
+    if (removed) return removed.key;
+    return fallbackKey;
+  }
+
+  #applyUpdateAndNotify(
+    eventKey: string,
+    operation: EventOperation
+  ): { handled: boolean; accepted: boolean } {
+    const result = this.#applyEventsAPIOperation(operation);
+    if (!result) return { handled: true, accepted: true };
+    return this.#returnUpdateHandled(eventKey, result);
+  }
+
+  #applyDeleteAndNotify(eventKey: string, operation: EventOperation): boolean {
+    const result = this.#applyEventsAPIOperation(operation);
+    if (!result) return true;
+    return this.#returnDeleteHandled(eventKey, result);
+  }
+
+  #returnUpdateHandled(
+    eventKey: string,
+    result: ApplyResult
+  ): { handled: boolean; accepted: boolean } {
+    this.#emitCalendarRequestApplied("event-updated", {
+      key: this.#notifyKeyFromApply(result, eventKey),
+    });
     return { handled: true, accepted: true };
   }
 
-  #returnDeleteHandled(detail: EventDeleteRequestDetail): boolean {
-    this.#emitCalendarRequestApplied("event-deleted", detail);
+  #returnDeleteHandled(eventKey: string, result: ApplyResult): boolean {
+    this.#emitCalendarRequestApplied("event-deleted", {
+      key: this.#notifyKeyFromApply(result, eventKey),
+    });
     return true;
   }
 
-  #applyEventsAPIOperation(operation: EventOperation) {
-    if (!this.#eventsAPI) return;
+  #applyEventsAPIOperation(operation: EventOperation): ApplyResult | undefined {
+    if (!this.#eventsAPI) return undefined;
     const result = this.#eventsAPI.apply(operation);
     this.events = result.nextState;
+    return result;
   }
 
   #resolveEventMapKey(

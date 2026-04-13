@@ -103,12 +103,11 @@ function renderCalendar(args: Record<string, unknown>, mode: RequestHandlingMode
 
   if (mode === "unsynced") {
     attachUnsyncedRequestEventHandlers(el, {
-      preserveDateOnlyShape: true,
       onPendingChanged: () => reportPendingEvents(el, "changed"),
     });
     reportPendingEvents(el, "initial");
   } else {
-    attachRequestEventHandlers(el, { preserveDateOnlyShape: true });
+    attachRequestEventHandlers(el);
   }
 
   return el;

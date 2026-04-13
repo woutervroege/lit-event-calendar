@@ -142,7 +142,7 @@ export class CalendarListView extends CalendarViewBase {
 
   #handleEventClick(item: AgendaItem) {
     this.dispatchEvent(
-      new CustomEvent("event-selection", {
+      new CustomEvent("event-selected", {
         detail: { key: item.id },
       })
     );

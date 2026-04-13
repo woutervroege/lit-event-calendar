@@ -6,6 +6,7 @@ import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarViewGroup } from "../CalendarViewGroup/CalendarViewGroup.js";
+import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
 import type {
   CalendarEventPendingByCalendarId,
   CalendarEventPendingByOperation,
@@ -13,19 +14,18 @@ import type {
   CalendarEventPendingOptions,
   CalendarEventPendingResult,
 } from "../types/calendarEventPending.js";
-import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
 import type { TabSwitchOption } from "../types/TabSwitch.js";
 import type { WeekdayNumber } from "../types/Weekday.js";
 import "../TabSwitch/TabSwitch.js";
-import { type EventsAPIContextValue, eventsAPIContext } from "../context/EventsAPIContext.js";
 import {
-  EventsAPI,
-  type ApplyResult,
   type CalendarEvent as ApiCalendarEvent,
+  type ApplyResult,
   type CalendarEventPendingOperation,
   type CalendarEventsMap,
   type EventOperation,
+  EventsAPI,
 } from "@lit-calendar/events-api";
+import { type EventsAPIContextValue, eventsAPIContext } from "../context/EventsAPIContext.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import { renderGridIcon } from "../icons/GridIcon.js";
 import { renderListIcon } from "../icons/ListIcon.js";
@@ -440,7 +440,7 @@ export class EventCalendar extends BaseElement {
           @start-date-changed=${this.#syncFromViewGroup}
           @day-selection=${this.#syncFromViewGroup}
           @event-created=${this.#reemit}
-          @event-selection=${this.#reemit}
+          @event-selected=${this.#reemit}
           @event-updated=${this.#reemit}
           @event-deleted=${this.#reemit}
         ></calendar-grid-view-group>

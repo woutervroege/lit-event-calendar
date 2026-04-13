@@ -113,7 +113,7 @@ const meta: Meta = {
     }
 
     el.events = storyEventsFromArg(args.events, sampleEvents);
-    attachRequestEventHandlers(el, { preserveDateOnlyShape: true });
+    attachRequestEventHandlers(el);
 
     return el;
   },

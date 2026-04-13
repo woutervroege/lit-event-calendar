@@ -32,6 +32,7 @@ export type {
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
   EventExceptionRequestDetail,
+  EventKeyDetail,
   EventSelectionRequestDetail,
   EventUpdateRequestDetail,
 } from "./CalendarEventRequests.js";

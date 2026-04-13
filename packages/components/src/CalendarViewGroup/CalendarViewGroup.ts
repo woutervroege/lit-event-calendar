@@ -231,7 +231,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
           @day-selection=${this.#handleDaySelectionRequested}
-          @event-selection=${this.forwardComposedCalendarEvent}
+          @event-selected=${this.forwardComposedCalendarEvent}
         ></calendar-list-view>
       `;
     }
@@ -257,7 +257,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           @active-date-changed=${this.#handleWeekActiveDateChanged}
           @day-selection=${this.#handleDaySelectionRequested}
           @event-created=${this.forwardComposedCalendarEvent}
-          @event-selection=${this.forwardComposedCalendarEvent}
+          @event-selected=${this.forwardComposedCalendarEvent}
           @event-updated=${this.forwardComposedCalendarEvent}
           @event-deleted=${this.forwardComposedCalendarEvent}
         ></calendar-week-view>
@@ -278,7 +278,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           .defaultCalendarId=${this.defaultCalendarId}
           @day-selection=${this.#handleDaySelectionRequested}
           @event-created=${this.forwardComposedCalendarEvent}
-          @event-selection=${this.forwardComposedCalendarEvent}
+          @event-selected=${this.forwardComposedCalendarEvent}
           @event-updated=${this.forwardComposedCalendarEvent}
           @event-deleted=${this.forwardComposedCalendarEvent}
         ></calendar-year-view>
@@ -299,7 +299,7 @@ export class CalendarViewGroup extends CalendarViewBase {
         .defaultCalendarId=${this.defaultCalendarId}
         @day-selection=${this.#handleDaySelectionRequested}
         @event-created=${this.forwardComposedCalendarEvent}
-        @event-selection=${this.forwardComposedCalendarEvent}
+        @event-selected=${this.forwardComposedCalendarEvent}
         @event-updated=${this.forwardComposedCalendarEvent}
         @event-deleted=${this.forwardComposedCalendarEvent}
       ></calendar-month-view>

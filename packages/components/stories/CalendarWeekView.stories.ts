@@ -100,7 +100,7 @@ const meta: Meta = {
       el.setAttribute("visible-hours", String(args.visibleHours));
     }
     el.events = storyEventsFromArg(args.events, weekSplitEvents);
-    attachRequestEventHandlers(el, { preserveDateOnlyShape: true });
+    attachRequestEventHandlers(el);
     return el;
   },
 };

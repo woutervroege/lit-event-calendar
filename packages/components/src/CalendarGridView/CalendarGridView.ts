@@ -1076,7 +1076,7 @@ export class CalendarGridView extends CalendarViewBase {
     const key = target?.eventId;
     if (!key) return;
     this.dispatchEvent(
-      new CustomEvent("event-selection", {
+      new CustomEvent("event-selected", {
         detail: { key } satisfies EventSelectionRequestDetail,
       })
     );
@@ -1140,21 +1140,7 @@ export class CalendarGridView extends CalendarViewBase {
       }
       return;
     }
-    const updateRequested = this.dispatchEvent(
-      new CustomEvent("event-updated", {
-        detail,
-        cancelable: true,
-      })
-    );
-    if (!updateRequested) {
-      this.#restoreRenderedEventRange(target, current, recurrenceId);
-      return;
-    }
-
-    if (updateInputMethod === "keyboard") {
-      this.#pendingKeyboardRefocusEventId = target.eventId;
-      this.#startKeyboardRefocusLoop();
-    }
+    this.#restoreRenderedEventRange(target, current, recurrenceId);
   };
 
   #restoreRenderedEventRange(
@@ -1252,16 +1238,7 @@ export class CalendarGridView extends CalendarViewBase {
         isRecurring: current ? isCalendarEventRecurring(current) : undefined,
       },
     };
-    if (this.applyDeleteRequestToEventsAPI(detail)) {
-      return;
-    }
-
-    this.dispatchEvent(
-      new CustomEvent("event-deleted", {
-        detail,
-        cancelable: true,
-      })
-    );
+    this.applyDeleteRequestToEventsAPI(detail);
   };
 
   #renderDayNumber(day: Temporal.PlainDate, dayIndex: number): TemplateResult {
@@ -1981,15 +1958,7 @@ export class CalendarGridView extends CalendarViewBase {
         color: input.color,
       },
     };
-    if (this.applyCreateRequestToEventsAPI(detail)) {
-      return;
-    }
-    this.dispatchEvent(
-      new CustomEvent("event-created", {
-        detail,
-        cancelable: true,
-      })
-    );
+    this.applyCreateRequestToEventsAPI(detail);
   }
 
   #eventsForDay(day: Temporal.PlainDate): EventEntry[] {

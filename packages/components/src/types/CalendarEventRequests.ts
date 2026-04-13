@@ -8,11 +8,18 @@ export type CalendarEventUIData = Omit<CalendarEventData, "duration" | "end"> & 
 
 export type CalendarEventRequestTrigger = "long-press" | "drag-select";
 
+/** Map key in `events` (e.g. `sourceKey::recurrenceId` for an occurrence). */
+export type EventKeyDetail = {
+  key: string;
+};
+
+/** Internal: maps UI create gesture to `EventsAPI` create input (not used as DOM `CustomEvent` detail). */
 export type EventCreateRequestDetail = {
   envelope: Pick<CalendarEventEnvelope, "calendarId">;
   content: CalendarEventUIData;
 };
 
+/** Internal: maps UI update gesture to API update/move/resize input (not DOM event detail). */
 export type EventUpdateRequestDetail = {
   envelope: Pick<
     CalendarEventEnvelope,
@@ -21,6 +28,7 @@ export type EventUpdateRequestDetail = {
   content: CalendarEventUIData;
 };
 
+/** Internal: maps UI delete gesture to API remove input (not DOM event detail). */
 export type EventDeleteRequestDetail = {
   envelope: Pick<CalendarEventEnvelope, "calendarId" | "eventId" | "recurrenceId" | "isRecurring">;
 };
@@ -34,7 +42,5 @@ export type EventExceptionRequestDetail = {
   source: "move";
 };
 
-/** Map key from `getRenderedEvents()` (e.g. `sourceKey::recurrenceId` for an occurrence). */
-export type EventSelectionRequestDetail = {
-  key: string;
-};
+/** Emitted for `event-selected`; same shape as `event-created` / `event-updated` / `event-deleted` (`EventKeyDetail`). */
+export type EventSelectionRequestDetail = EventKeyDetail;

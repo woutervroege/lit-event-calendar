@@ -66,7 +66,7 @@ export class CalendarMonthView extends CalendarViewBase {
           .defaultCalendarId=${this.defaultCalendarId}
           @day-selection=${this.forwardCalendarEvent}
           @event-created=${this.forwardCalendarEvent}
-          @event-selection=${this.forwardCalendarEvent}
+          @event-selected=${this.forwardCalendarEvent}
           @event-updated=${this.forwardCalendarEvent}
           @event-deleted=${this.forwardCalendarEvent}
         ></calendar-grid-view>

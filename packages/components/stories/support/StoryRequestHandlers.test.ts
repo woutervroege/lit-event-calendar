@@ -1,15 +1,14 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { EventUpdateRequestDetail } from "../../src/types/CalendarEventRequests.js";
-import type { CalendarEvent } from "./StoryData.js";
+import { type CalendarEvent, type CalendarEventsMap, EventsAPI } from "@lit-calendar/events-api";
+import { describe, expect, it } from "vitest";
 import { attachRequestEventHandlers } from "./StoryRequestHandlers.js";
 
-class MockCalendarElement extends EventTarget {
-  events: Map<string, CalendarEvent> = new Map();
+class MockHostElement extends EventTarget {
+  events = new Map<string, CalendarEvent>();
 }
 
-function createSeriesEventMap(): Map<string, CalendarEvent> {
-  return new Map([
+function createSeriesEventMap(): CalendarEventsMap {
+  return new Map<string, CalendarEvent>([
     [
       "daily",
       {
@@ -31,52 +30,31 @@ function createSeriesEventMap(): Map<string, CalendarEvent> {
   ]);
 }
 
-describe("StoryRequestHandlers recurring updates", () => {
-  beforeEach(() => {
-    (globalThis as typeof globalThis & { window?: typeof globalThis }).window = globalThis;
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("applies series occurrence move delta relative to occurrence start", () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true)
-    );
-    const el = new MockCalendarElement();
-    el.events = createSeriesEventMap();
-    attachRequestEventHandlers(
-      el as unknown as HTMLElement & { events: Map<string, CalendarEvent> }
-    );
-
-    const detail: EventUpdateRequestDetail = {
-      envelope: {
-        eventId: "daily@example.test",
-        calendarId: "/calendars/wouter/work/",
-        recurrenceId: "20250118T090000",
-        isRecurring: true,
-        isException: false,
-      },
-      content: {
-        start: Temporal.PlainDateTime.from("2025-01-18T10:00:00"),
-        end: Temporal.PlainDateTime.from("2025-01-18T10:15:00"),
-        summary: "Daily Standup",
-        color: "#10B981",
-      },
+describe("attachRequestEventHandlers", () => {
+  it("accepts key-only calendar events without throwing", () => {
+    const el = new MockHostElement() as unknown as HTMLElement & {
+      events: Map<string, CalendarEvent>;
     };
+    attachRequestEventHandlers(el);
+    el.dispatchEvent(new CustomEvent("event-created", { detail: { key: "new-1" } }));
+    el.dispatchEvent(new CustomEvent("event-updated", { detail: { key: "daily" } }));
+    el.dispatchEvent(new CustomEvent("event-deleted", { detail: { key: "daily" } }));
+    el.dispatchEvent(new CustomEvent("event-selected", { detail: { key: "daily" } }));
+  });
+});
 
-    el.dispatchEvent(
-      new CustomEvent("event-updated", {
-        detail,
-        cancelable: true,
-      })
-    );
+describe("EventsAPI recurring series (regression)", () => {
+  it("applies series occurrence move delta relative to occurrence start", () => {
+    const api = new EventsAPI(createSeriesEventMap());
+    api.move({
+      target: { key: "daily" },
+      scope: "series",
+      delta: Temporal.Duration.from({ hours: 1 }),
+    });
 
-    const master = el.events.get("daily");
+    const master = api.events.get("daily");
     expect(master).toBeDefined();
-    const exception = el.events.get("daily::20250118T090000");
+    const exception = api.events.get("daily::20250118T090000");
     expect(master?.data.start.toString()).toBe("2025-01-13T10:00:00");
     expect(master?.data.end?.toString()).toBe("2025-01-13T10:15:00");
     expect(master?.data.exclusionDates?.size ?? 0).toBe(0);
@@ -84,129 +62,38 @@ describe("StoryRequestHandlers recurring updates", () => {
   });
 
   it("applies series occurrence resize-start relative to occurrence start", () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true)
-    );
-    const el = new MockCalendarElement();
-    el.events = createSeriesEventMap();
-    attachRequestEventHandlers(
-      el as unknown as HTMLElement & { events: Map<string, CalendarEvent> }
-    );
+    const api = new EventsAPI(createSeriesEventMap());
+    api.resizeStart({
+      target: { key: "daily" },
+      scope: "series",
+      toStart: Temporal.PlainDateTime.from("2025-01-13T08:30:00"),
+    });
 
-    const detail: EventUpdateRequestDetail = {
-      envelope: {
-        eventId: "daily@example.test",
-        calendarId: "/calendars/wouter/work/",
-        recurrenceId: "20250118T090000",
-        isRecurring: true,
-        isException: false,
-      },
-      content: {
-        start: Temporal.PlainDateTime.from("2025-01-18T08:30:00"),
-        end: Temporal.PlainDateTime.from("2025-01-18T09:15:00"),
-        summary: "Daily Standup",
-        color: "#10B981",
-      },
-    };
-
-    el.dispatchEvent(
-      new CustomEvent("event-updated", {
-        detail,
-        cancelable: true,
-      })
-    );
-
-    const master = el.events.get("daily");
+    const master = api.events.get("daily");
     expect(master).toBeDefined();
-    // Critical regression assertion: series should shift boundary by -30m, not jump to Jan 18.
     expect(master?.data.start.toString()).toBe("2025-01-13T08:30:00");
     expect(master?.data.end?.toString()).toBe("2025-01-13T09:15:00");
   });
 
   it("creates detached exception when moving occurrence to another day", () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true)
-    );
-    const el = new MockCalendarElement();
-    el.events = createSeriesEventMap();
-    attachRequestEventHandlers(
-      el as unknown as HTMLElement & { events: Map<string, CalendarEvent> }
-    );
-
-    const detail: EventUpdateRequestDetail = {
-      envelope: {
-        eventId: "daily@example.test",
-        calendarId: "/calendars/wouter/work/",
-        recurrenceId: "20250118T090000",
-        isRecurring: true,
-        isException: false,
-      },
-      content: {
+    const api = new EventsAPI(createSeriesEventMap());
+    api.addException({
+      target: { key: "daily" },
+      recurrenceId: "20250118T090000",
+      event: {
         start: Temporal.PlainDateTime.from("2025-01-19T10:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-19T10:15:00"),
         summary: "Daily Standup",
         color: "#10B981",
+        calendarId: "/calendars/wouter/work/",
       },
-    };
+    });
 
-    el.dispatchEvent(
-      new CustomEvent("event-updated", {
-        detail,
-        cancelable: true,
-      })
-    );
-
-    const master = el.events.get("daily");
-    const exception = el.events.get("daily::20250118T090000");
+    const master = api.events.get("daily");
+    const exception = api.events.get("daily::20250118T090000");
     expect(master?.data.start.toString()).toBe("2025-01-13T09:00:00");
     expect(master?.data.exclusionDates?.has("20250118T090000")).toBe(true);
     expect(exception?.data.start.toString()).toBe("2025-01-19T10:00:00");
     expect(exception?.isException).toBe(true);
-  });
-
-  it("rolls back optimistic exception when event-exception is cancelled", () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true)
-    );
-    const el = new MockCalendarElement();
-    el.events = createSeriesEventMap();
-    el.addEventListener("event-exception", (event) => {
-      event.preventDefault();
-    });
-    attachRequestEventHandlers(
-      el as unknown as HTMLElement & { events: Map<string, CalendarEvent> }
-    );
-
-    const detail: EventUpdateRequestDetail = {
-      envelope: {
-        eventId: "daily@example.test",
-        calendarId: "/calendars/wouter/work/",
-        recurrenceId: "20250118T090000",
-        isRecurring: true,
-        isException: false,
-      },
-      content: {
-        start: Temporal.PlainDateTime.from("2025-01-19T10:00:00"),
-        end: Temporal.PlainDateTime.from("2025-01-19T10:15:00"),
-        summary: "Daily Standup",
-        color: "#10B981",
-      },
-    };
-
-    const updateEvent = new CustomEvent("event-updated", {
-      detail,
-      cancelable: true,
-    });
-    el.dispatchEvent(updateEvent);
-
-    const master = el.events.get("daily");
-    const exception = el.events.get("daily::20250118T090000");
-    expect(master?.data.start.toString()).toBe("2025-01-13T09:00:00");
-    expect(master?.data.exclusionDates?.size ?? 0).toBe(0);
-    expect(exception).toBeUndefined();
-    expect(updateEvent.defaultPrevented).toBe(true);
   });
 });

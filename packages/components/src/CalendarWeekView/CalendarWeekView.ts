@@ -5,14 +5,15 @@ import { styleMap } from "lit/directives/style-map.js";
 import "../CalendarGridView/CalendarGridView.js";
 import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
-import { CalendarViewBase, isWeekdayNumber } from "../CalendarViewBase/CalendarViewBase.js";
-import type { AllDayLayoutItem } from "../types/AllDayLayout.js";
 import type { CalendarEvent, CalendarEventsMap } from "@lit-calendar/events-api";
+import { CalendarViewBase, isWeekdayNumber } from "../CalendarViewBase/CalendarViewBase.js";
 import { resolvedDataEnd } from "../domain/events-api/eventMapBridge.js";
+import type { AllDayLayoutItem } from "../types/AllDayLayout.js";
 
 type EventEntry = [string, CalendarEvent];
 type EventInput = CalendarEvent;
 type EventsMap = CalendarEventsMap;
+
 import type { WeekdayNumber } from "../types/Weekday.js";
 import { buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
@@ -321,7 +322,7 @@ export class CalendarWeekView extends CalendarViewBase {
                   "var(--lg-background-color, var(--_lc-surface-bg, light-dark(#fff, #222)))",
               })}
               @event-created=${this.forwardCalendarEvent}
-              @event-selection=${this.forwardCalendarEvent}
+              @event-selected=${this.forwardCalendarEvent}
               @event-updated=${this.forwardCalendarEvent}
               @event-deleted=${this.forwardCalendarEvent}
               @day-selection=${this.forwardCalendarEvent}
@@ -343,7 +344,7 @@ export class CalendarWeekView extends CalendarViewBase {
             current-time=${this.currentTime}
             .snapInterval=${this.snapInterval}
             @event-created=${this.forwardCalendarEvent}
-            @event-selection=${this.forwardCalendarEvent}
+            @event-selected=${this.forwardCalendarEvent}
             @event-updated=${this.forwardCalendarEvent}
             @event-deleted=${this.forwardCalendarEvent}
             @day-selection=${this.forwardCalendarEvent}
