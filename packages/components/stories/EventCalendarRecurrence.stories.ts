@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import "../src/EventCalendar/EventCalendar.js";
-import type { CalendarRecurrenceRule } from "../src/types/CalendarEvent.js";
+import type { CalendarRecurrenceRule } from "@lit-calendar/events-api";
 import {
   AUTO_LOCALE_OPTION,
   AUTO_WEEK_START_OPTION,
@@ -56,12 +56,14 @@ function buildSeriesEvents(args: RecurrenceStoryArgs): Array<[string, CalendarEv
   const seriesEvent: CalendarEvent = {
     calendarId: SERIES_CALENDAR_ID,
     eventId: SERIES_EVENT_ID,
-    start: toTemporalDateLike(SERIES_START),
-    end: toTemporalDateLike(SERIES_END),
-    summary: SERIES_SUMMARY,
-    color: SERIES_COLOR,
-    recurrenceRule,
-    exclusionDates: args.exclusionDates.length > 0 ? new Set(args.exclusionDates) : undefined,
+    data: {
+      start: toTemporalDateLike(SERIES_START),
+      end: toTemporalDateLike(SERIES_END),
+      summary: SERIES_SUMMARY,
+      color: SERIES_COLOR,
+      recurrenceRule,
+      exclusionDates: args.exclusionDates.length > 0 ? new Set(args.exclusionDates) : undefined,
+    },
   };
 
   const entries: Array<[string, CalendarEvent]> = [["series-master", seriesEvent]];
@@ -73,10 +75,12 @@ function buildSeriesEvents(args: RecurrenceStoryArgs): Array<[string, CalendarEv
         eventId: SERIES_EVENT_ID,
         recurrenceId: exception.recurrenceId,
         isException: true,
-        start: toTemporalDateLike(exception.start),
-        end: toTemporalDateLike(exception.end),
-        summary: exception.summary ?? `${SERIES_SUMMARY} (moved)`,
-        color: SERIES_COLOR,
+        data: {
+          start: toTemporalDateLike(exception.start),
+          end: toTemporalDateLike(exception.end),
+          summary: exception.summary ?? `${SERIES_SUMMARY} (moved)`,
+          color: SERIES_COLOR,
+        },
       },
     ]);
   }

@@ -5,8 +5,9 @@ import { styleMap } from "lit/directives/style-map.js";
 import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import "../EventCard/EventCard.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
-import type { CalendarEventView as EventInput } from "../types/CalendarEvent.js";
-import { isCalendarEventException, isCalendarEventRecurring } from "../types/CalendarEvent.js";
+import type { CalendarEvent as EventInput } from "@lit-calendar/events-api";
+import { resolvedDataEnd } from "../domain/events-api/eventMapBridge.js";
+import { isCalendarEventException, isCalendarEventRecurring } from "../types/calendarEventSemantics.js";
 import { clampAgendaDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { getEventColorStyles } from "../utils/EventColor.js";
 import { resolveLocale } from "../utils/Locale.js";
@@ -110,7 +111,7 @@ export class CalendarListView extends CalendarViewBase {
   #renderItem(item: AgendaItem) {
     const { event } = item;
     const isPast = Temporal.PlainDateTime.compare(item.end, this.#now) <= 0;
-    const colorStyles = getEventColorStyles(event.color);
+    const colorStyles = getEventColorStyles(event.data.color);
     const isRecurring = this.#isRecurringEvent(event);
     const isException = this.#isExceptionEvent(event);
     return html`
@@ -121,9 +122,9 @@ export class CalendarListView extends CalendarViewBase {
         <event-card
           layout="flow"
           .lang=${this.lang}
-          .summary=${event.summary}
+          .summary=${event.data.summary}
           .time=${this.#formatItemTime(item)}
-          .location=${event.location ?? ""}
+          .location=${event.data.location ?? ""}
           .recurring=${isRecurring}
           .exception=${isException}
           ?past=${isPast}
@@ -148,11 +149,11 @@ export class CalendarListView extends CalendarViewBase {
             isRecurring: isCalendarEventRecurring(item.event),
           },
           content: {
-            start: item.event.start,
-            end: item.event.end,
-            summary: item.event.summary,
-            color: item.event.color,
-            location: item.event.location,
+            start: item.event.data.start,
+            end: resolvedDataEnd(item.event.data),
+            summary: item.event.data.summary,
+            color: item.event.data.color,
+            location: item.event.data.location,
           },
           trigger: sourceEvent.detail === 0 ? "keyboard" : "click",
           pointerType: sourceEvent.detail === 0 ? "keyboard" : "mouse",
@@ -172,8 +173,8 @@ export class CalendarListView extends CalendarViewBase {
     });
 
     for (const [id, event] of renderedEvents.entries()) {
-      const start = this.#toPlainDateTime(event.start);
-      const end = this.#toPlainDateTime(event.end);
+      const start = this.#toPlainDateTime(event.data.start);
+      const end = this.#toPlainDateTime(resolvedDataEnd(event.data));
       if (Temporal.PlainDateTime.compare(end, start) <= 0) continue;
       if (!this.#eventOverlapsRange(start, end, rangeStart, rangeEndExclusive)) continue;
 
@@ -234,7 +235,7 @@ export class CalendarListView extends CalendarViewBase {
     if (startDiff !== 0) return startDiff;
     const endDiff = Temporal.PlainDateTime.compare(a.end, b.end);
     if (endDiff !== 0) return endDiff;
-    return a.event.summary.localeCompare(b.event.summary);
+    return a.event.data.summary.localeCompare(b.event.data.summary);
   }
 
   #formatDayLabel(date: Temporal.PlainDate): string {
@@ -333,12 +334,12 @@ export class CalendarListView extends CalendarViewBase {
     );
   }
 
-  #toPlainDateTime(value: EventInput["start"]): Temporal.PlainDateTime {
+  #toPlainDateTime(value: Temporal.PlainDateTime): Temporal.PlainDateTime {
     return value;
   }
 
   #isAllDayEvent(event: EventInput): boolean {
-    return event.allDay === true;
+    return event.data.allDay === true;
   }
 
   #isRecurringEvent(event: EventInput): boolean {

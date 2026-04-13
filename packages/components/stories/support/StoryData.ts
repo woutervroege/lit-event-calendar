@@ -1,21 +1,20 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type {
-  CalendarEventEntry,
-  CalendarEventView,
-  CalendarEventViewEntry,
+  CalendarEvent as ApiCalendarEvent,
+  CalendarEventData,
+  CalendarEventEnvelope,
   CalendarRecurrenceRule,
-} from "../../src/types/CalendarEvent.js";
+} from "@lit-calendar/events-api";
+import {
+  eventViewToApiEvent,
+  type CalendarEventView,
+} from "../../src/domain/events-api/eventMapBridge.js";
 import { resolveLocale } from "../../src/utils/Locale.js";
 
-type SourceCalendarEvent = CalendarEventEntry[1];
-
-export type CalendarEvent = CalendarEventView;
-export type CalendarEventSampleEntry = CalendarEventViewEntry;
-export type CalendarTemporalEvent = Omit<CalendarEvent, "start" | "end"> & {
-  start: Temporal.PlainDateTime;
-  end: Temporal.PlainDateTime;
-};
-export type CalendarTemporalEventEntry = [id: string, event: CalendarTemporalEvent];
+export type CalendarEvent = ApiCalendarEvent;
+export type CalendarEventSampleEntry = [string, ApiCalendarEvent];
+export type CalendarTemporalEvent = ApiCalendarEvent;
+export type CalendarTemporalEventEntry = [string, ApiCalendarEvent];
 
 // Backward-compatible aliases for existing stories.
 export type StoryEvent = CalendarEvent;
@@ -24,7 +23,10 @@ export type WeekStoryEvent = CalendarTemporalEvent;
 export type WeekStoryEventEntry = CalendarTemporalEventEntry;
 
 type CalendarEventSeedInput = {
-  envelope: SourceCalendarEvent["envelope"];
+  envelope: Pick<
+    CalendarEventEnvelope,
+    "calendarId" | "eventId" | "recurrenceId" | "isException" | "isRecurring"
+  >;
   content: {
     start: string;
     end: string;
@@ -51,13 +53,24 @@ type CalendarEventSeedInput = {
   };
 };
 
+export type CalendarEventSeedEntry = [string, CalendarEventSeedInput];
+
+/** Nested envelope + `CalendarEventData` after parsing story date strings. */
+export type StoryNestedCalendarEvent = {
+  envelope: Pick<
+    CalendarEventEnvelope,
+    "calendarId" | "eventId" | "recurrenceId" | "isException" | "isRecurring"
+  >;
+  content: CalendarEventData;
+};
+
 const CALENDAR_IDS = {
   work: "/calendars/wouter/work/",
   personal: "/calendars/wouter/personal/",
   travel: "/calendars/wouter/travel/",
 } as const;
 
-export const sampleCalendarEvents: CalendarEventEntry[] = (
+export const sampleCalendarEvents: [string, StoryNestedCalendarEvent][] = (
   [
     [
       "event-flight-london-20250104",
@@ -319,7 +332,7 @@ export const sampleCalendarEvents: CalendarEventEntry[] = (
   ] as Array<[id: string, event: CalendarEventSeedInput]>
 ).map(([id, event]) => [id, toCalendarEvent(event)]);
 
-export const timezoneShiftCalendarEvents: CalendarEventEntry[] = (
+export const timezoneShiftCalendarEvents: [string, StoryNestedCalendarEvent][] = (
   [
     [
       "event-amsterdam-noon-zoned",
@@ -358,7 +371,7 @@ export function toTemporalDateLike(value: string): Temporal.PlainDateTime {
   return Temporal.PlainDateTime.from(value);
 }
 
-function toCalendarEvent(event: CalendarEventSeedInput): SourceCalendarEvent {
+function toCalendarEvent(event: CalendarEventSeedInput): StoryNestedCalendarEvent {
   let recurrenceRule: CalendarRecurrenceRule | undefined;
   if (event.content.recurrenceRule) {
     const { until, count, ...baseRule } = event.content.recurrenceRule;
@@ -395,7 +408,7 @@ function toCalendarEvent(event: CalendarEventSeedInput): SourceCalendarEvent {
   };
 }
 
-function toCalendarEventView(event: SourceCalendarEvent): CalendarEvent {
+function toCalendarEventView(event: StoryNestedCalendarEvent): CalendarEventView {
   return {
     ...event.envelope,
     ...event.content,
@@ -404,16 +417,19 @@ function toCalendarEventView(event: SourceCalendarEvent): CalendarEvent {
 
 export const sampleEvents: StoryEventEntry[] = sampleCalendarEvents.map(([id, event]) => [
   id,
-  toCalendarEventView(event),
+  eventViewToApiEvent(toCalendarEventView(event)),
 ]);
 
 export const timezoneShiftEvents: StoryEventEntry[] = timezoneShiftCalendarEvents.map(
-  ([id, event]) => [id, toCalendarEventView(event)]
+  ([id, event]) => [id, eventViewToApiEvent(toCalendarEventView(event))]
 );
 
 export const weekSplitEvents: WeekStoryEventEntry[] = sampleEvents.map(([id, event]) => [
   id,
-  { ...event },
+  {
+    ...event,
+    data: { ...event.data },
+  },
 ]);
 
 export const timezoneOptions =

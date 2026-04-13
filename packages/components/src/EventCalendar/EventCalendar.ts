@@ -10,24 +10,29 @@ import type {
   CalendarEventPendingByCalendarId,
   CalendarEventPendingByOperation,
   CalendarEventPendingGroups,
-  CalendarEventPendingOperation,
   CalendarEventPendingOptions,
   CalendarEventPendingResult,
-  CalendarEventView,
-  CalendarEventViewMap as EventsMap,
-} from "../types/CalendarEvent.js";
+} from "../types/calendarEventPending.js";
 import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
 import type { TabSwitchOption } from "../types/TabSwitch.js";
 import type { WeekdayNumber } from "../types/Weekday.js";
 import "../TabSwitch/TabSwitch.js";
 import { type EventsAPIContextValue, eventsAPIContext } from "../context/EventsAPIContext.js";
-import { EventsAPI, type ApplyResult, type EventOperation } from "@lit-calendar/events-api";
-import { fromEventsApiMap, toEventsApiMap } from "../domain/events-api/eventMapBridge.js";
+import {
+  EventsAPI,
+  type ApplyResult,
+  type CalendarEvent as ApiCalendarEvent,
+  type CalendarEventPendingOperation,
+  type CalendarEventsMap,
+  type EventOperation,
+} from "@lit-calendar/events-api";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import { renderGridIcon } from "../icons/GridIcon.js";
 import { renderListIcon } from "../icons/ListIcon.js";
 import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./EventCalendar.css?inline";
+
+type EventsMap = CalendarEventsMap;
 
 type ViewUnit = Extract<CalendarViewMode, "day" | "week" | "month" | "year">;
 type PresentationUnit = CalendarPresentationMode;
@@ -120,9 +125,9 @@ export class EventCalendar extends BaseElement {
     context: eventsAPIContext,
   });
   #eventsAPIContextValue: EventsAPIContextValue = {
-    getEvents: () => toEventsApiMap(this.events ?? new Map()),
+    getEvents: () => this.events ?? new Map(),
     getApi: () =>
-      new EventsAPI(toEventsApiMap(this.events ?? new Map()), {
+      new EventsAPI(this.events ?? new Map(), {
         timezone: this.timezone,
         trackPending: true,
       }),
@@ -486,17 +491,16 @@ export class EventCalendar extends BaseElement {
   }
 
   #applyOperation(operation: EventOperation): ApplyResult {
-    const api = new EventsAPI(toEventsApiMap(this.events ?? new Map()), {
+    const api = new EventsAPI(this.events ?? new Map(), {
       timezone: this.timezone,
       trackPending: true,
     });
     const result = api.apply(operation);
-    this.events = fromEventsApiMap(result.nextState);
-    // Return API-shaped `nextState` so context consumers (e.g. CalendarViewBase) can `fromEventsApiMap` it.
+    this.events = result.nextState;
     return result;
   }
 
-  #resolvePendingOperation(event: CalendarEventView): CalendarEventPendingOperation | undefined {
+  #resolvePendingOperation(event: ApiCalendarEvent): CalendarEventPendingOperation | undefined {
     if (
       event.pendingOp === "created" ||
       event.pendingOp === "updated" ||

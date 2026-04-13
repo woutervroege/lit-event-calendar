@@ -13,7 +13,7 @@ import {
   weekStartControlLabels,
   weekStartControlOptions,
 } from "./support/StoryData.js";
-import type { CalendarEventPendingGroups } from "../src/types/CalendarEvent.js";
+import type { CalendarEventPendingGroups } from "../src/types/calendarEventPending.js";
 import {
   attachRequestEventHandlers,
   attachUnsyncedRequestEventHandlers,
@@ -34,7 +34,7 @@ function summarizePendingGroups(pendingGroups: CalendarEventPendingGroups) {
     Array.from(entries?.entries() ?? []).map(([key, event]) => ({
       key,
       eventId: event.eventId,
-      summary: event.summary,
+      summary: event.data.summary,
       pendingOp: event.pendingOp,
     }));
 

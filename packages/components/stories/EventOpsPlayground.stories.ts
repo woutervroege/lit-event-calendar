@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/web-components-vite";
 import { Temporal } from "@js-temporal/polyfill";
+import type { CalendarEventsMap } from "@lit-calendar/events-api";
 import { EventsAPI } from "@lit-calendar/events-api";
-import { fromEventsApiMap, toEventsApiMap } from "../src/domain/events-api/eventMapBridge.js";
+import { resolvedDataEnd } from "../src/domain/events-api/eventMapBridge.js";
 import "../src/EventCalendar/EventCalendar.js";
-import type { CalendarEventViewMap } from "../src/types/CalendarEvent.js";
 
-type StoryEventCalendarElement = HTMLElement & { events: CalendarEventViewMap };
+type StoryEventCalendarElement = HTMLElement & { events: CalendarEventsMap };
 
 type PlaygroundOperation = {
   id: string;
@@ -13,22 +13,24 @@ type PlaygroundOperation = {
   run: (api: EventsAPI) => ReturnType<EventsAPI["apply"]>;
 };
 
-function createInitialState(): CalendarEventViewMap {
+function createInitialState(): CalendarEventsMap {
   return new Map([
     [
       "series-master",
       {
         calendarId: "/calendars/story/ops/",
         eventId: "ops-weekly-series@example.test",
-        start: Temporal.PlainDateTime.from("2025-01-06T09:00:00"),
-        end: Temporal.PlainDateTime.from("2025-01-06T10:00:00"),
-        summary: "Ops Weekly",
-        color: "#0ea5e9",
-        recurrenceRule: {
-          freq: "WEEKLY",
-          interval: 1,
-          byDay: [{ day: "MO" }],
-          until: Temporal.PlainDateTime.from("2025-03-31T00:00:00"),
+        data: {
+          start: Temporal.PlainDateTime.from("2025-01-06T09:00:00"),
+          end: Temporal.PlainDateTime.from("2025-01-06T10:00:00"),
+          summary: "Ops Weekly",
+          color: "#0ea5e9",
+          recurrenceRule: {
+            freq: "WEEKLY",
+            interval: 1,
+            byDay: [{ day: "MO" }],
+            until: Temporal.PlainDateTime.from("2025-03-31T00:00:00"),
+          },
         },
       },
     ],
@@ -39,10 +41,12 @@ function createInitialState(): CalendarEventViewMap {
         eventId: "ops-weekly-series@example.test",
         recurrenceId: "20250120T090000",
         isException: true,
-        start: Temporal.PlainDateTime.from("2025-01-20T13:00:00"),
-        end: Temporal.PlainDateTime.from("2025-01-20T14:00:00"),
-        summary: "Ops Weekly (moved)",
-        color: "#0ea5e9",
+        data: {
+          start: Temporal.PlainDateTime.from("2025-01-20T13:00:00"),
+          end: Temporal.PlainDateTime.from("2025-01-20T14:00:00"),
+          summary: "Ops Weekly (moved)",
+          color: "#0ea5e9",
+        },
       },
     ],
   ]);
@@ -162,19 +166,20 @@ function asText(value: unknown): string {
   );
 }
 
-function summarizeState(state: CalendarEventViewMap): string {
+function summarizeState(state: CalendarEventsMap): string {
   return Array.from(state.entries())
-    .map(([key, event]) =>
-      [
+    .map(([key, event]) => {
+      const d = event.data;
+      return [
         key,
         `  eventId=${event.eventId ?? "-"}`,
         `  recurrenceId=${event.recurrenceId ?? "-"}`,
-        `  start=${event.start.toString()}`,
-        `  end=${event.end.toString()}`,
-        `  summary=${event.summary}`,
-        `  exdates=${event.exclusionDates ? Array.from(event.exclusionDates).join(",") : "-"}`,
-      ].join("\n")
-    )
+        `  start=${d.start.toString()}`,
+        `  end=${resolvedDataEnd(d).toString()}`,
+        `  summary=${d.summary}`,
+        `  exdates=${d.exclusionDates ? Array.from(d.exclusionDates).join(",") : "-"}`,
+      ].join("\n");
+    })
     .join("\n\n");
 }
 
@@ -260,10 +265,10 @@ function renderPlayground() {
   calendar.setAttribute("timezone", "Europe/Amsterdam");
   calendar.setAttribute("current-time", "2025-01-15T14:30:00");
 
-  let api = new EventsAPI(toEventsApiMap(createInitialState()), { timezone: "Europe/Amsterdam" });
+  let api = new EventsAPI(createInitialState(), { timezone: "Europe/Amsterdam" });
 
   const sync = (lastResult?: unknown) => {
-    const state = fromEventsApiMap(api.events);
+    const state = new Map(api.events);
     calendar.events = state;
     stateOutput.value = summarizeState(state);
     resultOutput.value = lastResult ? asText(lastResult) : "(no operations yet)";
@@ -282,7 +287,7 @@ function renderPlayground() {
   });
 
   resetButton.addEventListener("click", () => {
-    api = new EventsAPI(toEventsApiMap(createInitialState()), { timezone: "Europe/Amsterdam" });
+    api = new EventsAPI(createInitialState(), { timezone: "Europe/Amsterdam" });
     sync();
   });
 

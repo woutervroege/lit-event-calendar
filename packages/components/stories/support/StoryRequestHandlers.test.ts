@@ -15,14 +15,16 @@ function createSeriesEventMap(): Map<string, CalendarEvent> {
       {
         eventId: "daily@example.test",
         calendarId: "/calendars/wouter/work/",
-        start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
-        end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
-        summary: "Daily Standup",
-        color: "#10B981",
-        recurrenceRule: {
-          freq: "DAILY",
-          interval: 1,
-          count: 14,
+        data: {
+          start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
+          end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
+          summary: "Daily Standup",
+          color: "#10B981",
+          recurrenceRule: {
+            freq: "DAILY",
+            interval: 1,
+            count: 14,
+          },
         },
       },
     ],
@@ -75,9 +77,9 @@ describe("StoryRequestHandlers recurring updates", () => {
     const master = el.events.get("daily");
     expect(master).toBeDefined();
     const exception = el.events.get("daily::20250118T090000");
-    expect(master?.start.toString()).toBe("2025-01-13T10:00:00");
-    expect(master?.end.toString()).toBe("2025-01-13T10:15:00");
-    expect(master?.exclusionDates?.size ?? 0).toBe(0);
+    expect(master?.data.start.toString()).toBe("2025-01-13T10:00:00");
+    expect(master?.data.end?.toString()).toBe("2025-01-13T10:15:00");
+    expect(master?.data.exclusionDates?.size ?? 0).toBe(0);
     expect(exception).toBeUndefined();
   });
 
@@ -118,8 +120,8 @@ describe("StoryRequestHandlers recurring updates", () => {
     const master = el.events.get("daily");
     expect(master).toBeDefined();
     // Critical regression assertion: series should shift boundary by -30m, not jump to Jan 18.
-    expect(master?.start.toString()).toBe("2025-01-13T08:30:00");
-    expect(master?.end.toString()).toBe("2025-01-13T09:15:00");
+    expect(master?.data.start.toString()).toBe("2025-01-13T08:30:00");
+    expect(master?.data.end?.toString()).toBe("2025-01-13T09:15:00");
   });
 
   it("creates detached exception when moving occurrence to another day", () => {
@@ -158,9 +160,9 @@ describe("StoryRequestHandlers recurring updates", () => {
 
     const master = el.events.get("daily");
     const exception = el.events.get("daily::20250118T090000");
-    expect(master?.start.toString()).toBe("2025-01-13T09:00:00");
-    expect(master?.exclusionDates?.has("20250118T090000")).toBe(true);
-    expect(exception?.start.toString()).toBe("2025-01-19T10:00:00");
+    expect(master?.data.start.toString()).toBe("2025-01-13T09:00:00");
+    expect(master?.data.exclusionDates?.has("20250118T090000")).toBe(true);
+    expect(exception?.data.start.toString()).toBe("2025-01-19T10:00:00");
     expect(exception?.isException).toBe(true);
   });
 
@@ -202,8 +204,8 @@ describe("StoryRequestHandlers recurring updates", () => {
 
     const master = el.events.get("daily");
     const exception = el.events.get("daily::20250118T090000");
-    expect(master?.start.toString()).toBe("2025-01-13T09:00:00");
-    expect(master?.exclusionDates?.size ?? 0).toBe(0);
+    expect(master?.data.start.toString()).toBe("2025-01-13T09:00:00");
+    expect(master?.data.exclusionDates?.size ?? 0).toBe(0);
     expect(exception).toBeUndefined();
     expect(updateEvent.defaultPrevented).toBe(true);
   });

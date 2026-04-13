@@ -7,11 +7,12 @@ import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
 import { CalendarViewBase, isWeekdayNumber } from "../CalendarViewBase/CalendarViewBase.js";
 import type { AllDayLayoutItem } from "../types/AllDayLayout.js";
-import type {
-  CalendarEventViewEntry as EventEntry,
-  CalendarEventView as EventInput,
-  CalendarEventViewMap as EventsMap,
-} from "../types/CalendarEvent.js";
+import type { CalendarEvent, CalendarEventsMap } from "@lit-calendar/events-api";
+import { resolvedDataEnd } from "../domain/events-api/eventMapBridge.js";
+
+type EventEntry = [string, CalendarEvent];
+type EventInput = CalendarEvent;
+type EventsMap = CalendarEventsMap;
 import type { WeekdayNumber } from "../types/Weekday.js";
 import { buildAllDayLayout } from "../utils/AllDayLayout.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
@@ -137,8 +138,10 @@ export class CalendarWeekView extends CalendarViewBase {
   get #allDayLayoutItems(): AllDayLayoutItem[] {
     return this.#renderedAllDayEntries.map(([id, event]) => ({
       id,
-      start: this.#toPlainDateTime(event.start).toPlainDate(),
-      endInclusive: this.#toPlainDateTime(event.end).subtract({ nanoseconds: 1 }).toPlainDate(),
+      start: this.#toPlainDateTime(event.data.start).toPlainDate(),
+      endInclusive: this.#toPlainDateTime(resolvedDataEnd(event.data))
+        .subtract({ nanoseconds: 1 })
+        .toPlainDate(),
     }));
   }
 
@@ -180,14 +183,14 @@ export class CalendarWeekView extends CalendarViewBase {
   }
 
   #isAllDayEvent(event: EventInput): boolean {
-    return event.allDay === true;
+    return event.data.allDay === true;
   }
 
   #isTimedEvent(event: EventInput): boolean {
     return !this.#isAllDayEvent(event);
   }
 
-  #toPlainDateTime(value: EventInput["start"]): Temporal.PlainDateTime {
+  #toPlainDateTime(value: Temporal.PlainDateTime): Temporal.PlainDateTime {
     return value;
   }
 

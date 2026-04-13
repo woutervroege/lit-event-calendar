@@ -1,40 +1,51 @@
 import {
   resolveEventEnd,
   type CalendarEvent,
+  type CalendarEventData,
+  type CalendarEventEnvelope,
   type CalendarEventsMap,
 } from "@lit-calendar/events-api";
-import type { CalendarEventView, CalendarEventViewMap } from "../../types/CalendarEvent.js";
+
+/** Flattened envelope + payload (for bridge conversions and legacy tooling). */
+export type CalendarEventView = CalendarEventEnvelope & CalendarEventData;
+export type CalendarEventViewMap = Map<string, CalendarEventView>;
+
+export function resolvedDataEnd(data: CalendarEventData) {
+  return "end" in data && data.end !== undefined ? data.end : resolveEventEnd(data);
+}
+
+/** Maps a UI row to `@lit-calendar/events-api` `CalendarEvent` (envelope fields + `data`). */
+export function eventViewToApiEvent(event: CalendarEventView): CalendarEvent {
+  return {
+    calendarId: event.calendarId,
+    eventId: event.eventId,
+    recurrenceId: event.recurrenceId,
+    isRecurring: event.isRecurring,
+    isException: event.isException,
+    pendingOp: event.pendingOp,
+    data: {
+      start: event.start,
+      end: event.end,
+      allDay: event.allDay,
+      timeZone: event.timeZone,
+      summary: event.summary,
+      color: event.color,
+      location: event.location,
+      recurrenceRule: event.recurrenceRule,
+      exclusionDates: event.exclusionDates,
+    } as CalendarEventData,
+  };
+}
 
 export function toEventsApiMap(events: CalendarEventViewMap): CalendarEventsMap {
   return new Map(
-    Array.from(events.entries()).map(([key, event]) => [
-      key,
-      {
-        calendarId: event.calendarId,
-        eventId: event.eventId,
-        recurrenceId: event.recurrenceId,
-        isRecurring: event.isRecurring,
-        isException: event.isException,
-        pendingOp: event.pendingOp,
-        data: {
-          start: event.start,
-          end: event.end,
-          allDay: event.allDay,
-          timeZone: event.timeZone,
-          summary: event.summary,
-          color: event.color,
-          location: event.location,
-          recurrenceRule: event.recurrenceRule,
-          exclusionDates: event.exclusionDates,
-        },
-      } satisfies CalendarEvent,
-    ])
+    Array.from(events.entries()).map(([key, event]) => [key, eventViewToApiEvent(event)])
   );
 }
 
 export function eventViewFromApiEvent(event: CalendarEvent): CalendarEventView {
   const d = event.data;
-  const end = "end" in d && d.end !== undefined ? d.end : resolveEventEnd(d);
+  const end = resolvedDataEnd(d);
   return {
     calendarId: event.calendarId,
     eventId: event.eventId,

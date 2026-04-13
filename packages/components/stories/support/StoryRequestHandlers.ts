@@ -9,15 +9,11 @@ import {
   resizeEndFromUpdateRequest,
   resizeStartFromUpdateRequest,
 } from "../../src/domain/events-api/adapters.js";
-import {
-  eventViewFromApiEvent,
-  fromEventsApiMap,
-  toEventsApiMap,
-} from "../../src/domain/events-api/eventMapBridge.js";
+import { resolvedDataEnd } from "../../src/domain/events-api/eventMapBridge.js";
 import {
   isCalendarEventException,
   isCalendarEventRecurring,
-} from "../../src/types/CalendarEvent.js";
+} from "../../src/types/calendarEventSemantics.js";
 import type {
   EventCreateRequestDetail,
   EventDeleteRequestDetail,
@@ -53,7 +49,12 @@ function cloneEventMap(events: Map<string, CalendarEvent>): Map<string, Calendar
       key,
       {
         ...value,
-        exclusionDates: value.exclusionDates ? new Set(value.exclusionDates) : undefined,
+        data: {
+          ...value.data,
+          exclusionDates: value.data.exclusionDates
+            ? new Set(value.data.exclusionDates)
+            : undefined,
+        },
       },
     ])
   );
@@ -102,10 +103,10 @@ function toPlainDateTime(value: Temporal.PlainDateTime): Temporal.PlainDateTime 
 }
 
 function getUpdateKind(
-  currentStart: CalendarEvent["start"],
-  currentEnd: CalendarEvent["start"],
-  nextStart: CalendarEvent["start"],
-  nextEnd: CalendarEvent["start"]
+  currentStart: Temporal.PlainDateTime,
+  currentEnd: Temporal.PlainDateTime,
+  nextStart: Temporal.PlainDateTime,
+  nextEnd: Temporal.PlainDateTime
 ): "move" | "resize-start" | "resize-end" | "update" {
   const sameStart =
     Temporal.PlainDateTime.compare(toPlainDateTime(currentStart), toPlainDateTime(nextStart)) === 0;
@@ -123,8 +124,8 @@ function getUpdateKind(
 }
 
 function movedToDifferentDay(
-  currentStart: CalendarEvent["start"],
-  nextStart: CalendarEvent["start"]
+  currentStart: Temporal.PlainDateTime,
+  nextStart: Temporal.PlainDateTime
 ): boolean {
   return (
     Temporal.PlainDate.compare(
@@ -135,7 +136,7 @@ function movedToDifferentDay(
 }
 
 function toUnsyncedState(result: ApplyResult): Map<string, CalendarEvent> {
-  const nextState = fromEventsApiMap(result.nextState);
+  const nextState = new Map(result.nextState);
 
   for (const change of result.changes) {
     if (change.type === "created") {
@@ -164,7 +165,7 @@ function toUnsyncedState(result: ApplyResult): Map<string, CalendarEvent> {
       continue;
     }
     nextState.set(change.key, {
-      ...eventViewFromApiEvent(change.before),
+      ...change.before,
       pendingOp: "deleted",
     });
   }
@@ -186,13 +187,12 @@ function applyApiResult(
       changes: [],
       effects: [],
     } as ApplyResult);
-  el.events =
-    mode === "unsynced" ? toUnsyncedState(applied) : fromEventsApiMap(applied.nextState);
+  el.events = mode === "unsynced" ? toUnsyncedState(applied) : new Map(applied.nextState);
   onPendingChanged?.();
 }
 
 function buildApi(el: StoryCalendarElement): EventsAPI {
-  return new EventsAPI(toEventsApiMap(el.events));
+  return new EventsAPI(new Map(el.events));
 }
 
 export function attachRequestEventHandlers(
@@ -263,22 +263,24 @@ export function attachRequestEventHandlers(
     if (!current) return;
 
     const api = buildApi(el);
+    const data = current.data;
+    const currentEnd = resolvedDataEnd(data);
     const isRecurring = detail.envelope.isRecurring ?? isCalendarEventRecurring(current);
     const shouldPromptForSeries = isRecurring && !isCalendarEventException(current);
-    const currentAllDay = current.allDay ?? false;
+    const currentAllDay = data.allDay ?? false;
     const nextStart = toNextEventValue(
       detail.content.start,
-      current.start,
+      data.start,
       currentAllDay,
       preserveDateOnly
     );
-    const nextEnd = toNextEventValue(detail.content.end, current.end, currentAllDay, preserveDateOnly);
+    const nextEnd = toNextEventValue(detail.content.end, currentEnd, currentAllDay, preserveDateOnly);
     const recurrenceId = detail.envelope.recurrenceId;
     const occurrenceStart =
-      current.recurrenceRule && !current.recurrenceId && recurrenceId
-        ? (parseRecurrenceId(recurrenceId, current.allDay ?? false, current.start) ?? current.start)
-        : current.start;
-    const baseDuration = toPlainDateTime(current.start).until(toPlainDateTime(current.end));
+      data.recurrenceRule && !current.recurrenceId && recurrenceId
+        ? (parseRecurrenceId(recurrenceId, data.allDay ?? false, data.start) ?? data.start)
+        : data.start;
+    const baseDuration = toPlainDateTime(data.start).until(toPlainDateTime(currentEnd));
     const occurrenceEnd = shiftDateValue(occurrenceStart, baseDuration);
     const updateKind = getUpdateKind(occurrenceStart, occurrenceEnd, nextStart, nextEnd);
     const baseUpdateInput = fromUpdateRequest(detail);
@@ -286,7 +288,7 @@ export function attachRequestEventHandlers(
       updateKind === "move" &&
       Boolean(
         recurrenceId &&
-          current.recurrenceRule &&
+          data.recurrenceRule &&
           !current.recurrenceId &&
           movedToDifferentDay(occurrenceStart, nextStart)
       );
@@ -352,7 +354,7 @@ export function attachRequestEventHandlers(
           recurrenceId: recurrenceId ?? current.recurrenceId,
         },
       });
-      if (isRecurring && recurrenceId && current.recurrenceRule && !current.recurrenceId) {
+      if (isRecurring && recurrenceId && data.recurrenceRule && !current.recurrenceId) {
         const addExceptionResult = api.addException({
           target: { key: eventKey },
           recurrenceId,
@@ -413,7 +415,7 @@ export function attachRequestEventHandlers(
     );
     if (!commitSeries) {
       let operationResult: ApplyResult | undefined;
-      if (recurrenceId && current.recurrenceRule && !current.recurrenceId) {
+      if (recurrenceId && data.recurrenceRule && !current.recurrenceId) {
         operationResult = api.addException({
           target: { key: eventKey },
           recurrenceId,
@@ -466,7 +468,7 @@ export function attachRequestEventHandlers(
         ...(resizeInput ?? { target: { key: eventKey }, scope: "series", toStart: nextStart }),
         target: { key: eventKey },
         scope: "series",
-        toStart: shiftDateValue(current.start, startDelta),
+        toStart: shiftDateValue(data.start, startDelta),
       });
     } else if (updateKind === "resize-end") {
       const resizeInput = resizeEndFromUpdateRequest(detail);
@@ -475,7 +477,7 @@ export function attachRequestEventHandlers(
         ...(resizeInput ?? { target: { key: eventKey }, scope: "series", toEnd: nextEnd }),
         target: { key: eventKey },
         scope: "series",
-        toEnd: shiftDateValue(current.end, endDelta),
+        toEnd: shiftDateValue(currentEnd, endDelta),
       });
     } else {
       operationResult = api.update({
@@ -526,7 +528,7 @@ export function attachRequestEventHandlers(
           recurrenceId,
           options: { asExclusion: true },
         });
-      } else if (isRecurring && recurrenceId && current.recurrenceRule && !current.recurrenceId) {
+      } else if (isRecurring && recurrenceId && current.data.recurrenceRule && !current.recurrenceId) {
         operationResult = api.addExclusion({ target: { key: eventKey }, recurrenceId });
       } else {
         operationResult = api.remove({ ...baseDeleteInput, target: { key: eventKey }, scope: "single" });
@@ -557,7 +559,7 @@ export function attachRequestEventHandlers(
       },
     });
     let operationResult: ApplyResult | undefined;
-    if (recurrenceId && current.recurrenceRule && !current.recurrenceId) {
+    if (recurrenceId && current.data.recurrenceRule && !current.recurrenceId) {
       api.addExclusion({ target: { key: eventKey }, recurrenceId });
       operationResult = api.removeException({
         target: { key: `${eventKey}::${recurrenceId}` },
