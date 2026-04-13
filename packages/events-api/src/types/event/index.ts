@@ -1,3 +1,5 @@
+export type { IANATimeZone } from "./timezone.js";
+export { isIANATimeZone, toIANATimeZone, UTC_TIMEZONE } from "./timezone.js";
 export type { CalendarEventPendingOperation } from "./CalendarEventPendingOperation.js";
 export type { CalendarEventEnvelope } from "./CalendarEventEnvelope.js";
 export type { CalendarEventTimeSpan } from "./CalendarEventTimeSpan.js";

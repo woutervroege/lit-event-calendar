@@ -1,5 +1,5 @@
 import type { Temporal } from "@js-temporal/polyfill";
-import type { IANATimeZone } from "../calendar/index.js";
+import type { IANATimeZone } from "./timezone.js";
 import type { CalendarExclusionDates, CalendarRecurrenceRule } from "../recurrence/index.js";
 import type { CalendarEventTimeSpan } from "./CalendarEventTimeSpan.js";
 
