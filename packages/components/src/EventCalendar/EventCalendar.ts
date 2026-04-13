@@ -120,7 +120,7 @@ export class EventCalendar extends BaseElement {
     context: eventsAPIContext,
   });
   #eventsAPIContextValue: EventsAPIContextValue = {
-    getEvents: () => this.events ?? new Map(),
+    getEvents: () => toEventsApiMap(this.events ?? new Map()),
     getApi: () =>
       new EventsAPI(toEventsApiMap(this.events ?? new Map()), {
         timezone: this.timezone,
@@ -491,12 +491,9 @@ export class EventCalendar extends BaseElement {
       trackPending: true,
     });
     const result = api.apply(operation);
-    const nextStateView = fromEventsApiMap(result.nextState);
-    this.events = nextStateView;
-    return {
-      ...result,
-      nextState: nextStateView,
-    } as unknown as ApplyResult;
+    this.events = fromEventsApiMap(result.nextState);
+    // Return API-shaped `nextState` so context consumers (e.g. CalendarViewBase) can `fromEventsApiMap` it.
+    return result;
   }
 
   #resolvePendingOperation(event: CalendarEventView): CalendarEventPendingOperation | undefined {

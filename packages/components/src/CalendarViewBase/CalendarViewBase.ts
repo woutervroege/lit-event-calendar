@@ -107,6 +107,14 @@ export abstract class CalendarViewBase extends BaseElement {
     void this.#eventsAPIConsumer;
   }
 
+  /** Prefer the bound view map; `getEvents()` must be API-shaped (`EventsState`). */
+  #viewMapFromContext(api: EventsAPIContextValue): EventsMap {
+    if (this.events !== undefined) {
+      return this.events;
+    }
+    return fromEventsApiMap(api.getEvents() ?? new Map());
+  }
+
   protected applyCreateRequestToEventsAPI(detail: EventCreateRequestDetail): boolean {
     if (!this.#eventsAPI) return false;
     this.#applyEventsAPIOperation({ type: "create", input: fromCreateRequest(detail) });
@@ -118,7 +126,7 @@ export abstract class CalendarViewBase extends BaseElement {
     accepted: boolean;
   } {
     if (!this.#eventsAPI || !detail.envelope.eventId) return { handled: false, accepted: true };
-    const events = fromEventsApiMap(this.#eventsAPI.getEvents() ?? new Map());
+    const events = this.#viewMapFromContext(this.#eventsAPI);
     const eventKey = this.#resolveEventMapKey(events, detail.envelope);
     if (!eventKey) return { handled: false, accepted: true };
     const current = events.get(eventKey);
@@ -350,7 +358,7 @@ export abstract class CalendarViewBase extends BaseElement {
 
   protected applyDeleteRequestToEventsAPI(detail: EventDeleteRequestDetail): boolean {
     if (!this.#eventsAPI || !detail.envelope.eventId) return false;
-    const events = fromEventsApiMap(this.#eventsAPI.getEvents() ?? new Map());
+    const events = this.#viewMapFromContext(this.#eventsAPI);
     const eventKey = this.#resolveEventMapKey(events, detail.envelope);
     if (!eventKey) return false;
     const current = events.get(eventKey);
