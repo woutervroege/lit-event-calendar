@@ -32,7 +32,7 @@ const preview: Preview = {
     },
     actions: {
       argTypesRegex: "^on.*",
-      handles: ["event-created", "event-updated", "event-deleted"],
+      handles: ["event-created", "event-updated", "event-deleted", "event-selection"],
     },
     layout: "fullscreen",
   },

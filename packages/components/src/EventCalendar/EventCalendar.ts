@@ -531,6 +531,7 @@ export class EventCalendar extends BaseElement {
     event.stopPropagation();
     const forwardedEvent = new CustomEvent(event.type, {
       detail: (event as CustomEvent).detail,
+      bubbles: true,
       composed: true,
       cancelable: event.cancelable,
     });

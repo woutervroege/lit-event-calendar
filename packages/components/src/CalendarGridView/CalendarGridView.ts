@@ -1984,7 +1984,6 @@ export class CalendarGridView extends CalendarViewBase {
     if (this.applyCreateRequestToEventsAPI(detail)) {
       return;
     }
-    console.info("event-created", detail);
     this.dispatchEvent(
       new CustomEvent("event-created", {
         detail,

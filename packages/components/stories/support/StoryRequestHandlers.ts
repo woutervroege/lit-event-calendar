@@ -214,6 +214,9 @@ export function attachRequestEventHandlers(
     const detail = event.detail as EventCreateRequestDetail | null;
     if (!detail?.content.start || !detail.content.end) return;
     logCreateRequested(detail);
+    if (!event.cancelable) {
+      return;
+    }
     const api = buildApi(el);
     const createInput = fromCreateRequest(detail);
     const created = api.create({
@@ -256,6 +259,9 @@ export function attachRequestEventHandlers(
     const detail = event.detail as EventUpdateRequestDetail | null;
     if (!detail?.envelope.eventId) return;
     logUpdateRequested(detail);
+    if (!event.cancelable) {
+      return;
+    }
 
     const eventKey = resolveEventMapKey(el.events, detail.envelope);
     if (!eventKey) return;
@@ -501,6 +507,10 @@ export function attachRequestEventHandlers(
     if (!(event instanceof CustomEvent)) return;
     const detail = event.detail as EventDeleteRequestDetail | null;
     if (!detail) return;
+    if (!event.cancelable) {
+      logDeleteRequested(detail);
+      return;
+    }
     const eventKey = resolveEventMapKey(el.events, detail.envelope);
     if (!eventKey) return;
     const current = el.events.get(eventKey);
