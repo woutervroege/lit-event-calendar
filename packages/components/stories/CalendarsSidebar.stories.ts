@@ -10,7 +10,7 @@ import {
 
 type CalendarsSidebarElement = HTMLElement & {
   calendars?: CalendarsMap;
-  selectedCalendarIds?: string[];
+  visibleCalendarIds?: string[];
   selectedCalendarId?: string;
 };
 

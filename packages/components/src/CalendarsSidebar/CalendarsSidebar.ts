@@ -1,13 +1,13 @@
-import { html, unsafeCSS } from "lit";
-import { ifDefined } from "lit/directives/if-defined.js";
-import { customElement } from "lit/decorators.js";
-import { BaseElement } from "../BaseElement/BaseElement.js";
 import type { CalendarsMap } from "@lit-calendar/events-api";
+import { html, unsafeCSS } from "lit";
+import { customElement } from "lit/decorators.js";
+import { ifDefined } from "lit/directives/if-defined.js";
+import { BaseElement } from "../BaseElement/BaseElement.js";
+import componentStyle from "./CalendarsSidebar.css?inline";
 import {
   calendarEntriesByAccount,
   calendarIdsInSidebarOrder,
 } from "./calendarIdsInSidebarOrder.js";
-import componentStyle from "./CalendarsSidebar.css?inline";
 
 @customElement("calendars-sidebar")
 export class CalendarsSidebar extends BaseElement {
@@ -15,9 +15,9 @@ export class CalendarsSidebar extends BaseElement {
 
   /**
    * Calendar ids whose events are shown. When unset, every calendar in `calendars` is visible.
-   * Toggled via the color swatch checkboxes. Pass from the parent with `.selectedCalendarIds=${...}`.
+   * Toggled via the color swatch checkboxes. Pass from the parent with `.visibleCalendarIds=${...}`.
    */
-  declare selectedCalendarIds?: string[];
+  declare visibleCalendarIds?: string[];
 
   /** Calendar that receives new events. Pass from the parent with `.selectedCalendarId=${...}`. */
   declare selectedCalendarId?: string;
@@ -25,7 +25,7 @@ export class CalendarsSidebar extends BaseElement {
   static get properties() {
     return {
       calendars: { type: Object },
-      selectedCalendarIds: {
+      visibleCalendarIds: {
         type: Array,
         attribute: false,
         dispatchChangeEvent: { bubbles: true, composed: true },
@@ -43,7 +43,7 @@ export class CalendarsSidebar extends BaseElement {
   }
 
   #effectiveVisibleSet(map: CalendarsMap): Set<string> {
-    const explicit = this.selectedCalendarIds;
+    const explicit = this.visibleCalendarIds;
     if (explicit !== undefined) {
       return new Set(explicit);
     }
@@ -67,7 +67,7 @@ export class CalendarsSidebar extends BaseElement {
     }
     const order = calendarIdsInSidebarOrder(map);
     const nextIds = order.filter((calendarId) => nextSet.has(calendarId));
-    this.selectedCalendarIds = nextIds;
+    this.visibleCalendarIds = nextIds;
   }
 
   #selectDefault(id: string): void {
@@ -80,7 +80,7 @@ export class CalendarsSidebar extends BaseElement {
       nextSet.add(id);
       const order = calendarIdsInSidebarOrder(map);
       const nextIds = order.filter((calendarId) => nextSet.has(calendarId));
-      this.selectedCalendarIds = nextIds;
+      this.visibleCalendarIds = nextIds;
     }
 
     if (this.selectedCalendarId === id) return;

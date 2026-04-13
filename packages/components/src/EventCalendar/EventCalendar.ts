@@ -28,12 +28,12 @@ import {
   type EventOperation,
   EventsAPI,
 } from "@lit-calendar/events-api";
+import { calendarIdsInSidebarOrder } from "../CalendarsSidebar/calendarIdsInSidebarOrder.js";
 import { type EventsAPIContextValue, eventsAPIContext } from "../context/EventsAPIContext.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import { renderGridIcon } from "../icons/GridIcon.js";
 import { renderHamburgerIcon } from "../icons/HamburgerIcon.js";
 import { renderListIcon } from "../icons/ListIcon.js";
-import { calendarIdsInSidebarOrder } from "../CalendarsSidebar/calendarIdsInSidebarOrder.js";
 import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./EventCalendar.css?inline";
 
@@ -149,7 +149,7 @@ export class EventCalendar extends BaseElement {
    * Calendar ids whose events are visible in the grid (sidebar color checkboxes).
    * When unset while `calendars` is set, all calendars are visible. Use `[]` to hide all.
    */
-  selectedCalendarIds?: string[];
+  visibleCalendarIds?: string[];
   #calendarsOverlayOpen = false;
   #previousCalendarKeySet = new Set<string>();
   #eventsAPIProvider = new ContextProvider(this, {
@@ -165,7 +165,7 @@ export class EventCalendar extends BaseElement {
       }
       return accounts;
     },
-    getSelectedCalendarIds: () => this.selectedCalendarIds,
+    getvisibleCalendarIds: () => this.visibleCalendarIds,
     getSelectedCalendarId: () => this.#effectiveSelectedCalendarId(),
     getApi: () =>
       new EventsAPI(this.events ?? new Map(), {
@@ -227,7 +227,7 @@ export class EventCalendar extends BaseElement {
         dispatchChangeEvent: { bubbles: true, composed: true },
       },
       calendars: { type: Object, attribute: false },
-      selectedCalendarIds: {
+      visibleCalendarIds: {
         type: Array,
         attribute: false,
         dispatchChangeEvent: { bubbles: true, composed: true },
@@ -261,7 +261,7 @@ export class EventCalendar extends BaseElement {
     if (!this.#hasCalendars) {
       return raw;
     }
-    const selected = this.selectedCalendarIds;
+    const selected = this.visibleCalendarIds;
     if (selected === undefined) {
       return raw;
     }
@@ -279,12 +279,12 @@ export class EventCalendar extends BaseElement {
     return filtered;
   }
 
-  #handleSelectedCalendarIdsChanged = (event: Event) => {
+  #handlevisibleCalendarIdsChanged = (event: Event) => {
     const el = event.target;
     if (!(el instanceof CalendarsSidebar)) return;
-    const next = el.selectedCalendarIds;
+    const next = el.visibleCalendarIds;
     if (!Array.isArray(next)) return;
-    const prev = this.selectedCalendarIds;
+    const prev = this.visibleCalendarIds;
     if (
       prev !== undefined &&
       prev.length === next.length &&
@@ -292,7 +292,7 @@ export class EventCalendar extends BaseElement {
     ) {
       return;
     }
-    this.selectedCalendarIds = [...next];
+    this.visibleCalendarIds = [...next];
   };
 
   #handleSelectedCalendarIdChanged = (event: Event) => {
@@ -310,7 +310,7 @@ export class EventCalendar extends BaseElement {
     const isInitialCalendarKeys = prev.size === 0 && currentKeys.size > 0;
     this.#previousCalendarKeySet = currentKeys;
 
-    const selected = this.selectedCalendarIds;
+    const selected = this.visibleCalendarIds;
     if (selected === undefined) {
       return;
     }
@@ -323,7 +323,7 @@ export class EventCalendar extends BaseElement {
       }
     }
     if (next.length !== selected.length || !next.every((id, index) => id === selected[index])) {
-      this.selectedCalendarIds = next;
+      this.visibleCalendarIds = next;
     }
   }
 
@@ -354,7 +354,7 @@ export class EventCalendar extends BaseElement {
   #firstSelectedCalendarCandidate(map: CalendarsMap): string | undefined {
     const ordered = calendarIdsInSidebarOrder(map);
     if (ordered.length === 0) return undefined;
-    const selected = this.selectedCalendarIds;
+    const selected = this.visibleCalendarIds;
     if (selected === undefined) {
       return ordered[0];
     }
@@ -518,8 +518,9 @@ export class EventCalendar extends BaseElement {
         class="event-calendar-shell ${hasCalendars ? "event-calendar-has-calendars" : ""}"
         dir=${headerDirection}
       >
-        ${hasCalendars
-          ? html`
+        ${
+          hasCalendars
+            ? html`
               <div
                 id="event-calendar-calendars-mount"
                 class="event-calendar-calendars ${this.#calendarsOverlayOpen ? "is-open" : ""}"
@@ -559,15 +560,16 @@ export class EventCalendar extends BaseElement {
                     class="event-calendar-calendars-sidebar"
                     dir=${headerDirection}
                     .calendars=${this.calendars}
-                    .selectedCalendarIds=${this.selectedCalendarIds}
+                    .visibleCalendarIds=${this.visibleCalendarIds}
                     .selectedCalendarId=${this.selectedCalendarId}
-                    @selectedCalendarIds-changed=${this.#handleSelectedCalendarIdsChanged}
+                    @visibleCalendarIds-changed=${this.#handlevisibleCalendarIdsChanged}
                     @selectedCalendarId-changed=${this.#handleSelectedCalendarIdChanged}
                   ></calendars-sidebar>
                 </div>
               </div>
             `
-          : nothing}
+            : nothing
+        }
         <div class="event-calendar-main">
           <header
             class="event-calendar-header"
@@ -577,8 +579,9 @@ export class EventCalendar extends BaseElement {
               class="event-calendar-toolbar"
               style=${EVENT_CALENDAR_GHOST_ICON_BUTTON_STYLE}
             >
-              ${hasCalendars
-                ? html`
+              ${
+                hasCalendars
+                  ? html`
                     <lc-button
                       class="event-calendar-calendars-toggle"
                       .label=${getCalendarsMenuLabel(this.lang)}
@@ -591,7 +594,8 @@ export class EventCalendar extends BaseElement {
                       ${renderHamburgerIcon({ className: "event-calendar-nav-icon" })}
                     </lc-button>
                   `
-                : nothing}
+                  : nothing
+              }
               <div class="event-calendar-heading-row" dir=${headerDirection}>
               <div class="event-calendar-nav-buttons">
                 <lc-button
@@ -819,7 +823,7 @@ export class EventCalendar extends BaseElement {
     if (changedProperties.has("calendars")) {
       this.#mergeSelectionWhenCalendarsMapChanges();
     }
-    if (changedProperties.has("calendars") || changedProperties.has("selectedCalendarIds")) {
+    if (changedProperties.has("calendars") || changedProperties.has("visibleCalendarIds")) {
       this.#mergeSelectedCalendarIdWhenCalendarsMapChanges();
     }
     this.#eventsAPIProvider.setValue(this.#eventsAPIContextValue, true);
