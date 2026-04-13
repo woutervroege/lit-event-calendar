@@ -1,12 +1,25 @@
 export type {
+  CalendarDuration,
   CalendarEventDateValue,
+  CalendarEventOverride,
+  CalendarEventRecord,
+  CalendarEventRecordMap,
+  CalendarEventTimeSpan,
+  CalendarEventStatus,
   CalendarEventView,
   CalendarEventViewMap,
+  CalendarInteroperabilityData,
+  IANATimeZone,
+  CalendarRecurrenceId,
   CalendarRecurrenceFrequency,
   CalendarRecurrenceRule,
+  CalendarRecurrenceRuleJson,
   CalendarRecurrenceWeekday,
   CalendarRecurrenceWeekdayRule,
+  CalendarVirtualLocation,
 } from "./calendar-types.js";
+
+export { isIANATimeZone, toIANATimeZone, UTC_TIMEZONE } from "./calendar-types.js";
 
 export type {
   AddExceptionInput,
