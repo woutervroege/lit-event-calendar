@@ -28,7 +28,7 @@ export type EventsAPIContextValue = {
    * Calendar ids whose events are shown (visibility). `undefined` means all calendars in
    * {@link EventsAPIContextValue.getCalendars} are visible (same as `event-calendar` `visibleCalendarIds`).
    */
-  getvisibleCalendarIds: () => string[] | undefined;
+  getVisibleCalendarIds: () => string[] | undefined;
   /**
    * Calendar id used when creating a new event (e.g. `event-calendar` sidebar selection), or `undefined`
    * when none applies.

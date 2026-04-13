@@ -165,7 +165,7 @@ export class EventCalendar extends BaseElement {
       }
       return accounts;
     },
-    getvisibleCalendarIds: () => this.visibleCalendarIds,
+    getVisibleCalendarIds: () => this.visibleCalendarIds,
     getSelectedCalendarId: () => this.#effectiveSelectedCalendarId(),
     getApi: () =>
       new EventsAPI(this.events ?? new Map(), {
