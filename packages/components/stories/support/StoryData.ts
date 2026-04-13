@@ -30,9 +30,10 @@ export function storyEventsFromArg(
   return new Map(value);
 }
 
-/** Example account id for story data (single-account demo). */
+/** Example account ids for story data. */
 export const storyAccountIds = {
   john: "caldav john",
+  team: "team",
 } as const;
 
 /** Opaque calendar ids (map keys); not resource URLs. */
@@ -40,6 +41,7 @@ export const storyCalendarIds = {
   work: "cal-john-work",
   personal: "cal-john-personal",
   travel: "cal-john-travel",
+  teamShared: "cal-team-shared",
 } as const;
 
 /** Resource URLs — can collide across accounts; disambiguate with {@link storyAccountIds} + {@link storyCalendarIds}. */
@@ -47,12 +49,16 @@ export const storyCalendarUrls = {
   work: "/calendars/john/work/",
   personal: "/calendars/john/personal/",
   travel: "/calendars/john/travel/",
+  teamShared: "/calendars/team/shared/",
 } as const;
 
 const EUROPE_AMSTERDAM = "Europe/Amsterdam" as IANATimeZone;
 
 /** Distinct accounts present in {@link sampleCalendarsMap}. */
-export const sampleCalendarAccounts: CalendarAccounts = new Set([storyAccountIds.john]);
+export const sampleCalendarAccounts: CalendarAccounts = new Set([
+  storyAccountIds.john,
+  storyAccountIds.team,
+]);
 
 /** Display metadata; map keys are {@link storyCalendarIds}. */
 export const sampleCalendarsMap: CalendarsMap = new Map([
@@ -81,6 +87,15 @@ export const sampleCalendarsMap: CalendarsMap = new Map([
       url: storyCalendarUrls.travel,
       displayName: "Travel",
       color: "#4564B5",
+    },
+  ],
+  [
+    storyCalendarIds.teamShared,
+    {
+      accountId: storyAccountIds.team,
+      url: storyCalendarUrls.teamShared,
+      displayName: "Team shared",
+      color: "#ea580c",
     },
   ],
 ]);
@@ -358,6 +373,19 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-02-06T00:00:00"),
         allDay: true,
         summary: "Engineering Sync",
+      },
+    },
+  ],
+  [
+    "event-team-roadmap-20250114",
+    {
+      accountId: storyAccountIds.team,
+      calendarId: storyCalendarIds.teamShared,
+      eventId: "team-roadmap@example.test",
+      data: {
+        start: Temporal.PlainDateTime.from("2025-01-14T15:00:00"),
+        end: Temporal.PlainDateTime.from("2025-01-14T16:00:00"),
+        summary: "Team roadmap",
       },
     },
   ],
