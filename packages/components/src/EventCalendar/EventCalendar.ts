@@ -498,6 +498,7 @@ export class EventCalendar extends BaseElement {
     return html`
       <div
         class="event-calendar-shell ${hasCalendars ? "event-calendar-has-calendars" : ""}"
+        dir=${headerDirection}
       >
         ${hasCalendars
           ? html`
@@ -538,6 +539,7 @@ export class EventCalendar extends BaseElement {
                   </div>
                   <calendars-sidebar
                     class="event-calendar-calendars-sidebar"
+                    dir=${headerDirection}
                     .calendars=${this.calendars}
                     .visibleCalendarIds=${this.selectedCalendarIds}
                     .defaultCalendarId=${this.defaultCalendarId}
@@ -686,7 +688,7 @@ export class EventCalendar extends BaseElement {
             .currentTime=${this.currentTime}
             .snapInterval=${this.snapInterval}
             .visibleHours=${this.visibleHours}
-            .rtl=${this.rtl}
+            .rtl=${isHeaderRtl}
             .defaultEventSummary=${this.defaultEventSummary}
             .defaultEventColor=${this.defaultEventColor}
             .defaultCalendarId=${this.defaultCalendarId}

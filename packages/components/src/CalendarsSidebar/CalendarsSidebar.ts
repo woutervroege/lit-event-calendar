@@ -1,4 +1,5 @@
 import { html, unsafeCSS } from "lit";
+import { ifDefined } from "lit/directives/if-defined.js";
 import { customElement, property } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import type { CalendarsMap } from "@lit-calendar/events-api";
@@ -101,7 +102,11 @@ export class CalendarsSidebar extends BaseElement {
     const defaultId = this.defaultCalendarId;
 
     return html`
-      <aside class="calendars-sidebar" aria-label="Calendars">
+      <aside
+        class="calendars-sidebar"
+        aria-label="Calendars"
+        dir=${ifDefined(this.dir === "rtl" || this.dir === "ltr" ? this.dir : undefined)}
+      >
         <div
           class="calendar-list"
           role="radiogroup"
