@@ -29,7 +29,7 @@ export function eventViewToApiEvent(event: CalendarEventView): CalendarEvent {
       allDay: event.allDay,
       timeZone: event.timeZone,
       summary: event.summary,
-      color: event.color,
+      ...(event.color !== undefined && event.color !== "" ? { color: event.color } : {}),
       location: event.location,
       recurrenceRule: event.recurrenceRule,
       exclusionDates: event.exclusionDates,

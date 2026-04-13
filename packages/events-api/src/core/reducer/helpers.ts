@@ -131,7 +131,13 @@ export function applyUpdateToEvent(event: CalendarEvent, patch: UpdateInput["pat
   const envelope = { ...envelopeRest };
   const nextData = { ...prevData };
   if (patch.summary !== undefined) nextData.summary = patch.summary;
-  if (patch.color !== undefined) nextData.color = patch.color;
+  if (patch.color !== undefined) {
+    if (patch.color === "") {
+      delete nextData.color;
+    } else {
+      nextData.color = patch.color;
+    }
+  }
   if (patch.location !== undefined) nextData.location = patch.location;
   if (patch.allDay !== undefined) nextData.allDay = patch.allDay;
   if (patch.timeZone !== undefined) nextData.timeZone = patch.timeZone;

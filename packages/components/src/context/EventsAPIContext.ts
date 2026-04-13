@@ -3,6 +3,7 @@ import type {
   AddExceptionInput,
   AddExclusionInput,
   ApplyResult,
+  CalendarsMap,
   CreateInput,
   EventOperation,
   EventsAPI,
@@ -18,6 +19,13 @@ import type {
 
 export type EventsAPIContextValue = {
   getEvents: () => EventsState;
+  /** Calendar display metadata keyed by id; empty map when the host has no calendars. */
+  getCalendars: () => CalendarsMap;
+  /**
+   * Subset of calendar ids whose events are shown. `undefined` means all calendars in
+   * {@link EventsAPIContextValue.getCalendars} are visible (same as `event-calendar` props).
+   */
+  getSelectedCalendarIds: () => string[] | undefined;
   apply: (operation: EventOperation) => ApplyResult;
   getApi: () => EventsAPI;
   create: (input: CreateInput) => ApplyResult;

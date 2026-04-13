@@ -65,7 +65,6 @@ type EventCreateRequestEmitInput = {
   end: Temporal.PlainDateTime;
   allDay?: boolean;
   summary: string;
-  color: string;
   calendarId?: string;
 };
 
@@ -656,7 +655,7 @@ export class CalendarGridView extends CalendarViewBase {
                 start=${this.#toEventDateTimeString(event.data.start, this.#isAllDayEvent(event))}
                 end=${this.#toEventDateTimeString(resolvedDataEnd(event.data), this.#isAllDayEvent(event))}
                 .summary=${event.data.summary}
-                .color=${event.data.color}
+                .color=${this.resolveEventDisplayColor(event)}
                 .isRecurring=${this.#isRecurringEvent(event)}
                 .isException=${this.#isExceptionEvent(event)}
                 ?inert=${this.#shouldDisableAllDayInteractionInCompactMonth()}
@@ -677,7 +676,7 @@ export class CalendarGridView extends CalendarViewBase {
                 start=${this.#toEventDateTimeString(event.data.start, false)}
                 end=${this.#toEventDateTimeString(resolvedDataEnd(event.data), false)}
                 .summary=${event.data.summary}
-                .color=${event.data.color}
+                .color=${this.resolveEventDisplayColor(event)}
                 .isRecurring=${this.#isRecurringEvent(event)}
                 .isException=${this.#isExceptionEvent(event)}
                 .viewDays=${this.viewDays}
@@ -1031,7 +1030,7 @@ export class CalendarGridView extends CalendarViewBase {
       start: this.#toEventDateTimeString(event.data.start, this.#isAllDayEvent(event)),
       end: this.#toEventDateTimeString(resolvedDataEnd(event.data), this.#isAllDayEvent(event)),
       summary: event.data.summary,
-      color: event.data.color,
+      color: this.resolveEventDisplayColor(event),
       hidden: false,
     }));
     const dayLabel = this.#getPopoverDayLabel(day, dayIndex);
@@ -1500,7 +1499,6 @@ export class CalendarGridView extends CalendarViewBase {
           end: endExclusive.toPlainDateTime({ hour: 0, minute: 0, second: 0 }),
           allDay: true,
           summary: this.defaultEventSummary,
-          color: this.defaultEventColor,
           calendarId: this.defaultCalendarId,
         });
         this.#cancelPendingCreatePointer(event, section);
@@ -1510,7 +1508,6 @@ export class CalendarGridView extends CalendarViewBase {
         start: startDateTime,
         end: endDateTime,
         summary: this.defaultEventSummary,
-        color: this.defaultEventColor,
         calendarId: this.defaultCalendarId,
       });
       this.#cancelPendingCreatePointer(event, section);
@@ -1549,7 +1546,6 @@ export class CalendarGridView extends CalendarViewBase {
         end: endExclusive.toPlainDateTime({ hour: 0, minute: 0, second: 0 }),
         allDay: true,
         summary: this.defaultEventSummary,
-        color: this.defaultEventColor,
         calendarId: this.defaultCalendarId,
       });
       this.#cancelPendingCreatePointer(event, section);
@@ -1560,7 +1556,6 @@ export class CalendarGridView extends CalendarViewBase {
       start: startDateTime,
       end: endDateTime,
       summary: this.defaultEventSummary,
-      color: this.defaultEventColor,
       calendarId: this.defaultCalendarId,
     });
     this.#cancelPendingCreatePointer(event, section);
@@ -1798,7 +1793,7 @@ export class CalendarGridView extends CalendarViewBase {
       });
     if (!segmentDayIndices.length) return [];
 
-    const colorStyles = getEventColorStyles(this.defaultEventColor);
+    const colorStyles = getEventColorStyles(this.resolveNewEventColor(this.defaultCalendarId));
     if (this.variant === "timed") {
       const timeLabel = this.#formatCreatePreviewTimeRange(startDateTime, endDateTime);
 
@@ -1955,7 +1950,7 @@ export class CalendarGridView extends CalendarViewBase {
         end: input.end,
         allDay: input.allDay,
         summary: input.summary,
-        color: input.color,
+        color: this.resolveNewEventColor(input.calendarId),
       },
     };
     this.applyCreateRequestToEventsAPI(detail);
@@ -2273,7 +2268,9 @@ export class CalendarGridView extends CalendarViewBase {
     }
 
     const visibleEvents = this.#sortedEvents;
-    const eventColorsById = new Map(visibleEvents.map(([id, event]) => [id, event.data.color]));
+    const eventColorsById = new Map(
+      visibleEvents.map(([id, event]) => [id, this.resolveEventDisplayColor(event)])
+    );
     const layout = buildAllDayLayout({
       viewDays: this.viewDays,
       daysPerRow: cols,

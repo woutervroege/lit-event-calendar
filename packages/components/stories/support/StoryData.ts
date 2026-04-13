@@ -20,7 +20,10 @@ export type WeekStoryEventEntry = CalendarTemporalEventEntry;
 /** Story `args.events`: default `CalendarEventsMap`, or an array of entries for controls. */
 export type StoryEventsArg = CalendarEventsMap | Array<[string, CalendarEvent]>;
 
-export function storyEventsFromArg(value: StoryEventsArg | undefined, fallback: CalendarEventsMap): CalendarEventsMap {
+export function storyEventsFromArg(
+  value: StoryEventsArg | undefined,
+  fallback: CalendarEventsMap
+): CalendarEventsMap {
   if (value === undefined) return new Map(fallback);
   if (Array.isArray(value)) return new Map(value);
   return new Map(value);
@@ -42,6 +45,7 @@ export const sampleCalendarsMap: CalendarsMap = new Map([
   [storyCalendarIds.travel, { displayName: "Travel", color: "#4564B5" }],
 ]);
 
+/** Most events omit `data.color` so the UI resolves from {@link sampleCalendarsMap}; a few set `color` as override examples. */
 export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendarEvent>([
   [
     "event-flight-london-20250104",
@@ -52,7 +56,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         start: Temporal.PlainDateTime.from("2025-01-04T08:30:00"),
         end: Temporal.PlainDateTime.from("2025-01-05T09:45:00"),
         summary: "Flight to London",
-        color: "#4564B5",
         location: "Schiphol Airport",
       },
     },
@@ -66,7 +69,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         start: Temporal.PlainDateTime.from("2025-01-03T12:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-07T18:00:00"),
         summary: "Hello World",
-        color: "#63e657",
       },
     },
   ],
@@ -79,7 +81,7 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         start: Temporal.PlainDateTime.from("2025-01-06T10:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-07T11:15:00"),
         summary: "Team Meeting",
-        color: "#ff0000",
+        color: "#ff0000", // explicit override (work calendar is green)
         location: "Room Atlas",
       },
     },
@@ -94,7 +96,7 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         start: Temporal.PlainDateTime.from("2025-01-04T12:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-06T13:30:00"),
         summary: "Amsterdam Zoned Event",
-        color: "#f59e0b",
+        color: "#f59e0b", // explicit override (travel calendar is blue)
       },
     },
   ],
@@ -107,7 +109,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         start: Temporal.PlainDateTime.from("2025-01-06T14:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-06T15:00:00"),
         summary: "Fiesta",
-        color: "#084cb8",
         location: "Cafe Mercado",
       },
     },
@@ -121,7 +122,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         start: Temporal.PlainDateTime.from("2025-01-08T16:30:00"),
         end: Temporal.PlainDateTime.from("2025-01-08T17:30:00"),
         summary: "Drinks",
-        color: "#9f3cfa",
         location: "Bar Noord",
         recurrenceRule: {
           freq: "WEEKLY",
@@ -142,7 +142,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
         summary: "Daily Standup",
-        color: "#10B981",
         recurrenceRule: {
           freq: "DAILY",
           interval: 1,
@@ -162,7 +161,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         start: Temporal.PlainDateTime.from("2025-01-18T11:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-18T11:15:00"),
         summary: "Daily Standup (moved)",
-        color: "#10B981",
       },
     },
   ],
@@ -176,7 +174,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-01-07T00:00:00"),
         allDay: true,
         summary: "Ops Rotation (All day)",
-        color: "#0EA5E9",
         recurrenceRule: {
           freq: "WEEKLY",
           interval: 1,
@@ -198,7 +195,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-01-22T00:00:00"),
         allDay: true,
         summary: "Ops Rotation (moved to Tuesday)",
-        color: "#0EA5E9",
       },
     },
   ],
@@ -212,7 +208,7 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-01-09T00:00:00"),
         allDay: true,
         summary: "Meeting with John",
-        color: "#E05ADD",
+        color: "#E05ADD", // explicit override (personal calendar is purple)
       },
     },
   ],
@@ -226,7 +222,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-01-02T00:00:00"),
         allDay: true,
         summary: "Company Holiday",
-        color: "#0EA5E9",
       },
     },
   ],
@@ -240,7 +235,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-01-08T00:00:00"),
         allDay: true,
         summary: "Product Planning Sprint",
-        color: "#22C55E",
       },
     },
   ],
@@ -254,7 +248,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-01-14T00:00:00"),
         allDay: true,
         summary: "Design QA Window",
-        color: "#F97316",
       },
     },
   ],
@@ -268,7 +261,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-01-18T00:00:00"),
         allDay: true,
         summary: "Team Offsite",
-        color: "#14B8A6",
       },
     },
   ],
@@ -282,7 +274,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-01-21T00:00:00"),
         allDay: true,
         summary: "Release Freeze",
-        color: "#A855F7",
       },
     },
   ],
@@ -296,7 +287,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-02-06T00:00:00"),
         allDay: true,
         summary: "Design Review",
-        color: "#6366F1",
       },
     },
   ],
@@ -310,7 +300,6 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-02-06T00:00:00"),
         allDay: true,
         summary: "Engineering Sync",
-        color: "#0EA5E9",
       },
     },
   ],
@@ -327,7 +316,6 @@ export const timezoneShiftEvents: CalendarEventsMap = new Map<string, ApiCalenda
         start: Temporal.PlainDateTime.from("2025-01-06T12:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-06T13:30:00"),
         summary: "Amsterdam Noon (zoned)",
-        color: "#f59e0b",
       },
     },
   ],
@@ -340,7 +328,6 @@ export const timezoneShiftEvents: CalendarEventsMap = new Map<string, ApiCalenda
         start: Temporal.PlainDateTime.from("2025-01-06T09:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-06T10:00:00"),
         summary: "Local baseline (plain)",
-        color: "#4564B5",
       },
     },
   ],
@@ -356,9 +343,7 @@ export const weekSplitEvents: CalendarEventsMap = new Map(
       ...event,
       data: {
         ...event.data,
-        exclusionDates: event.data.exclusionDates
-          ? new Set(event.data.exclusionDates)
-          : undefined,
+        exclusionDates: event.data.exclusionDates ? new Set(event.data.exclusionDates) : undefined,
       },
     },
   ])

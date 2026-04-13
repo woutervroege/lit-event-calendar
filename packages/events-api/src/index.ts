@@ -58,3 +58,8 @@ export {
   toRecurrenceId,
 } from "./utils/recurrence.js";
 export { expandRecurringStarts } from "./utils/rrule-adapter.js";
+export {
+  DEFAULT_CALENDAR_EVENT_COLOR,
+  finalizeCalendarEventData,
+  resolveCalendarEventColor,
+} from "./utils/eventColor.js";

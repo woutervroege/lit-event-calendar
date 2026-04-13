@@ -114,7 +114,7 @@ export class CalendarListView extends CalendarViewBase {
   #renderItem(item: AgendaItem) {
     const { event } = item;
     const isPast = Temporal.PlainDateTime.compare(item.end, this.#now) <= 0;
-    const colorStyles = getEventColorStyles(event.data.color);
+    const colorStyles = getEventColorStyles(this.resolveEventDisplayColor(event));
     const isRecurring = this.#isRecurringEvent(event);
     const isException = this.#isExceptionEvent(event);
     return html`

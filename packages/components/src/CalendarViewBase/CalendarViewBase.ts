@@ -3,6 +3,7 @@ import { ContextConsumer } from "@lit/context";
 import {
   expandEvents,
   parseRecurrenceId,
+  resolveCalendarEventColor,
   shiftDateValue,
   type ApplyResult,
   type CalendarEvent as ApiCalendarEvent,
@@ -122,6 +123,29 @@ export abstract class CalendarViewBase extends BaseElement {
       return this.events;
     }
     return api.getEvents() ?? new Map();
+  }
+
+  /**
+   * Color shown for an event: `data.color` when set, otherwise the parent calendar (from context),
+   * then {@link defaultEventColor}, then the package default.
+   */
+  protected resolveEventDisplayColor(event: ApiCalendarEvent): string {
+    return resolveCalendarEventColor(
+      event.calendarId,
+      event.data.color,
+      this.#eventsAPI?.getCalendars(),
+      this.defaultEventColor
+    );
+  }
+
+  /** Color for a newly created event before any explicit user color is chosen. */
+  protected resolveNewEventColor(calendarId: string | undefined): string {
+    return resolveCalendarEventColor(
+      calendarId ?? this.defaultCalendarId,
+      undefined,
+      this.#eventsAPI?.getCalendars(),
+      this.defaultEventColor
+    );
   }
 
   protected applyCreateRequestToEventsAPI(detail: EventCreateRequestDetail): boolean {

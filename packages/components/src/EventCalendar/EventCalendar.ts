@@ -156,6 +156,8 @@ export class EventCalendar extends BaseElement {
   });
   #eventsAPIContextValue: EventsAPIContextValue = {
     getEvents: () => this.events ?? new Map(),
+    getCalendars: () => this.calendars ?? new Map(),
+    getSelectedCalendarIds: () => this.selectedCalendarIds,
     getApi: () =>
       new EventsAPI(this.events ?? new Map(), {
         timezone: this.timezone,

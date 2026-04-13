@@ -46,22 +46,24 @@ export function applyAddException(input: AddExceptionInput, context: ReduceConte
   const existing = state.get(exceptionKey);
   let exceptionData: CalendarEventData;
   if ("duration" in raw) {
-    const { end: _e, ...md } = master.data;
+    const { end: _e, color: _masterColor, ...restMaster } = master.data;
+    const mergedColor = raw.color !== undefined ? raw.color : _masterColor;
     exceptionData = {
-      ...md,
+      ...restMaster,
       summary: raw.summary ?? master.data.summary,
-      color: raw.color ?? master.data.color,
+      ...(mergedColor !== undefined && mergedColor !== "" ? { color: mergedColor } : {}),
       location: raw.location ?? master.data.location,
       start: normalized.start,
       duration: raw.duration,
       recurrenceRule: undefined,
     };
   } else {
-    const { duration: _d, ...md } = master.data;
+    const { duration: _d, color: _masterColor, ...restMaster } = master.data;
+    const mergedColor = raw.color !== undefined ? raw.color : _masterColor;
     exceptionData = {
-      ...md,
+      ...restMaster,
       summary: raw.summary ?? master.data.summary,
-      color: raw.color ?? master.data.color,
+      ...(mergedColor !== undefined && mergedColor !== "" ? { color: mergedColor } : {}),
       location: raw.location ?? master.data.location,
       start: normalized.start,
       end: normalized.end,
