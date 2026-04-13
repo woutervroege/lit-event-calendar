@@ -36,13 +36,19 @@ function flatCalendarIdsInGroupOrder(groups: AccountCalendarGroup[]): string[] {
 @customElement("calendars-sidebar")
 export class CalendarsSidebar extends BaseElement {
   calendars?: CalendarsMap;
-  /** When unset, every calendar in `calendars` is treated as selected. */
-  selectedCalendarIds?: string[];
+  /**
+   * Calendar ids whose events are shown. When unset, every calendar in `calendars` is visible.
+   * Toggled via the color swatch checkboxes.
+   */
+  visibleCalendarIds?: string[];
+  /** Calendar id used as the default target for creating new events. Toggled via the name row (radio). */
+  defaultCalendarId?: string;
 
   static get properties() {
     return {
       calendars: { type: Object },
-      selectedCalendarIds: { type: Array, attribute: false },
+      visibleCalendarIds: { type: Array, attribute: false },
+      defaultCalendarId: { type: String, attribute: false },
     } as const;
   }
 
@@ -50,31 +56,78 @@ export class CalendarsSidebar extends BaseElement {
     return [...BaseElement.styles, unsafeCSS(componentStyle)];
   }
 
-  #effectiveSelectedSet(map: CalendarsMap): Set<string> {
-    const explicit = this.selectedCalendarIds;
+  #effectiveVisibleSet(map: CalendarsMap): Set<string> {
+    const explicit = this.visibleCalendarIds;
     if (explicit !== undefined) {
       return new Set(explicit);
     }
     return new Set(map.keys());
   }
 
-  #toggleCalendarId(id: string): void {
+  #onVisibilityChange(id: string, event: Event): void {
+    event.stopPropagation();
+    const input = event.target as HTMLInputElement;
+    this.#setCalendarVisible(id, input.checked);
+  }
+
+  #setCalendarVisible(id: string, shouldShow: boolean): void {
     const map = this.calendars ?? new Map();
-    const current = this.#effectiveSelectedSet(map);
+    const current = this.#effectiveVisibleSet(map);
     const nextSet = new Set(current);
-    if (nextSet.has(id)) {
-      nextSet.delete(id);
-    } else {
+    if (shouldShow) {
       nextSet.add(id);
+    } else {
+      nextSet.delete(id);
+      if (this.defaultCalendarId === id) {
+        this.defaultCalendarId = undefined;
+        this.dispatchEvent(
+          new CustomEvent("default-calendar-id-changed", {
+            bubbles: true,
+            composed: true,
+            detail: { defaultCalendarId: undefined },
+          })
+        );
+      }
     }
     const order = flatCalendarIdsInGroupOrder(calendarEntriesByAccount(map));
     const nextIds = order.filter((calendarId) => nextSet.has(calendarId));
-    this.selectedCalendarIds = nextIds;
+    this.visibleCalendarIds = nextIds;
     this.dispatchEvent(
-      new CustomEvent("selected-calendar-ids-changed", {
+      new CustomEvent("visible-calendar-ids-changed", {
         bubbles: true,
         composed: true,
-        detail: { selectedCalendarIds: nextIds },
+        detail: { visibleCalendarIds: nextIds },
+      })
+    );
+  }
+
+  #selectDefault(id: string): void {
+    const map = this.calendars ?? new Map();
+    if (!map.has(id)) return;
+
+    const visible = this.#effectiveVisibleSet(map);
+    if (!visible.has(id)) {
+      const nextSet = new Set(visible);
+      nextSet.add(id);
+      const order = flatCalendarIdsInGroupOrder(calendarEntriesByAccount(map));
+      const nextIds = order.filter((calendarId) => nextSet.has(calendarId));
+      this.visibleCalendarIds = nextIds;
+      this.dispatchEvent(
+        new CustomEvent("visible-calendar-ids-changed", {
+          bubbles: true,
+          composed: true,
+          detail: { visibleCalendarIds: nextIds },
+        })
+      );
+    }
+
+    if (this.defaultCalendarId === id) return;
+    this.defaultCalendarId = id;
+    this.dispatchEvent(
+      new CustomEvent("default-calendar-id-changed", {
+        bubbles: true,
+        composed: true,
+        detail: { defaultCalendarId: id },
       })
     );
   }
@@ -82,11 +135,16 @@ export class CalendarsSidebar extends BaseElement {
   render() {
     const map = this.calendars ?? new Map();
     const groups = calendarEntriesByAccount(map);
-    const selected = this.#effectiveSelectedSet(map);
+    const visible = this.#effectiveVisibleSet(map);
+    const defaultId = this.defaultCalendarId;
 
     return html`
       <aside class="calendars-sidebar" aria-label="Calendars">
-        <div class="calendar-list">
+        <div
+          class="calendar-list"
+          role="radiogroup"
+          aria-label="Default calendar for new events"
+        >
           ${groups.map(
             (group, groupIndex) => html`
               <section
@@ -101,25 +159,40 @@ export class CalendarsSidebar extends BaseElement {
                 </h3>
                 <div
                   class="calendar-account-calendars"
-                  role="group"
-                  aria-label=${`Calendars for account ${group.accountId}`}
+                  role="presentation"
                 >
                   ${group.entries.map(
                     ([id, cal]) => html`
-                      <div class="calendar-row">
-                        <button
-                          type="button"
-                          class="calendar-toggle"
-                          role="checkbox"
-                          aria-checked=${selected.has(id) ? "true" : "false"}
+                      <div
+                        class="calendar-row ${visible.has(id) ? "" : "calendar-row--hidden"} ${defaultId === id ? "calendar-row--selected" : ""}"
+                      >
+                        <label
+                          class="calendar-visibility"
                           title=${cal.url}
-                          @click=${() => this.#toggleCalendarId(id)}
+                          @click=${(e: Event) => e.stopPropagation()}
                         >
+                          <input
+                            type="checkbox"
+                            class="calendar-visibility-input"
+                            .checked=${visible.has(id)}
+                            aria-label=${`Show events for ${cal.displayName}`}
+                            @change=${(e: Event) => this.#onVisibilityChange(id, e)}
+                            @click=${(e: Event) => e.stopPropagation()}
+                          />
                           <span
                             class="calendar-swatch"
                             style=${`background-color: ${cal.color}`}
                             aria-hidden="true"
                           ></span>
+                        </label>
+                        <button
+                          type="button"
+                          class="calendar-default"
+                          role="radio"
+                          aria-checked=${defaultId === id ? "true" : "false"}
+                          aria-label=${cal.displayName}
+                          @click=${() => this.#selectDefault(id)}
+                        >
                           <span class="calendar-name">${cal.displayName}</span>
                         </button>
                       </div>

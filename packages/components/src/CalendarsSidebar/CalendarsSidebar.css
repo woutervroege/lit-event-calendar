@@ -3,6 +3,12 @@
 :host {
   @apply block h-full min-h-0 min-w-0;
   color: var(--_lc-calendars-sidebar-fg, light-dark(rgb(15 23 42), rgb(248 250 252)));
+  /* Match packages/components/src/Button/Button.css focus tokens */
+  --_lc-focus-outline-color: light-dark(rgb(15 23 42 / 92%), rgb(255 255 255 / 96%));
+  --_lc-focus-ring-color: light-dark(rgb(15 23 42 / 85%), rgb(255 255 255 / 92%));
+  --_lc-focus-ring-offset-color: light-dark(rgb(255 255 255), rgb(2 6 23));
+  /* WCAG 2.2 2.5.8 Target Size (Minimum): 24×24 CSS px; 36px touch target. */
+  --_lc-calendars-sidebar-visibility-min-target: 2.25rem;
 }
 
 .calendars-sidebar {
@@ -21,7 +27,9 @@
 }
 
 .calendar-list {
-  @apply flex flex-col gap-4 overflow-y-auto min-h-0 m-0 p-0;
+  @apply flex flex-col gap-4 overflow-y-auto min-h-0 m-0;
+  /* Room so inset focus on rows is not flush against the scroll clip edge */
+  padding: var(--_lc-calendars-sidebar-list-padding, 0.125rem);
 }
 
 .calendar-account-group {
@@ -42,49 +50,127 @@
 }
 
 .calendar-row {
-  @apply min-w-0;
-}
-
-.calendar-toggle {
-  @apply flex items-center gap-3 min-w-0 w-full text-left text-sm leading-snug rounded-md border border-transparent;
-  padding: var(--_lc-calendars-sidebar-toggle-padding, 0.375rem 0.5rem);
-  margin: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
+  @apply flex items-center gap-0 min-w-0 rounded-md border;
+  /* No inline-start padding so the visibility control aligns to the row edge; block 0 so no inset top/bottom */
+  padding-block: var(--_lc-calendars-sidebar-toggle-padding-block, 0);
+  padding-inline: 0 var(--_lc-calendars-sidebar-toggle-padding-inline-end, 0.5rem);
+  border-color: var(--_lc-calendars-sidebar-row-border, transparent);
+  background-color: var(--_lc-calendars-sidebar-row-bg, transparent);
   transition:
     background-color 0.12s ease,
-    opacity 0.12s ease;
+    border-color 0.12s ease;
 }
 
-.calendar-toggle:hover {
+.calendar-row:hover {
   background-color: var(
     --_lc-calendars-sidebar-toggle-hover-bg,
     light-dark(rgb(15 23 42 / 6%), rgb(248 250 252 / 8%))
   );
 }
 
-.calendar-toggle:focus-visible {
-  outline: 2px solid var(--_lc-calendars-sidebar-focus-ring, light-dark(rgb(59 130 246), rgb(96 165 250)));
-  outline-offset: 2px;
+/* Inset focus stays inside the row box so overflow-y-auto / ancestor overflow-hidden do not clip it */
+.calendar-row:has(.calendar-default:focus-visible) {
+  outline: 2px solid var(--_lc-focus-outline-color);
+  outline-offset: -2px;
 }
 
-.calendar-toggle[aria-checked="false"] {
+.calendar-row--selected {
+  border-color: var(
+    --_lc-calendars-sidebar-selected-border,
+    light-dark(rgb(59 130 246 / 45%), rgb(96 165 250 / 55%))
+  );
+  background-color: var(
+    --_lc-calendars-sidebar-selected-bg,
+    light-dark(rgb(59 130 246 / 10%), rgb(96 165 250 / 14%))
+  );
+}
+
+.calendar-row--selected:hover {
+  background-color: var(
+    --_lc-calendars-sidebar-selected-hover-bg,
+    light-dark(rgb(59 130 246 / 14%), rgb(96 165 250 / 18%))
+  );
+}
+
+.calendar-row--hidden .calendar-name {
   opacity: var(--_lc-calendars-sidebar-toggle-dim-opacity, 0.45);
 }
 
-.calendar-toggle[aria-checked="false"] .calendar-swatch {
+.calendar-visibility {
+  @apply relative flex shrink-0 items-center justify-center border border-transparent;
+  box-sizing: border-box;
+  min-width: var(--_lc-calendars-sidebar-visibility-min-target, 2.25rem);
+  min-height: var(--_lc-calendars-sidebar-visibility-min-target, 2.25rem);
+  /* Outer hit target; .calendar-swatch keeps its own smaller radius */
+  border-radius: var(--_lc-calendars-sidebar-visibility-target-radius, 0.375rem);
+  padding: var(--_lc-calendars-sidebar-visibility-padding, 0);
+  margin: 0;
+  margin-inline-start: calc(-1 * var(--_lc-calendars-sidebar-visibility-outdent, 0));
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+
+.calendar-visibility:has(.calendar-visibility-input:focus-visible) {
+  outline: 2px solid var(--_lc-focus-outline-color);
+  outline-offset: -2px;
+}
+
+.calendar-visibility-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: inherit;
+  opacity: 0;
+  appearance: none;
+  border-radius: inherit;
+}
+
+.calendar-visibility-input:focus {
+  outline: none;
+}
+
+.calendar-visibility-input:focus-visible {
+  outline: none;
+}
+
+.calendar-visibility:has(.calendar-visibility-input:not(:checked)) .calendar-swatch {
   opacity: 0.55;
 }
 
+.calendar-default {
+  @apply flex min-w-0 flex-1 items-center rounded-md border border-transparent text-left text-sm leading-snug;
+  min-height: var(--_lc-calendars-sidebar-visibility-min-target, 2.25rem);
+  padding-block: var(--_lc-calendars-sidebar-default-padding-block, 0);
+  padding-inline: 0 var(--_lc-calendars-sidebar-default-padding-inline-end, 0.375rem);
+  margin: 0;
+  margin-inline-end: calc(-1 * var(--_lc-calendars-sidebar-default-outdent, 0));
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.calendar-default:focus {
+  outline: none;
+}
+
+.calendar-default:focus-visible {
+  outline: none;
+}
+
 .calendar-swatch {
-  @apply shrink-0 rounded-[3px];
+  @apply shrink-0;
+  border-radius: var(--_lc-calendars-sidebar-swatch-radius, 3px);
   width: var(--_lc-calendars-sidebar-swatch-size, 14px);
   height: var(--_lc-calendars-sidebar-swatch-size, 14px);
   border: 1px solid var(--_lc-calendars-sidebar-swatch-border, rgb(0 0 0 / 12%));
+  pointer-events: none;
 }
 
 .calendar-name {
-  @apply truncate min-w-0;
+  @apply flex min-w-0 flex-1 items-center truncate text-left text-sm leading-snug;
 }

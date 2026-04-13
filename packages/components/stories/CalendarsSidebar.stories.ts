@@ -10,7 +10,8 @@ import {
 
 type CalendarsSidebarElement = HTMLElement & {
   calendars?: CalendarsMap;
-  selectedCalendarIds?: string[];
+  visibleCalendarIds?: string[];
+  defaultCalendarId?: string;
 };
 
 const meta: Meta = {
@@ -28,6 +29,7 @@ const meta: Meta = {
     el.style.maxWidth = "320px";
     el.style.minHeight = "280px";
     el.calendars = sampleCalendarsMap;
+    el.defaultCalendarId = storyCalendarIds.work;
     return el;
   },
 };

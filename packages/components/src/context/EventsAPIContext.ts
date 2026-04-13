@@ -25,8 +25,8 @@ export type EventsAPIContextValue = {
   /** Distinct {@link CalendarsMap} account ids; empty set when there are no calendars. */
   getCalendarAccounts: () => CalendarAccounts;
   /**
-   * Subset of calendar ids whose events are shown. `undefined` means all calendars in
-   * {@link EventsAPIContextValue.getCalendars} are visible (same as `event-calendar` props).
+   * Calendar ids whose events are shown (visibility). `undefined` means all calendars in
+   * {@link EventsAPIContextValue.getCalendars} are visible (same as `event-calendar` `selectedCalendarIds`).
    */
   getSelectedCalendarIds: () => string[] | undefined;
   apply: (operation: EventOperation) => ApplyResult;
