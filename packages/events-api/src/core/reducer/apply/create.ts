@@ -12,9 +12,12 @@ export function applyCreate(input: CreateInput, context: ReduceContext): ApplyRe
     "end" in rawData ?
       normalizeTimeRange({ start: rawData.start, end: rawData.end })
     : normalizeTimeRange({ start: rawData.start, duration: rawData.duration });
-  const { summary, color, location, recurrenceRule, exclusionDates } = rawData;
+  const { summary, color, location, recurrenceRule, exclusionDates, allDay, timeZone } = rawData;
   const colorFields =
     color !== undefined && color !== "" ? ({ color } satisfies Pick<CalendarEventData, "color">) : {};
+  const optionalAllDay = allDay !== undefined ? ({ allDay } satisfies Pick<CalendarEventData, "allDay">) : {};
+  const optionalTimeZone =
+    timeZone !== undefined ? ({ timeZone } satisfies Pick<CalendarEventData, "timeZone">) : {};
   const data: CalendarEventData =
     "end" in rawData ?
       {
@@ -25,6 +28,8 @@ export function applyCreate(input: CreateInput, context: ReduceContext): ApplyRe
         exclusionDates,
         start: normalized.start,
         end: normalized.end,
+        ...optionalAllDay,
+        ...optionalTimeZone,
       }
     : {
         summary,
@@ -34,6 +39,8 @@ export function applyCreate(input: CreateInput, context: ReduceContext): ApplyRe
         exclusionDates,
         start: normalized.start,
         duration: rawData.duration,
+        ...optionalAllDay,
+        ...optionalTimeZone,
       };
   const key =
     input.key ??
