@@ -1,6 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { RRule, RRuleSet, type Options, type Weekday } from "rrule";
-import type { CalendarEventView, CalendarRecurrenceRule } from "./calendar-types.js";
+import type { CalendarRecurrenceRule } from "./calendar-types.js";
+import type { CalendarEvent } from "./state-types.js";
 import { parseRecurrenceId, toPlainDateTime } from "./recurrence.js";
 
 type ExpandRecurringOptions = {
@@ -94,7 +95,7 @@ function toRRuleOptions(
 }
 
 export function expandRecurringStarts(
-  event: CalendarEventView,
+  event: CalendarEvent,
   rangeStart: Temporal.PlainDateTime,
   rangeEnd: Temporal.PlainDateTime,
   options: ExpandRecurringOptions = {}

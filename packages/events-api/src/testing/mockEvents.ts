@@ -1,11 +1,12 @@
 import { Temporal } from "@js-temporal/polyfill";
-import type { CalendarEventViewMap } from "../calendar-types.js";
+import type { CalendarEventsMap } from "../state-types.js";
 
-export function createDailySeriesState(): CalendarEventViewMap {
+export function createDailySeriesState(): CalendarEventsMap {
   return new Map([
     [
       "daily",
       {
+        key: "daily",
         eventId: "daily@example.test",
         start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
@@ -17,11 +18,12 @@ export function createDailySeriesState(): CalendarEventViewMap {
   ]);
 }
 
-export function createWeeklySeriesWithExceptionState(): CalendarEventViewMap {
+export function createWeeklySeriesWithExceptionState(): CalendarEventsMap {
   return new Map([
     [
       "weekly",
       {
+        key: "weekly",
         eventId: "weekly@example.test",
         start: Temporal.PlainDateTime.from("2025-01-20T09:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-20T10:00:00"),
@@ -39,6 +41,7 @@ export function createWeeklySeriesWithExceptionState(): CalendarEventViewMap {
     [
       "weekly::20250120T090000",
       {
+        key: "weekly::20250120T090000",
         eventId: "weekly@example.test",
         recurrenceId: "20250120T090000",
         start: Temporal.PlainDateTime.from("2025-01-20T13:00:00"),

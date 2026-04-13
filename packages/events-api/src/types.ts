@@ -1,11 +1,8 @@
 import { Temporal } from "@js-temporal/polyfill";
-import type {
-  CalendarEventDateValue,
-  CalendarEventView,
-  CalendarEventViewMap,
-} from "./calendar-types.js";
+import type { CalendarEventDateValue } from "./calendar-types.js";
+import type { CalendarEvent, CalendarEventRecord, CalendarEventsMap } from "./state-types.js";
 
-export type EventsState = CalendarEventViewMap;
+export type EventsState = CalendarEventsMap;
 export type EventKey = string;
 export type Scope = "single" | "series";
 
@@ -29,13 +26,13 @@ export type TimeRangeInput =
 
 export type CreateInput = {
   key?: EventKey;
-  event: Omit<CalendarEventView, "start" | "end"> & TimeRangeInput;
+  event: Omit<CalendarEvent, "start" | "end"> & TimeRangeInput;
 };
 
 export type UpdateInput = {
   target: EventTarget;
   scope: Scope;
-  patch: Partial<Pick<CalendarEventView, "summary" | "color" | "location" | "calendarId">> &
+  patch: Partial<Pick<CalendarEvent, "summary" | "color" | "location" | "calendarId">> &
     Partial<TimeRangeInput>;
 };
 
@@ -91,7 +88,7 @@ export type RemoveExclusionInput = {
 export type AddExceptionInput = {
   target: EventTarget;
   recurrenceId: string;
-  event: Partial<Pick<CalendarEventView, "summary" | "color" | "location" | "calendarId">> &
+  event: Partial<Pick<CalendarEvent, "summary" | "color" | "location" | "calendarId">> &
     TimeRangeInput & {
       key?: EventKey;
     };
@@ -109,9 +106,9 @@ export type RemoveExceptionInput = {
 };
 
 export type EventChange =
-  | { type: "created"; key: EventKey; event: CalendarEventView }
-  | { type: "updated"; key: EventKey; before: CalendarEventView; after: CalendarEventView }
-  | { type: "removed"; key: EventKey; before: CalendarEventView };
+  | { type: "created"; key: EventKey; event: CalendarEventRecord }
+  | { type: "updated"; key: EventKey; before: CalendarEventRecord; after: CalendarEventRecord }
+  | { type: "removed"; key: EventKey; before: CalendarEventRecord };
 
 export type DomainEffect =
   | { type: "warning"; code: string; message: string }

@@ -1,6 +1,12 @@
 import { Temporal } from "@js-temporal/polyfill";
-import type { CalendarEventDateValue, CalendarEventView, CalendarEventViewMap } from "./calendar-types.js";
-import { isCalendarEventException } from "./calendar-types.js";
+import type { CalendarEventDateValue } from "./calendar-types.js";
+import type {
+  CalendarEvent,
+  CalendarEventRecord,
+  CalendarEventsMap,
+  CalendarEventTimeSpan,
+} from "./state-types.js";
+import { isCalendarEventException } from "./state-types.js";
 import { expandEvents } from "./expand.js";
 import {
   shiftDateValue,
@@ -35,7 +41,7 @@ type ReduceContext = {
   trackPending?: boolean;
 };
 
-function cloneEvent(event: CalendarEventView): CalendarEventView {
+function cloneEvent(event: CalendarEventRecord): CalendarEventRecord {
   return {
     ...event,
     exclusionDates: event.exclusionDates ? new Set(event.exclusionDates) : undefined,
@@ -52,6 +58,13 @@ function normalizeTimeRange(input: TimeRangeInput): { start: CalendarEventDateVa
     start: input.start,
     end: shiftDateValue(input.start, input.duration),
   };
+}
+
+function resolveEventEndValue(
+  event: Pick<CalendarEventRecord, "start"> & CalendarEventTimeSpan
+): CalendarEventDateValue {
+  if ("end" in event && event.end !== undefined) return event.end;
+  return shiftDateValue(event.start, event.duration);
 }
 
 function resolveKey(state: EventsState, target: EventTarget): string | undefined {
@@ -83,18 +96,18 @@ function resolveScopeKeys(state: EventsState, key: string, scope: Scope): string
   return keys;
 }
 
-function changeUpdated(changes: EventChange[], key: string, before: CalendarEventView, after: CalendarEventView) {
+function changeUpdated(changes: EventChange[], key: string, before: CalendarEventRecord, after: CalendarEventRecord) {
   changes.push({ type: "updated", key, before, after });
 }
 
-function setUpdated(state: EventsState, changes: EventChange[], key: string, update: CalendarEventView) {
+function setUpdated(state: EventsState, changes: EventChange[], key: string, update: CalendarEventRecord) {
   const before = state.get(key);
   if (!before) return;
   state.set(key, update);
   changeUpdated(changes, key, before, update);
 }
 
-function asPendingUpdated(event: CalendarEventView, trackPending: boolean): CalendarEventView {
+function asPendingUpdated(event: CalendarEventRecord, trackPending: boolean): CalendarEventRecord {
   if (!trackPending) return event;
   return {
     ...event,
@@ -102,7 +115,7 @@ function asPendingUpdated(event: CalendarEventView, trackPending: boolean): Cale
   };
 }
 
-function asPendingDeleted(event: CalendarEventView, trackPending: boolean): CalendarEventView {
+function asPendingDeleted(event: CalendarEventRecord, trackPending: boolean): CalendarEventRecord {
   if (!trackPending) return event;
   return {
     ...event,
@@ -110,7 +123,7 @@ function asPendingDeleted(event: CalendarEventView, trackPending: boolean): Cale
   };
 }
 
-function withExcludedRecurrence(event: CalendarEventView, recurrenceId: string): CalendarEventView {
+function withExcludedRecurrence(event: CalendarEventRecord, recurrenceId: string): CalendarEventRecord {
   const exclusionDates = new Set(event.exclusionDates ?? []);
   exclusionDates.add(recurrenceId);
   return {
@@ -133,16 +146,23 @@ function ensureMinimumDuration(
   return { start, end: shiftDateValue(start, minDuration) };
 }
 
-function applyUpdateToEvent(event: CalendarEventView, patch: UpdateInput["patch"]): CalendarEventView {
+function applyUpdateToEvent(event: CalendarEventRecord, patch: UpdateInput["patch"]): CalendarEventRecord {
   const next = cloneEvent(event);
   if (patch.summary !== undefined) next.summary = patch.summary;
   if (patch.color !== undefined) next.color = patch.color;
   if (patch.location !== undefined) next.location = patch.location;
   if (patch.calendarId !== undefined) next.calendarId = patch.calendarId;
   if (patch.start !== undefined) next.start = patch.start;
-  if ("end" in patch && patch.end !== undefined) next.end = patch.end;
+  if ("end" in patch && patch.end !== undefined) {
+    next.end = patch.end;
+    delete next.duration;
+  }
   if ("duration" in patch && patch.duration !== undefined && patch.start !== undefined) {
-    next.end = shiftDateValue(patch.start, patch.duration);
+    next.duration = patch.duration;
+    delete next.end;
+  } else if ("duration" in patch && patch.duration !== undefined) {
+    next.duration = patch.duration;
+    delete next.end;
   }
   return next;
 }
@@ -156,10 +176,11 @@ function applyCreate(input: CreateInput, context: ReduceContext): ApplyResult {
     input.key ??
     input.event.eventId ??
     `event-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  const event: CalendarEventView = {
+  const event: CalendarEventRecord = {
+    key,
     ...input.event,
     start: normalized.start,
-    end: normalized.end,
+    ...("end" in input.event ? { end: normalized.end } : { duration: input.event.duration }),
   };
   state.set(key, event);
   changes.push({ type: "created", key, event });
@@ -207,7 +228,7 @@ function applyMove(input: MoveInput, context: ReduceContext): ApplyResult {
       const nextRecurrenceId = shiftExceptionRecurrenceId
         ? shiftRecurrenceId(event.recurrenceId, event.start, input.delta)
         : event.recurrenceId;
-      const updated: CalendarEventView = {
+      const updated: CalendarEventRecord = {
         ...event,
         recurrenceId: nextRecurrenceId,
       };
@@ -218,7 +239,9 @@ function applyMove(input: MoveInput, context: ReduceContext): ApplyResult {
       {
         ...event,
         start: shiftDateValue(event.start, input.delta),
-        end: shiftDateValue(event.end, input.delta),
+        ...("end" in event && event.end !== undefined
+          ? { end: shiftDateValue(event.end, input.delta), duration: undefined }
+          : {}),
         exclusionDates: shiftExdates ? shiftExclusionDates(event, input.delta) : event.exclusionDates,
       },
       context.trackPending ?? false
@@ -248,7 +271,7 @@ function applyResizeStart(input: ResizeStartInput, context: ReduceContext): Appl
     const event = state.get(updateKey);
     if (!event) continue;
     if (input.scope === "series" && isCalendarEventException(event)) {
-      const updatedException: CalendarEventView = {
+      const updatedException: CalendarEventRecord = {
         ...event,
         recurrenceId: shiftRecurrenceId(event.recurrenceId, event.start, seriesDelta),
       };
@@ -256,7 +279,7 @@ function applyResizeStart(input: ResizeStartInput, context: ReduceContext): Appl
       continue;
     }
     const nextStart = input.scope === "series" ? shiftDateValue(event.start, seriesDelta) : input.toStart;
-    const bounded = ensureMinimumDuration(nextStart, event.end, input.options?.minDuration);
+    const bounded = ensureMinimumDuration(nextStart, resolveEventEndValue(event), input.options?.minDuration);
     const nextExclusionDates =
       input.scope === "series" && event.recurrenceRule && !event.recurrenceId
         ? shiftExclusionDates(event, seriesDelta)
@@ -266,6 +289,7 @@ function applyResizeStart(input: ResizeStartInput, context: ReduceContext): Appl
         ...event,
         start: bounded.start,
         end: bounded.end,
+        duration: undefined,
         exclusionDates: nextExclusionDates,
       },
       context.trackPending ?? false
@@ -289,19 +313,21 @@ function applyResizeEnd(input: ResizeEndInput, context: ReduceContext): ApplyRes
   const keys = resolveScopeKeys(state, key, input.scope);
   const seriesDelta =
     input.scope === "series"
-      ? toPlainDateTime(referenceEvent.end).until(toPlainDateTime(input.toEnd))
+      ? toPlainDateTime(resolveEventEndValue(referenceEvent)).until(toPlainDateTime(input.toEnd))
       : null;
   for (const updateKey of keys) {
     const event = state.get(updateKey);
     if (!event) continue;
     if (input.scope === "series" && isCalendarEventException(event)) continue;
-    const nextEnd = input.scope === "series" ? shiftDateValue(event.end, seriesDelta) : input.toEnd;
+    const nextEnd =
+      input.scope === "series" ? shiftDateValue(resolveEventEndValue(event), seriesDelta) : input.toEnd;
     const bounded = ensureMinimumDuration(event.start, nextEnd, input.options?.minDuration);
     const updated = asPendingUpdated(
       {
         ...event,
         start: bounded.start,
         end: bounded.end,
+        duration: undefined,
       },
       context.trackPending ?? false
     );
@@ -434,11 +460,12 @@ function applyAddException(input: AddExceptionInput, context: ReduceContext): Ap
   const normalized = normalizeTimeRange(input.event);
   const exceptionKey = input.event.key ?? `${key}::${input.recurrenceId}`;
   const existing = state.get(exceptionKey);
-  const exception: CalendarEventView = {
+  const exception: CalendarEventRecord = {
     ...master,
     ...input.event,
+    key: exceptionKey,
     start: normalized.start,
-    end: normalized.end,
+    ...("end" in input.event ? { end: normalized.end } : { duration: input.event.duration }),
     recurrenceId: input.recurrenceId,
     isException: true,
     recurrenceRule: undefined,
@@ -453,7 +480,7 @@ function applyAddException(input: AddExceptionInput, context: ReduceContext): Ap
           pendingOp: "created" as const,
         }
       : exception;
-    state.set(exceptionKey, createdException);
+    state.set(exceptionKey, { ...createdException, key: exceptionKey });
     changes.push({ type: "created", key: exceptionKey, event: createdException });
   }
   return { nextState: state, changes, effects };
@@ -530,14 +557,14 @@ export class EventsAPI {
     return cloneState(this.#state);
   }
 
-  get(target: EventTarget): CalendarEventView | undefined {
+  get(target: EventTarget): CalendarEventRecord | undefined {
     const key = resolveKey(this.#state, target);
     if (!key) return undefined;
     const event = this.#state.get(key);
     return event ? cloneEvent(event) : undefined;
   }
 
-  expand(range: { start: CalendarEventDateValue; end: CalendarEventDateValue }): CalendarEventViewMap {
+  expand(range: { start: CalendarEventDateValue; end: CalendarEventDateValue }): CalendarEventsMap {
     return expandEvents(this.#state, range, { timezone: this.#timezone });
   }
 

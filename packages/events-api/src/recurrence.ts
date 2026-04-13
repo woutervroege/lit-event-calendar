@@ -1,9 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
-import type {
-  CalendarEventDateValue,
-  CalendarEventView,
-  CalendarEventViewMap,
-} from "./calendar-types.js";
+import type { CalendarEventDateValue } from "./calendar-types.js";
+import type { CalendarEvent, CalendarEventsMap, CalendarEventTimeSpan } from "./state-types.js";
 
 export function toPlainDateTime(value: CalendarEventDateValue, timezone?: string): Temporal.PlainDateTime {
   if (value instanceof Temporal.ZonedDateTime) {
@@ -68,18 +65,18 @@ export function parseRecurrenceId(
   return plainDateTime;
 }
 
-export function isDetachedException(event: CalendarEventView): boolean {
+export function isDetachedException(event: CalendarEvent): boolean {
   if (event.isException === true) return true;
   if (!event.recurrenceId) return false;
   if (isExcludedOccurrence(event, event.recurrenceId)) return false;
   return !Boolean(event.recurrenceRule);
 }
 
-export function isExcludedOccurrence(master: CalendarEventView, recurrenceId: string): boolean {
+export function isExcludedOccurrence(master: CalendarEvent, recurrenceId: string): boolean {
   return Boolean(master.exclusionDates?.has(recurrenceId));
 }
 
-export function collectDetachedExceptionKeys(events: CalendarEventViewMap): Set<string> {
+export function collectDetachedExceptionKeys(events: CalendarEventsMap): Set<string> {
   const detachedExceptionKeys = new Set<string>();
   for (const [, event] of events) {
     if (event.pendingOp === "deleted") continue;
@@ -99,8 +96,15 @@ export function shiftDateValue(
   return value.add(shift);
 }
 
+export function resolveEventEnd(
+  event: Pick<CalendarEvent, "start"> & CalendarEventTimeSpan
+): CalendarEventDateValue {
+  if ("end" in event && event.end !== undefined) return event.end;
+  return shiftDateValue(event.start, event.duration);
+}
+
 export function shiftExclusionDates(
-  event: CalendarEventView,
+  event: CalendarEvent,
   shift: Temporal.Duration | null
 ): Set<string> | undefined {
   if (!event.exclusionDates?.size) return event.exclusionDates;

@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { Temporal } from "@js-temporal/polyfill";
-import type { CalendarEventViewMap } from "./calendar-types.js";
+import type { CalendarEventsMap } from "./state-types.js";
 import { EventsAPI } from "./reducer.js";
 import { createDailySeriesState, createWeeklySeriesWithExceptionState } from "./testing/mockEvents.js";
 
 describe("EventsAPI", () => {
   it("moves a series and shifts exclusions while preserving exception timing", () => {
-    const state: CalendarEventViewMap = new Map([
+    const state: CalendarEventsMap = new Map([
       [
         "daily",
         {
+          key: "daily",
           eventId: "daily@example.test",
           start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
           end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
@@ -22,6 +23,7 @@ describe("EventsAPI", () => {
       [
         "daily::20250115T090000",
         {
+          key: "daily::20250115T090000",
           eventId: "daily@example.test",
           recurrenceId: "20250115T090000",
           start: Temporal.PlainDateTime.from("2025-01-15T11:00:00"),
@@ -48,10 +50,11 @@ describe("EventsAPI", () => {
   });
 
   it("deleting exception keeps exclusion on master", () => {
-    const state: CalendarEventViewMap = new Map([
+    const state: CalendarEventsMap = new Map([
       [
         "daily",
         {
+          key: "daily",
           eventId: "daily@example.test",
           start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
           end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
@@ -63,6 +66,7 @@ describe("EventsAPI", () => {
       [
         "daily::20250114T090000",
         {
+          key: "daily::20250114T090000",
           eventId: "daily@example.test",
           recurrenceId: "20250114T090000",
           start: Temporal.PlainDateTime.from("2025-01-14T11:00:00"),
@@ -105,11 +109,12 @@ describe("EventsAPI", () => {
   });
 
   it("resizing series start should not resize detached exceptions", () => {
-    const state: CalendarEventViewMap = new Map([
+    const state: CalendarEventsMap = new Map([
       ...createDailySeriesState(),
       [
         "daily::20250115T090000",
         {
+          key: "daily::20250115T090000",
           eventId: "daily@example.test",
           recurrenceId: "20250115T090000",
           start: Temporal.PlainDateTime.from("2025-01-15T11:00:00"),
@@ -135,10 +140,11 @@ describe("EventsAPI", () => {
   });
 
   it("resizing series start shifts detached exception recurrence anchor", () => {
-    const state: CalendarEventViewMap = new Map([
+    const state: CalendarEventsMap = new Map([
       [
         "daily",
         {
+          key: "daily",
           eventId: "daily@example.test",
           start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
           end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
@@ -151,6 +157,7 @@ describe("EventsAPI", () => {
       [
         "daily::20250115T090000",
         {
+          key: "daily::20250115T090000",
           eventId: "daily@example.test",
           recurrenceId: "20250115T090000",
           start: Temporal.PlainDateTime.from("2025-01-15T11:00:00"),
@@ -203,10 +210,11 @@ describe("EventsAPI", () => {
   });
 
   it("tracks update and delete as pending when enabled", () => {
-    const state: CalendarEventViewMap = new Map([
+    const state: CalendarEventsMap = new Map([
       [
         "single",
         {
+          key: "single",
           eventId: "single@example.test",
           start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
           end: Temporal.PlainDateTime.from("2025-01-13T10:00:00"),
@@ -233,10 +241,11 @@ describe("EventsAPI", () => {
   });
 
   it("drops locally created events when deleted in pending mode", () => {
-    const state: CalendarEventViewMap = new Map([
+    const state: CalendarEventsMap = new Map([
       [
         "draft",
         {
+          key: "draft",
           eventId: "draft@example.test",
           start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
           end: Temporal.PlainDateTime.from("2025-01-13T10:00:00"),

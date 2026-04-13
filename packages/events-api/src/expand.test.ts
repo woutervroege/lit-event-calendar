@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Temporal } from "@js-temporal/polyfill";
-import type { CalendarEventViewMap } from "./calendar-types.js";
+import type { CalendarEventsMap } from "./state-types.js";
 import { expandEvents } from "./expand.js";
 import { createDailySeriesState } from "./testing/mockEvents.js";
 
@@ -24,10 +24,11 @@ describe("expandEvents", () => {
   });
 
   it("suppresses generated occurrence when detached exception exists", () => {
-    const events: CalendarEventViewMap = new Map([
+    const events: CalendarEventsMap = new Map([
       [
         "daily",
         {
+          key: "daily",
           eventId: "daily@example.test",
           start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
           end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
@@ -40,6 +41,7 @@ describe("expandEvents", () => {
       [
         "daily::20250114T090000",
         {
+          key: "daily::20250114T090000",
           eventId: "daily@example.test",
           recurrenceId: "20250114T090000",
           start: Temporal.PlainDateTime.from("2025-01-14T11:00:00"),
@@ -62,10 +64,11 @@ describe("expandEvents", () => {
   });
 
   it("expands monthly last Friday recurrences using byDay + bySetPos", () => {
-    const events: CalendarEventViewMap = new Map([
+    const events: CalendarEventsMap = new Map([
       [
         "monthly-last-friday",
         {
+          key: "monthly-last-friday",
           eventId: "monthly-last-friday@example.test",
           start: Temporal.PlainDateTime.from("2025-01-06T09:00:00"),
           end: Temporal.PlainDateTime.from("2025-01-06T10:00:00"),
