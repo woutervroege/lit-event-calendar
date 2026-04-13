@@ -5,7 +5,7 @@ import type {
   CalendarEventData,
   CalendarEventsMap,
 } from "../types/event.js";
-import { isCalendarEventException } from "../types/event.js";
+import { isDetachedException } from "../utils/recurrence.js";
 import { expandEvents } from "./expandEvents.js";
 import {
   resolveEventEnd,
@@ -226,7 +226,7 @@ function applyUpdate(input: UpdateInput, context: ReduceContext): ApplyResult {
   for (const updateKey of keys) {
     const event = state.get(updateKey);
     if (!event) continue;
-    if (input.scope === "series" && isCalendarEventException(event)) continue;
+    if (input.scope === "series" && isDetachedException(event)) continue;
     const updated = asPendingUpdated(applyUpdateToEvent(event, input.patch), context.trackPending ?? false);
     setUpdated(state, changes, updateKey, updated);
   }
@@ -249,7 +249,7 @@ function applyMove(input: MoveInput, context: ReduceContext): ApplyResult {
   for (const updateKey of keys) {
     const event = state.get(updateKey);
     if (!event) continue;
-    const isException = isCalendarEventException(event);
+    const isException = isDetachedException(event);
     if (input.scope === "series" && isException && keepExceptionTiming) {
       const nextRecurrenceId = shiftExceptionRecurrenceId
         ? shiftRecurrenceId(event.recurrenceId, event.data.start, input.delta)
@@ -313,7 +313,7 @@ function applyResizeStart(input: ResizeStartInput, context: ReduceContext): Appl
   for (const updateKey of keys) {
     const event = state.get(updateKey);
     if (!event) continue;
-    if (input.scope === "series" && isCalendarEventException(event)) {
+    if (input.scope === "series" && isDetachedException(event)) {
       const updatedException: CalendarEvent = {
         ...event,
         recurrenceId: shiftRecurrenceId(event.recurrenceId, event.data.start, seriesDelta),
@@ -370,7 +370,7 @@ function applyResizeEnd(input: ResizeEndInput, context: ReduceContext): ApplyRes
   for (const updateKey of keys) {
     const event = state.get(updateKey);
     if (!event) continue;
-    if (input.scope === "series" && isCalendarEventException(event)) continue;
+    if (input.scope === "series" && isDetachedException(event)) continue;
     const nextEnd =
       input.scope === "series" ? shiftDateValue(resolveEventEnd(event.data), seriesDelta) : input.toEnd;
     const bounded = ensureMinimumDuration(event.data.start, nextEnd, input.options?.minDuration);
@@ -403,7 +403,7 @@ function applyRemove(input: RemoveInput, context: ReduceContext): ApplyResult {
     const current = state.get(key);
     if (!current) return { nextState: state, changes, effects };
     if (
-      isCalendarEventException(current) &&
+      isDetachedException(current) &&
       current.recurrenceId &&
       (input.options?.exceptionAsExclusion ?? true)
     ) {
