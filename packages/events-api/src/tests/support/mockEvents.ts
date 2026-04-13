@@ -1,5 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
-import type { CalendarEventsMap } from "../models/event.js";
+import type { CalendarEventsMap } from "../../types/event.js";
 
 export function createDailySeriesState(): CalendarEventsMap {
   return new Map([

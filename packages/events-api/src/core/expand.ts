@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type { CalendarEventDateValue } from "../types/calendar.js";
-import type { CalendarEventRecord, CalendarEventsMap } from "../models/event.js";
+import type { CalendarEventRecord, CalendarEventsMap } from "../types/event.js";
 import {
   collectDetachedExceptionKeys,
   resolveEventEnd,

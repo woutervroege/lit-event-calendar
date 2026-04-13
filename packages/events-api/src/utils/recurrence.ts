@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type { CalendarEventDateValue } from "../types/calendar.js";
-import type { CalendarEvent, CalendarEventsMap, CalendarEventTimeSpan } from "../models/event.js";
+import type { CalendarEvent, CalendarEventsMap, CalendarEventTimeSpan } from "../types/event.js";
 
 export function toPlainDateTime(value: CalendarEventDateValue, timezone?: string): Temporal.PlainDateTime {
   if (value instanceof Temporal.ZonedDateTime) {

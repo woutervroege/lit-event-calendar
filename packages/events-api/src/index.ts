@@ -16,10 +16,11 @@ export type {
   CalendarEventData,
   CalendarEventEnvelope,
   CalendarEvent,
+  CalendarEventPendingOperation,
   CalendarEventTimeSpan,
   CalendarEventRecord,
   CalendarEventsMap,
-} from "./models/event.js";
+} from "./types/event.js";
 
 export type {
   AddExceptionInput,

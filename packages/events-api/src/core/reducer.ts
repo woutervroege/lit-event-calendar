@@ -5,8 +5,8 @@ import type {
   CalendarEventRecord,
   CalendarEventsMap,
   CalendarEventTimeSpan,
-} from "../models/event.js";
-import { isCalendarEventException } from "../models/event.js";
+} from "../types/event.js";
+import { isCalendarEventException } from "../types/event.js";
 import { expandEvents } from "./expand.js";
 import {
   shiftDateValue,
