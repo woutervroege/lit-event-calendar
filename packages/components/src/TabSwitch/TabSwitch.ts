@@ -81,6 +81,7 @@ export class TabSwitch extends BaseElement {
           const inputId = `${groupName}-${option.value}-${index}`;
           const isChecked = option.value === this.value;
           const hotkey = this.showHotkeys ? option.hotkey?.trim() : "";
+          const inputAriaLabel = this.#inputAccessibleName(option);
           return html`
             <div>
               <input
@@ -89,6 +90,7 @@ export class TabSwitch extends BaseElement {
                 name=${groupName}
                 value=${option.value}
                 .checked=${isChecked}
+                aria-label=${inputAriaLabel}
                 aria-keyshortcuts=${hotkey || nothing}
                 @change=${(e: Event) => this.#handleChange(e)}
               />
@@ -140,5 +142,17 @@ export class TabSwitch extends BaseElement {
       option.ariaLabel ?? (typeof option.label === "string" ? option.label : option.value);
     const hotkey = option.hotkey?.trim();
     return hotkey ? `${labelText} (${hotkey.toUpperCase()})` : labelText;
+  }
+
+  /**
+   * Icon or custom markup in `option.label` does not give the radio an accessible name.
+   * Use explicit aria-label in those cases so each control passes label/name checks.
+   */
+  #inputAccessibleName(option: TabSwitchOption): string | typeof nothing {
+    if (typeof option.label === "string" && option.label.trim() !== "") {
+      return nothing;
+    }
+    const name = (option.ariaLabel ?? option.value).trim();
+    return name || option.value;
   }
 }

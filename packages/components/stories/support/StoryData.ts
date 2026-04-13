@@ -1,7 +1,9 @@
 import { Temporal } from "@js-temporal/polyfill";
 import type {
   CalendarEvent as ApiCalendarEvent,
+  CalendarAccounts,
   CalendarEventsMap,
+  CalendarsMap,
   IANATimeZone,
 } from "@lit-calendar/events-api";
 import { resolveLocale } from "../../src/utils/Locale.js";
@@ -19,31 +21,97 @@ export type WeekStoryEventEntry = CalendarTemporalEventEntry;
 /** Story `args.events`: default `CalendarEventsMap`, or an array of entries for controls. */
 export type StoryEventsArg = CalendarEventsMap | Array<[string, CalendarEvent]>;
 
-export function storyEventsFromArg(value: StoryEventsArg | undefined, fallback: CalendarEventsMap): CalendarEventsMap {
+export function storyEventsFromArg(
+  value: StoryEventsArg | undefined,
+  fallback: CalendarEventsMap
+): CalendarEventsMap {
   if (value === undefined) return new Map(fallback);
   if (Array.isArray(value)) return new Map(value);
   return new Map(value);
 }
 
-const CALENDAR_IDS = {
-  work: "/calendars/wouter/work/",
-  personal: "/calendars/wouter/personal/",
-  travel: "/calendars/wouter/travel/",
+/** Example account ids for story data. */
+export const storyAccountIds = {
+  john: "caldav john",
+  team: "team",
+} as const;
+
+/** Opaque calendar ids (map keys); not resource URLs. */
+export const storyCalendarIds = {
+  work: "cal-john-work",
+  personal: "cal-john-personal",
+  travel: "cal-john-travel",
+  teamShared: "cal-team-shared",
+} as const;
+
+/** Resource URLs — can collide across accounts; disambiguate with {@link storyAccountIds} + {@link storyCalendarIds}. */
+export const storyCalendarUrls = {
+  work: "/calendars/john/work/",
+  personal: "/calendars/john/personal/",
+  travel: "/calendars/john/travel/",
+  teamShared: "/calendars/team/shared/",
 } as const;
 
 const EUROPE_AMSTERDAM = "Europe/Amsterdam" as IANATimeZone;
 
+/** Distinct accounts present in {@link sampleCalendarsMap}. */
+export const sampleCalendarAccounts: CalendarAccounts = new Set([
+  storyAccountIds.john,
+  storyAccountIds.team,
+]);
+
+/** Display metadata; map keys are {@link storyCalendarIds}. */
+export const sampleCalendarsMap: CalendarsMap = new Map([
+  [
+    storyCalendarIds.work,
+    {
+      accountId: storyAccountIds.john,
+      url: storyCalendarUrls.work,
+      displayName: "Work",
+      color: "#63e657",
+    },
+  ],
+  [
+    storyCalendarIds.personal,
+    {
+      accountId: storyAccountIds.john,
+      url: storyCalendarUrls.personal,
+      displayName: "Personal",
+      color: "#9f3cfa",
+    },
+  ],
+  [
+    storyCalendarIds.travel,
+    {
+      accountId: storyAccountIds.john,
+      url: storyCalendarUrls.travel,
+      displayName: "Travel",
+      color: "#4564B5",
+    },
+  ],
+  [
+    storyCalendarIds.teamShared,
+    {
+      accountId: storyAccountIds.team,
+      url: storyCalendarUrls.teamShared,
+      displayName: "Team shared",
+      color: "#ea580c",
+    },
+  ],
+]);
+
+/** Most events omit `data.color` so the UI resolves from {@link sampleCalendarsMap}; a few set `color` as override examples. */
 export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendarEvent>([
   [
     "event-flight-london-20250104",
     {
-      calendarId: CALENDAR_IDS.travel,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.travel,
       eventId: "flight-london@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-04T08:30:00"),
         end: Temporal.PlainDateTime.from("2025-01-05T09:45:00"),
         summary: "Flight to London",
-        color: "#4564B5",
         location: "Schiphol Airport",
       },
     },
@@ -51,26 +119,27 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
   [
     "event-hello-world-20250103",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "hello-world@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-03T12:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-07T18:00:00"),
         summary: "Hello World",
-        color: "#63e657",
       },
     },
   ],
   [
     "event-team-meeting-20250106",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "team-meeting@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-06T10:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-07T11:15:00"),
         summary: "Team Meeting",
-        color: "#ff0000",
+        color: "#ff0000", // explicit override (work calendar is green)
         location: "Room Atlas",
       },
     },
@@ -78,27 +147,28 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
   [
     "event-amsterdam-zoned-20250104",
     {
-      calendarId: CALENDAR_IDS.travel,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.travel,
       eventId: "amsterdam-zoned@example.test",
       data: {
         timeZone: EUROPE_AMSTERDAM,
         start: Temporal.PlainDateTime.from("2025-01-04T12:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-06T13:30:00"),
         summary: "Amsterdam Zoned Event",
-        color: "#f59e0b",
+        color: "#f59e0b", // explicit override (travel calendar is blue)
       },
     },
   ],
   [
     "event-fiesta-20250106",
     {
-      calendarId: CALENDAR_IDS.personal,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.personal,
       eventId: "fiesta@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-06T14:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-06T15:00:00"),
         summary: "Fiesta",
-        color: "#084cb8",
         location: "Cafe Mercado",
       },
     },
@@ -106,13 +176,13 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
   [
     "event-drinks-20250108-1630",
     {
-      calendarId: CALENDAR_IDS.personal,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.personal,
       eventId: "drinks-weekly@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-08T16:30:00"),
         end: Temporal.PlainDateTime.from("2025-01-08T17:30:00"),
         summary: "Drinks",
-        color: "#9f3cfa",
         location: "Bar Noord",
         recurrenceRule: {
           freq: "WEEKLY",
@@ -127,13 +197,13 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
   [
     "event-daily-standup-20250113-0900",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "daily-standup@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
         summary: "Daily Standup",
-        color: "#10B981",
         recurrenceRule: {
           freq: "DAILY",
           interval: 1,
@@ -146,28 +216,28 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
   [
     "event-daily-standup-exception-20250118-1100",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "daily-standup@example.test",
       recurrenceId: "20250118T090000",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-18T11:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-18T11:15:00"),
         summary: "Daily Standup (moved)",
-        color: "#10B981",
       },
     },
   ],
   [
     "event-all-day-ops-rotation-20250106",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "all-day-ops-rotation@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-06T00:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-07T00:00:00"),
         allDay: true,
         summary: "Ops Rotation (All day)",
-        color: "#0EA5E9",
         recurrenceRule: {
           freq: "WEEKLY",
           interval: 1,
@@ -181,7 +251,8 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
   [
     "event-all-day-ops-rotation-exception-20250120",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "all-day-ops-rotation@example.test",
       recurrenceId: "20250120",
       data: {
@@ -189,119 +260,132 @@ export const sampleEventEntries: CalendarEventsMap = new Map<string, ApiCalendar
         end: Temporal.PlainDateTime.from("2025-01-22T00:00:00"),
         allDay: true,
         summary: "Ops Rotation (moved to Tuesday)",
-        color: "#0EA5E9",
       },
     },
   ],
   [
     "event-meeting-john-20250110",
     {
-      calendarId: CALENDAR_IDS.personal,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.personal,
       eventId: "meeting-with-john@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-08T00:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-09T00:00:00"),
         allDay: true,
         summary: "Meeting with John",
-        color: "#E05ADD",
+        color: "#E05ADD", // explicit override (personal calendar is purple)
       },
     },
   ],
   [
     "event-company-holiday-20250101",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "company-holiday@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-01T00:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-02T00:00:00"),
         allDay: true,
         summary: "Company Holiday",
-        color: "#0EA5E9",
       },
     },
   ],
   [
     "event-product-planning-20250106",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "product-planning@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-06T00:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-08T00:00:00"),
         allDay: true,
         summary: "Product Planning Sprint",
-        color: "#22C55E",
       },
     },
   ],
   [
     "event-design-qa-20250112",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "design-qa@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-12T00:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-14T00:00:00"),
         allDay: true,
         summary: "Design QA Window",
-        color: "#F97316",
       },
     },
   ],
   [
     "event-team-offsite-20250115",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "team-offsite@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-15T00:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-18T00:00:00"),
         allDay: true,
         summary: "Team Offsite",
-        color: "#14B8A6",
       },
     },
   ],
   [
     "event-release-freeze-20250119",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "release-freeze@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-19T00:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-21T00:00:00"),
         allDay: true,
         summary: "Release Freeze",
-        color: "#A855F7",
       },
     },
   ],
   [
     "event-feb5-design-review-20250205",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "feb5-design-review@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-02-05T00:00:00"),
         end: Temporal.PlainDateTime.from("2025-02-06T00:00:00"),
         allDay: true,
         summary: "Design Review",
-        color: "#6366F1",
       },
     },
   ],
   [
     "event-feb5-eng-sync-20250205",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "feb5-eng-sync@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-02-05T00:00:00"),
         end: Temporal.PlainDateTime.from("2025-02-06T00:00:00"),
         allDay: true,
         summary: "Engineering Sync",
-        color: "#0EA5E9",
+      },
+    },
+  ],
+  [
+    "event-team-roadmap-20250114",
+    {
+      accountId: storyAccountIds.team,
+      calendarId: storyCalendarIds.teamShared,
+      eventId: "team-roadmap@example.test",
+      data: {
+        start: Temporal.PlainDateTime.from("2025-01-14T15:00:00"),
+        end: Temporal.PlainDateTime.from("2025-01-14T16:00:00"),
+        summary: "Team roadmap",
       },
     },
   ],
@@ -311,27 +395,27 @@ export const timezoneShiftEvents: CalendarEventsMap = new Map<string, ApiCalenda
   [
     "event-amsterdam-noon-zoned",
     {
-      calendarId: CALENDAR_IDS.travel,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.travel,
       eventId: "amsterdam-noon-zoned@example.test",
       data: {
         timeZone: EUROPE_AMSTERDAM,
         start: Temporal.PlainDateTime.from("2025-01-06T12:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-06T13:30:00"),
         summary: "Amsterdam Noon (zoned)",
-        color: "#f59e0b",
       },
     },
   ],
   [
     "event-local-baseline-0900",
     {
-      calendarId: CALENDAR_IDS.work,
+      accountId: storyAccountIds.john,
+      calendarId: storyCalendarIds.work,
       eventId: "local-baseline@example.test",
       data: {
         start: Temporal.PlainDateTime.from("2025-01-06T09:00:00"),
         end: Temporal.PlainDateTime.from("2025-01-06T10:00:00"),
         summary: "Local baseline (plain)",
-        color: "#4564B5",
       },
     },
   ],
@@ -347,9 +431,7 @@ export const weekSplitEvents: CalendarEventsMap = new Map(
       ...event,
       data: {
         ...event.data,
-        exclusionDates: event.data.exclusionDates
-          ? new Set(event.data.exclusionDates)
-          : undefined,
+        exclusionDates: event.data.exclusionDates ? new Set(event.data.exclusionDates) : undefined,
       },
     },
   ])

@@ -39,7 +39,8 @@ type RecurrenceStoryArgs = {
   exceptions: RecurrenceExceptionInput[];
 };
 
-const SERIES_CALENDAR_ID = "/calendars/story/recurrence/";
+const SERIES_ACCOUNT_ID = "account-story-recurrence";
+const SERIES_CALENDAR_ID = "cal-story-recurrence";
 const SERIES_EVENT_ID = "storybook-recurrence-series@example.test";
 const SERIES_SUMMARY = "Recurring series";
 const SERIES_COLOR = "#0ea5e9";
@@ -61,6 +62,7 @@ function buildSeriesEvents(args: RecurrenceStoryArgs): Array<[string, CalendarEv
   const recurrenceRule = toRecurrenceRule(args.recurrenceRule);
 
   const seriesEvent: CalendarEvent = {
+    accountId: SERIES_ACCOUNT_ID,
     calendarId: SERIES_CALENDAR_ID,
     eventId: SERIES_EVENT_ID,
     data: {
@@ -78,6 +80,7 @@ function buildSeriesEvents(args: RecurrenceStoryArgs): Array<[string, CalendarEv
     entries.push([
       `series-exception-${exception.recurrenceId}`,
       {
+        accountId: SERIES_ACCOUNT_ID,
         calendarId: SERIES_CALENDAR_ID,
         eventId: SERIES_EVENT_ID,
         recurrenceId: exception.recurrenceId,

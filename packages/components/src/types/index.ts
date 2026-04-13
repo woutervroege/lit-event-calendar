@@ -1,4 +1,7 @@
 export type {
+  Calendar,
+  CalendarAccountId,
+  CalendarAccounts,
   CalendarEvent,
   CalendarEventData,
   CalendarEventEnvelope,
@@ -6,11 +9,14 @@ export type {
   CalendarEventTimeSpan,
   CalendarEventsMap,
   CalendarExclusionDates,
+  CalendarId,
   CalendarRecurrenceFrequency,
   CalendarRecurrenceRule,
   CalendarRecurrenceTermination,
   CalendarRecurrenceWeekday,
   CalendarRecurrenceWeekdayRule,
+  CalendarUrl,
+  CalendarsMap,
 } from "@lit-calendar/events-api";
 
 export type { CalendarEventView, CalendarEventViewMap } from "../domain/events-api/eventMapBridge.js";

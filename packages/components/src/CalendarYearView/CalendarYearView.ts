@@ -58,8 +58,7 @@ export class CalendarYearView extends CalendarViewBase {
                 .timezone=${this.timezone}
                 .currentTime=${this.currentTime}
                 .defaultEventSummary=${this.defaultEventSummary}
-                .defaultEventColor=${this.defaultEventColor}
-                .defaultCalendarId=${this.defaultCalendarId}
+                .selectedCalendarId=${this.selectedCalendarId}
                 @day-selection=${this.forwardCalendarEvent}
                 @event-created=${this.forwardCalendarEvent}
                 @event-selected=${this.forwardCalendarEvent}

@@ -3,6 +3,7 @@ import { ContextConsumer } from "@lit/context";
 import {
   expandEvents,
   parseRecurrenceId,
+  resolveCalendarEventColor,
   shiftDateValue,
   type ApplyResult,
   type CalendarEvent as ApiCalendarEvent,
@@ -60,8 +61,7 @@ export abstract class CalendarViewBase extends BaseElement {
 
   declare events?: EventsMap;
   defaultEventSummary = "New event";
-  defaultEventColor = "#0ea5e9";
-  defaultCalendarId?: string;
+  selectedCalendarId?: string;
 
   static get properties() {
     return {
@@ -77,8 +77,7 @@ export abstract class CalendarViewBase extends BaseElement {
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
-      defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultCalendarId: { type: String, attribute: "default-source-id" },
+      selectedCalendarId: { type: String, attribute: "selected-calendar-id" },
     } as const;
   }
 
@@ -122,6 +121,55 @@ export abstract class CalendarViewBase extends BaseElement {
       return this.events;
     }
     return api.getEvents() ?? new Map();
+  }
+
+  /**
+   * Color shown for an event: `data.color` when set, otherwise the parent calendar (from context),
+   * then the shared fallback (`DEFAULT_CALENDAR_EVENT_COLOR` in `@lit-calendar/events-api`).
+   */
+  protected resolveEventDisplayColor(event: ApiCalendarEvent): string {
+    return resolveCalendarEventColor(
+      event.calendarId,
+      event.data.color,
+      this.#eventsAPI?.getCalendars()
+    );
+  }
+
+  /** Color for a newly created event before any explicit user color is chosen. */
+  protected resolveNewEventColor(calendarId: string | undefined): string {
+    return resolveCalendarEventColor(
+      calendarId ?? this.calendarIdForNewEvent(),
+      undefined,
+      this.#eventsAPI?.getCalendars()
+    );
+  }
+
+  /** Resolves {@link Calendar.accountId} for a calendar id using context, when the host provided a map. */
+  protected accountIdForCalendar(calendarId: string | undefined): string | undefined {
+    const id = calendarId?.trim();
+    if (!id) return undefined;
+    return this.#eventsAPI?.getCalendars()?.get(id)?.accountId;
+  }
+
+  /**
+   * Calendar id for create gestures: from {@link EventsAPIContextValue.getSelectedCalendarId} when the
+   * host provides it (e.g. `event-calendar`), otherwise {@link selectedCalendarId}.
+   */
+  protected calendarIdForNewEvent(): string | undefined {
+    const fromContext = this.#eventsAPI?.getSelectedCalendarId();
+    if (fromContext !== undefined && fromContext !== null) {
+      const trimmed = String(fromContext).trim();
+      if (trimmed !== "") return trimmed;
+    }
+    const raw = this.selectedCalendarId;
+    if (raw === undefined || raw === null) return undefined;
+    const trimmed = String(raw).trim();
+    return trimmed === "" ? undefined : trimmed;
+  }
+
+  /** Account for a new event when the target calendar is known (see {@link calendarIdForNewEvent}). */
+  protected defaultAccountIdForNewEvent(): string | undefined {
+    return this.accountIdForCalendar(this.calendarIdForNewEvent());
   }
 
   protected applyCreateRequestToEventsAPI(detail: EventCreateRequestDetail): boolean {
@@ -176,6 +224,7 @@ export abstract class CalendarViewBase extends BaseElement {
       const exceptionRequestedDetail: EventExceptionRequestDetail = {
         envelope: {
           eventId: detail.envelope.eventId,
+          accountId: detail.envelope.accountId,
           calendarId: detail.envelope.calendarId,
           recurrenceId,
           isException: true,
@@ -209,6 +258,7 @@ export abstract class CalendarViewBase extends BaseElement {
             color: detail.content.color,
             location: detail.content.location,
             calendarId: detail.envelope.calendarId,
+            accountId: detail.envelope.accountId,
           },
         },
       });
@@ -232,6 +282,7 @@ export abstract class CalendarViewBase extends BaseElement {
                 color: detail.content.color,
                 location: detail.content.location,
                 calendarId: detail.envelope.calendarId,
+                accountId: detail.envelope.accountId,
               },
             },
           });
@@ -248,6 +299,7 @@ export abstract class CalendarViewBase extends BaseElement {
               color: detail.content.color,
               location: detail.content.location,
               calendarId: detail.envelope.calendarId,
+              accountId: detail.envelope.accountId,
             },
           },
         });
@@ -308,6 +360,7 @@ export abstract class CalendarViewBase extends BaseElement {
             color: detail.content.color,
             location: detail.content.location,
             calendarId: detail.envelope.calendarId,
+            accountId: detail.envelope.accountId,
           },
         },
       });
@@ -576,7 +629,7 @@ export abstract class CalendarViewBase extends BaseElement {
 
   #resolveEventMapKey(
     events: EventsMap,
-    envelope: { eventId?: string; calendarId?: string; recurrenceId?: string }
+    envelope: { eventId?: string; accountId?: string; calendarId?: string; recurrenceId?: string }
   ): string | undefined {
     if (!envelope.eventId) return undefined;
     if (events.has(envelope.eventId)) return envelope.eventId;
@@ -584,6 +637,7 @@ export abstract class CalendarViewBase extends BaseElement {
     for (const [key, event] of events.entries()) {
       if (event.eventId !== envelope.eventId) continue;
       if (envelope.calendarId !== undefined && event.calendarId !== envelope.calendarId) continue;
+      if (envelope.accountId !== undefined && event.accountId !== envelope.accountId) continue;
       if (envelope.recurrenceId === undefined || event.recurrenceId === envelope.recurrenceId)
         return key;
       if (event.recurrenceId === undefined && fallbackSeriesKey === undefined)

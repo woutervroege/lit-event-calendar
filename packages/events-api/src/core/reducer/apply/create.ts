@@ -13,11 +13,13 @@ export function applyCreate(input: CreateInput, context: ReduceContext): ApplyRe
       normalizeTimeRange({ start: rawData.start, end: rawData.end })
     : normalizeTimeRange({ start: rawData.start, duration: rawData.duration });
   const { summary, color, location, recurrenceRule, exclusionDates } = rawData;
+  const colorFields =
+    color !== undefined && color !== "" ? ({ color } satisfies Pick<CalendarEventData, "color">) : {};
   const data: CalendarEventData =
     "end" in rawData ?
       {
         summary,
-        color,
+        ...colorFields,
         location,
         recurrenceRule,
         exclusionDates,
@@ -26,7 +28,7 @@ export function applyCreate(input: CreateInput, context: ReduceContext): ApplyRe
       }
     : {
         summary,
-        color,
+        ...colorFields,
         location,
         recurrenceRule,
         exclusionDates,

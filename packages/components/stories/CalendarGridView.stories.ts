@@ -47,8 +47,7 @@ const meta: Meta = {
       options: VISIBLE_HOUR_OPTIONS,
     },
     defaultEventSummary: { control: "text", description: "Default created event summary" },
-    defaultEventColor: { control: "color", description: "Default created event color" },
-    defaultCalendarId: { control: "text", description: "Default created event source id" },
+    selectedCalendarId: { control: "text", description: "Selected calendar for new events" },
   },
   args: {
     startDate: "2025-01-05",
@@ -60,8 +59,7 @@ const meta: Meta = {
     snapInterval: 30,
     visibleHours: 24,
     defaultEventSummary: "New event",
-    defaultEventColor: "#0ea5e9",
-    defaultCalendarId: "",
+    selectedCalendarId: "",
     events: sampleEvents,
   },
   render: (args) => {
@@ -94,13 +92,10 @@ const meta: Meta = {
     if (args.defaultEventSummary) {
       el.setAttribute("default-event-summary", String(args.defaultEventSummary));
     }
-    if (args.defaultEventColor) {
-      el.setAttribute("default-event-color", String(args.defaultEventColor));
-    }
-    if (args.defaultCalendarId) {
-      el.setAttribute("default-source-id", String(args.defaultCalendarId));
+    if (args.selectedCalendarId) {
+      el.setAttribute("selected-calendar-id", String(args.selectedCalendarId));
     } else {
-      el.removeAttribute("default-source-id");
+      el.removeAttribute("selected-calendar-id");
     }
     el.events = storyEventsFromArg(args.events, sampleEvents);
     attachRequestEventHandlers(el);

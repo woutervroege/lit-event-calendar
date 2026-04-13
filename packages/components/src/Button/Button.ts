@@ -29,6 +29,21 @@ export class Button extends BaseElement {
   @property({ type: Boolean, reflect: true })
   raised = false;
 
+  /**
+   * Disclosure / popup pattern: forwarded to the inner `<button>`’s `aria-expanded`.
+   * Use properties instead of setting `aria-expanded` on `<lc-button>` (host is not a button role).
+   */
+  @property({ attribute: false })
+  disclosureExpanded: boolean | undefined = undefined;
+
+  /** Forwarded to inner `aria-haspopup` when non-empty. */
+  @property({ attribute: false })
+  hasPopup: string | undefined = undefined;
+
+  /** `id` of the controlled surface; forwarded to inner `aria-controls`. */
+  @property({ attribute: false })
+  controlsId: string | undefined = undefined;
+
   /** Raw attribute/property value; `get type()` exposes the safe subset for `<button type>`. */
   #typeAttribute = "button";
 
@@ -66,11 +81,18 @@ export class Button extends BaseElement {
     const ariaHotkey = toAriaHotkey(hotkey);
     const hasVisibleTextContent = Boolean(this.textContent?.trim());
     const showHotkeyBadge = Boolean(hotkeyDisplay && hasVisibleTextContent);
+    const ariaExpanded =
+      this.disclosureExpanded === undefined ? nothing : this.disclosureExpanded ? "true" : "false";
+    const ariaHasPopup = this.hasPopup?.trim() ? this.hasPopup : nothing;
+    const ariaControls = this.controlsId?.trim() ? this.controlsId : nothing;
     return html`
       <button
         type=${this.type}
         class="lc-button"
         ?disabled=${this.disabled}
+        aria-expanded=${ariaExpanded}
+        aria-haspopup=${ariaHasPopup}
+        aria-controls=${ariaControls}
         .ariaLabel=${this.label || null}
         .ariaKeyShortcuts=${ariaHotkey || null}
         .title=${hotkeyDisplay && this.label ? `${this.label} (${hotkeyDisplay})` : ""}

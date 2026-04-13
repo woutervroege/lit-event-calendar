@@ -11,6 +11,7 @@ function resolveEventEnvelope(event: CalendarEventLike): CalendarEventEnvelope {
   if ("data" in event) {
     const e = event;
     return {
+      accountId: e.accountId,
       calendarId: e.calendarId,
       eventId: e.eventId,
       recurrenceId: e.recurrenceId,

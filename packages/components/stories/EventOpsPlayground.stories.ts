@@ -7,6 +7,9 @@ import "../src/EventCalendar/EventCalendar.js";
 
 type StoryEventCalendarElement = HTMLElement & { events: CalendarEventsMap };
 
+const OPS_PLAYGROUND_ACCOUNT = "account-story-ops";
+const OPS_PLAYGROUND_CALENDAR_ID = "cal-story-ops";
+
 type PlaygroundOperation = {
   id: string;
   label: string;
@@ -18,7 +21,8 @@ function createInitialState(): CalendarEventsMap {
     [
       "series-master",
       {
-        calendarId: "/calendars/story/ops/",
+        accountId: OPS_PLAYGROUND_ACCOUNT,
+        calendarId: OPS_PLAYGROUND_CALENDAR_ID,
         eventId: "ops-weekly-series@example.test",
         data: {
           start: Temporal.PlainDateTime.from("2025-01-06T09:00:00"),
@@ -37,7 +41,8 @@ function createInitialState(): CalendarEventsMap {
     [
       "series-master::20250120T090000",
       {
-        calendarId: "/calendars/story/ops/",
+        accountId: OPS_PLAYGROUND_ACCOUNT,
+        calendarId: OPS_PLAYGROUND_CALENDAR_ID,
         eventId: "ops-weekly-series@example.test",
         recurrenceId: "20250120T090000",
         isException: true,
@@ -132,7 +137,8 @@ const OPERATIONS: PlaygroundOperation[] = [
       api.create({
         key: "one-off-20250122",
         event: {
-          calendarId: "/calendars/story/ops/",
+          accountId: OPS_PLAYGROUND_ACCOUNT,
+          calendarId: OPS_PLAYGROUND_CALENDAR_ID,
           eventId: "ops-one-off@example.test",
           data: {
             start: Temporal.PlainDateTime.from("2025-01-22T15:00:00"),

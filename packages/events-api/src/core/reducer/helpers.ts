@@ -47,17 +47,26 @@ export function withDurationTimeSpan(event: CalendarEvent, duration: Temporal.Du
   return { ...event, data: { ...dataRest, duration } };
 }
 
+function eventMatchesCalendarRef(
+  event: CalendarEvent,
+  ref: { calendarId?: string; accountId?: string }
+): boolean {
+  if (ref.calendarId !== undefined && event.calendarId !== ref.calendarId) return false;
+  if (ref.accountId !== undefined && event.accountId !== ref.accountId) return false;
+  return true;
+}
+
 export function resolveKey(state: EventsState, target: EventTarget): string | undefined {
   if ("key" in target) return state.has(target.key) ? target.key : undefined;
   for (const [key, event] of state.entries()) {
     if (event.eventId !== target.eventId) continue;
-    if (target.calendarId !== undefined && event.calendarId !== target.calendarId) continue;
+    if (!eventMatchesCalendarRef(event, target)) continue;
     if (target.recurrenceId === undefined || event.recurrenceId === target.recurrenceId) return key;
   }
   if (target.recurrenceId !== undefined) return undefined;
   for (const [key, event] of state.entries()) {
     if (event.eventId !== target.eventId) continue;
-    if (target.calendarId !== undefined && event.calendarId !== target.calendarId) continue;
+    if (!eventMatchesCalendarRef(event, target)) continue;
     if (!event.recurrenceId) return key;
   }
   return undefined;
@@ -70,7 +79,7 @@ export function resolveScopeKeys(state: EventsState, key: string, scope: Scope):
   const keys: string[] = [];
   for (const [candidateKey, event] of state.entries()) {
     if (event.eventId !== source.eventId) continue;
-    if (source.calendarId !== undefined && event.calendarId !== source.calendarId) continue;
+    if (!eventMatchesCalendarRef(event, source)) continue;
     keys.push(candidateKey);
   }
   return keys;
@@ -131,11 +140,18 @@ export function applyUpdateToEvent(event: CalendarEvent, patch: UpdateInput["pat
   const envelope = { ...envelopeRest };
   const nextData = { ...prevData };
   if (patch.summary !== undefined) nextData.summary = patch.summary;
-  if (patch.color !== undefined) nextData.color = patch.color;
+  if (patch.color !== undefined) {
+    if (patch.color === "") {
+      delete nextData.color;
+    } else {
+      nextData.color = patch.color;
+    }
+  }
   if (patch.location !== undefined) nextData.location = patch.location;
   if (patch.allDay !== undefined) nextData.allDay = patch.allDay;
   if (patch.timeZone !== undefined) nextData.timeZone = patch.timeZone;
   if (patch.calendarId !== undefined) envelope.calendarId = patch.calendarId;
+  if (patch.accountId !== undefined) envelope.accountId = patch.accountId;
   if (patch.start !== undefined) nextData.start = patch.start;
   let next: CalendarEvent = { ...envelope, data: nextData };
   if ("end" in patch && patch.end !== undefined) {

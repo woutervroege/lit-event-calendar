@@ -15,12 +15,18 @@ import type {
   UpdateInput,
 } from "@lit-calendar/events-api";
 
-export function toEventTarget(input: { eventId?: string; calendarId?: string; recurrenceId?: string }): EventTarget {
+export function toEventTarget(input: {
+  eventId?: string;
+  accountId?: string;
+  calendarId?: string;
+  recurrenceId?: string;
+}): EventTarget {
   if (!input.eventId) {
     return { key: "" };
   }
   return {
     eventId: input.eventId,
+    accountId: input.accountId,
     calendarId: input.calendarId,
     recurrenceId: input.recurrenceId,
   };
@@ -29,6 +35,7 @@ export function toEventTarget(input: { eventId?: string; calendarId?: string; re
 export function fromCreateRequest(detail: EventCreateRequestDetail): CreateInput {
   return {
     event: {
+      accountId: detail.envelope.accountId,
       calendarId: detail.envelope.calendarId,
       pendingOp: "created",
       data: {
@@ -50,6 +57,7 @@ export function fromUpdateRequest(detail: EventUpdateRequestDetail): UpdateInput
       color: detail.content.color,
       location: detail.content.location,
       calendarId: detail.envelope.calendarId,
+      accountId: detail.envelope.accountId,
     },
   };
 }

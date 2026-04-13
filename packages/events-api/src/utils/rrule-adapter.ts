@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { RRule, RRuleSet, type Options, type Weekday } from "rrule";
-import type { CalendarRecurrenceRule } from "../types/calendar.js";
+import type { CalendarRecurrenceRule } from "../types/calendar/index.js";
 import type { CalendarEvent } from "../types/event.js";
 import { parseRecurrenceId, toPlainDateTime } from "./recurrence.js";
 

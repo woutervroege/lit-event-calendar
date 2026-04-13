@@ -1,9 +1,10 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { ContextProvider } from "@lit/context";
-import { html, unsafeCSS } from "lit";
+import { html, nothing, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
+import { CalendarsSidebar } from "../CalendarsSidebar/CalendarsSidebar.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarViewGroup } from "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
@@ -20,14 +21,18 @@ import "../TabSwitch/TabSwitch.js";
 import {
   type CalendarEvent as ApiCalendarEvent,
   type ApplyResult,
+  type CalendarAccounts,
   type CalendarEventPendingOperation,
   type CalendarEventsMap,
+  type CalendarsMap,
   type EventOperation,
   EventsAPI,
 } from "@lit-calendar/events-api";
+import { calendarIdsInSidebarOrder } from "../CalendarsSidebar/calendarIdsInSidebarOrder.js";
 import { type EventsAPIContextValue, eventsAPIContext } from "../context/EventsAPIContext.js";
 import { renderCalendarIcon } from "../icons/CalendarIcon.js";
 import { renderGridIcon } from "../icons/GridIcon.js";
+import { renderHamburgerIcon } from "../icons/HamburgerIcon.js";
 import { renderListIcon } from "../icons/ListIcon.js";
 import { getLocaleDirection, resolveLocale } from "../utils/Locale.js";
 import componentStyle from "./EventCalendar.css?inline";
@@ -55,6 +60,18 @@ const VIEW_DATE_TIME_FIELDS: Record<ViewUnit, string> = {
   month: "month",
   year: "year",
 };
+
+/** Matches prev/next toolbar controls: compact ghost icon buttons. */
+const EVENT_CALENDAR_GHOST_ICON_BUTTON_STYLE =
+  "--lc-button-bg: transparent; --lc-button-hover-bg: transparent; --lc-button-border-color: transparent; --_lc-button-border-color: transparent; --_lc-grid-line-color: transparent;";
+
+/**
+ * Outlined icon control (hamburger, Today, panel close). Border tokens only are not enough: the
+ * toolbar sets transparent `--lc-button-bg` on its wrapper so menu/Today match prev/next; the close
+ * control lives outside that wrapper, so we set the same transparent fill here explicitly.
+ */
+const EVENT_CALENDAR_MENU_BUTTON_STYLE =
+  "--lc-button-bg: transparent; --lc-button-hover-bg: transparent; --_lc-grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --_lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));";
 
 function capitalizeLabel(value: string, lang?: string): string {
   const resolvedLang = resolveLocale(lang);
@@ -101,6 +118,18 @@ function getTodayLabel(lang?: string): string {
   }
 }
 
+/** Accessible name for the calendars menu control (icon-only on screen). */
+function getCalendarsMenuLabel(lang?: string): string {
+  const resolvedLang = resolveLocale(lang);
+  return capitalizeLabel("Calendars", resolvedLang);
+}
+
+/** Landmark name for the scrollable calendar body (keyboard scroll + screen readers). */
+function getCalendarContentRegionLabel(lang?: string): string {
+  const resolvedLang = resolveLocale(lang);
+  return capitalizeLabel("Calendar content", resolvedLang);
+}
+
 @customElement("event-calendar")
 export class EventCalendar extends BaseElement {
   #view: CalendarViewMode = "month";
@@ -119,13 +148,33 @@ export class EventCalendar extends BaseElement {
   visibleHours?: number;
   rtl = false;
   defaultEventSummary = "New event";
-  defaultEventColor = "#0ea5e9";
-  defaultCalendarId?: string;
+  selectedCalendarId?: string;
+  /** When set and non-empty, shows a calendar list beside the grid; on narrow containers it opens as an overlay. */
+  declare calendars?: CalendarsMap;
+  /**
+   * Calendar ids whose events are visible in the grid (sidebar color checkboxes).
+   * When unset while `calendars` is set, all calendars are visible. Use `[]` to hide all.
+   */
+  visibleCalendarIds?: string[];
+  #calendarsOverlayOpen = false;
+  /** While true, exit animation is running; avoids re-entrancy and duplicate listeners. */
+  #calendarsDialogExitInProgress = false;
+  #previousCalendarKeySet = new Set<string>();
   #eventsAPIProvider = new ContextProvider(this, {
     context: eventsAPIContext,
   });
   #eventsAPIContextValue: EventsAPIContextValue = {
     getEvents: () => this.events ?? new Map(),
+    getCalendars: () => this.calendars ?? new Map(),
+    getCalendarAccounts: (): CalendarAccounts => {
+      const accounts = new Set() as CalendarAccounts;
+      for (const cal of (this.calendars ?? new Map()).values()) {
+        accounts.add(cal.accountId);
+      }
+      return accounts;
+    },
+    getVisibleCalendarIds: () => this.visibleCalendarIds,
+    getSelectedCalendarId: () => this.#effectiveSelectedCalendarId(),
     getApi: () =>
       new EventsAPI(this.events ?? new Map(), {
         timezone: this.timezone,
@@ -180,10 +229,240 @@ export class EventCalendar extends BaseElement {
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
-      defaultEventColor: { type: String, attribute: "default-event-color" },
-      defaultCalendarId: { type: String, attribute: "default-source-id" },
+      selectedCalendarId: {
+        type: String,
+        attribute: "selected-calendar-id",
+        dispatchChangeEvent: { bubbles: true, composed: true },
+      },
+      calendars: { type: Object, attribute: false },
+      visibleCalendarIds: {
+        type: Array,
+        attribute: false,
+        dispatchChangeEvent: { bubbles: true, composed: true },
+      },
     } as const;
   }
+
+  override disconnectedCallback(): void {
+    const dialog = this.#getCalendarsDialog();
+    dialog?.classList.remove("event-calendar-calendars-dialog--closing");
+    dialog?.close();
+    super.disconnectedCallback();
+  }
+
+  get #hasCalendars(): boolean {
+    const map = this.calendars;
+    return map !== undefined && map.size > 0;
+  }
+
+  get #visibleEvents(): EventsMap {
+    const raw = this.events ?? new Map();
+    if (!this.#hasCalendars) {
+      return raw;
+    }
+    const selected = this.visibleCalendarIds;
+    if (selected === undefined) {
+      return raw;
+    }
+    if (selected.length === 0) {
+      return new Map();
+    }
+    const allowed = new Set(selected);
+    const filtered: EventsMap = new Map();
+    for (const [key, event] of raw) {
+      const calendarId = event.calendarId;
+      if (!calendarId || allowed.has(calendarId)) {
+        filtered.set(key, event);
+      }
+    }
+    return filtered;
+  }
+
+  #handlevisibleCalendarIdsChanged = (event: Event) => {
+    const el = event.target;
+    if (!(el instanceof CalendarsSidebar)) return;
+    const next = el.visibleCalendarIds;
+    if (!Array.isArray(next)) return;
+    const prev = this.visibleCalendarIds;
+    if (
+      prev !== undefined &&
+      prev.length === next.length &&
+      prev.every((id, index) => id === next[index])
+    ) {
+      return;
+    }
+    this.visibleCalendarIds = [...next];
+  };
+
+  #handleSelectedCalendarIdChanged = (event: Event) => {
+    const el = event.target;
+    if (!(el instanceof CalendarsSidebar)) return;
+    const next = el.selectedCalendarId;
+    if (next === this.selectedCalendarId) return;
+    this.selectedCalendarId = next;
+  };
+
+  #mergeSelectionWhenCalendarsMapChanges(): void {
+    const map = this.calendars;
+    const currentKeys = new Set(map?.keys() ?? []);
+    const prev = this.#previousCalendarKeySet;
+    const isInitialCalendarKeys = prev.size === 0 && currentKeys.size > 0;
+    this.#previousCalendarKeySet = currentKeys;
+
+    const selected = this.visibleCalendarIds;
+    if (selected === undefined) {
+      return;
+    }
+
+    let next = selected.filter((id) => currentKeys.has(id));
+    if (!isInitialCalendarKeys && selected.length > 0) {
+      const added = [...currentKeys].filter((id) => !prev.has(id));
+      if (added.length > 0) {
+        next = [...new Set([...next, ...added])];
+      }
+    }
+    if (next.length !== selected.length || !next.every((id, index) => id === selected[index])) {
+      this.visibleCalendarIds = next;
+    }
+  }
+
+  #normalizedSelectedCalendarId(): string | undefined {
+    const raw = this.selectedCalendarId;
+    if (raw === undefined || raw === null) return undefined;
+    const trimmed = String(raw).trim();
+    return trimmed === "" ? undefined : trimmed;
+  }
+
+  /**
+   * Resolved calendar for new events: explicit selection when valid, otherwise first visible calendar
+   * in sidebar order (matches {@link #mergeSelectedCalendarIdWhenCalendarsMapChanges}).
+   */
+  #effectiveSelectedCalendarId(): string | undefined {
+    const map = this.calendars;
+    const normalized = this.#normalizedSelectedCalendarId();
+    if (!map || map.size === 0) {
+      return normalized;
+    }
+    const keys = new Set(map.keys());
+    if (normalized !== undefined && keys.has(normalized)) {
+      return normalized;
+    }
+    return this.#firstSelectedCalendarCandidate(map);
+  }
+
+  #firstSelectedCalendarCandidate(map: CalendarsMap): string | undefined {
+    const ordered = calendarIdsInSidebarOrder(map);
+    if (ordered.length === 0) return undefined;
+    const selected = this.visibleCalendarIds;
+    if (selected === undefined) {
+      return ordered[0];
+    }
+    if (selected.length === 0) {
+      return undefined;
+    }
+    const allow = new Set(selected);
+    return ordered.find((id) => allow.has(id));
+  }
+
+  #mergeSelectedCalendarIdWhenCalendarsMapChanges(): void {
+    const map = this.calendars;
+    if (!map || map.size === 0) {
+      return;
+    }
+
+    const next = this.#effectiveSelectedCalendarId();
+
+    if (next !== this.selectedCalendarId) {
+      this.selectedCalendarId = next;
+    }
+  }
+
+  #getCalendarsDialog(): HTMLDialogElement | null {
+    return this.renderRoot.querySelector("#event-calendar-calendars-dialog");
+  }
+
+  #onCalendarsDialogClose = (): void => {
+    this.#calendarsDialogExitInProgress = false;
+    if (!this.#calendarsOverlayOpen) return;
+    this.#calendarsOverlayOpen = false;
+    this.requestUpdate();
+  };
+
+  #onCalendarsDialogCancel = (event: Event): void => {
+    event.preventDefault();
+    this.#beginCalendarsDialogExit();
+  };
+
+  /**
+   * Runs slide/fade-out, then `close()`. `<dialog>` leaves the top layer immediately on `close()`,
+   * so exit motion is CSS on `[open]` + a `--closing` class until `transitionend`.
+   */
+  #beginCalendarsDialogExit = (): void => {
+    if (!this.#calendarsOverlayOpen || this.#calendarsDialogExitInProgress) return;
+    const dialog = this.#getCalendarsDialog();
+    if (!dialog?.open) {
+      this.#calendarsOverlayOpen = false;
+      this.requestUpdate();
+      return;
+    }
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      dialog.classList.remove("event-calendar-calendars-dialog--closing");
+      dialog.close();
+      return;
+    }
+
+    const panel = dialog.querySelector(".event-calendar-calendars-panel");
+    if (!(panel instanceof HTMLElement)) {
+      dialog.close();
+      return;
+    }
+
+    this.#calendarsDialogExitInProgress = true;
+
+    let exitFinished = false;
+    const finish = (): void => {
+      if (exitFinished) return;
+      exitFinished = true;
+      panel.removeEventListener("transitionend", onTransitionEnd);
+      window.clearTimeout(fallbackTimer);
+      dialog.classList.remove("event-calendar-calendars-dialog--closing");
+      this.#calendarsDialogExitInProgress = false;
+      dialog.close();
+    };
+
+    const onTransitionEnd = (e: TransitionEvent): void => {
+      if (e.target !== panel || e.propertyName !== "transform") return;
+      finish();
+    };
+
+    const fallbackTimer = window.setTimeout(finish, 280);
+
+    panel.addEventListener("transitionend", onTransitionEnd);
+    dialog.classList.add("event-calendar-calendars-dialog--closing");
+  };
+
+  #closeCalendarsOverlay = (): void => {
+    this.#beginCalendarsDialogExit();
+  };
+
+  #toggleCalendarsOverlay = (): void => {
+    const nextOpen = !this.#calendarsOverlayOpen;
+    if (!nextOpen) {
+      this.#beginCalendarsDialogExit();
+      return;
+    }
+    this.#calendarsOverlayOpen = true;
+    this.requestUpdate();
+    void this.updateComplete.then(() => {
+      if (!this.#calendarsOverlayOpen) return;
+      const dialog = this.#getCalendarsDialog();
+      if (dialog && !dialog.open) {
+        dialog.classList.remove("event-calendar-calendars-dialog--closing");
+        dialog.showModal();
+      }
+    });
+  };
 
   get view(): CalendarViewMode {
     return this.#view;
@@ -308,17 +587,107 @@ export class EventCalendar extends BaseElement {
   render() {
     const headerDirection = this.rtl || getLocaleDirection(this.lang) === "rtl" ? "rtl" : "ltr";
     const isHeaderRtl = headerDirection === "rtl";
+    const hasCalendars = this.#hasCalendars;
     return html`
-      <div class="event-calendar-shell">
-        <header
-          class="event-calendar-header"
-          dir=${headerDirection}
-        >
-          <div
-            class="event-calendar-toolbar"
-            style="--lc-button-bg: transparent; --lc-button-hover-bg: transparent; --lc-button-border-color: transparent; --_lc-button-border-color: transparent; --_lc-grid-line-color: transparent;"
+      <div
+        class="event-calendar-shell ${hasCalendars ? "event-calendar-has-calendars" : ""}"
+        dir=${headerDirection}
+      >
+        ${
+          hasCalendars
+            ? html`
+              <div
+                id="event-calendar-calendars-mount"
+                class="event-calendar-calendars event-calendar-calendars--docked"
+                dir=${headerDirection}
+              >
+                <div class="event-calendar-calendars-panel">
+                  <calendars-sidebar
+                    class="event-calendar-calendars-sidebar"
+                    dir=${headerDirection}
+                    .calendars=${this.calendars}
+                    .visibleCalendarIds=${this.visibleCalendarIds}
+                    .selectedCalendarId=${this.selectedCalendarId}
+                    @visibleCalendarIds-changed=${this.#handlevisibleCalendarIdsChanged}
+                    @selectedCalendarId-changed=${this.#handleSelectedCalendarIdChanged}
+                  ></calendars-sidebar>
+                </div>
+              </div>
+              <dialog
+                id="event-calendar-calendars-dialog"
+                class="event-calendar-calendars-dialog"
+                dir=${headerDirection}
+                aria-label=${getCalendarsMenuLabel(this.lang)}
+                @cancel=${this.#onCalendarsDialogCancel}
+                @close=${this.#onCalendarsDialogClose}
+              >
+                <div
+                  class="event-calendar-calendars-backdrop"
+                  aria-hidden="true"
+                  @click=${this.#closeCalendarsOverlay}
+                ></div>
+                <div class="event-calendar-calendars-panel">
+                  <div class="event-calendar-calendars-panel-header">
+                    <lc-button
+                      label="Close calendars"
+                      style=${EVENT_CALENDAR_MENU_BUTTON_STYLE}
+                      @click=${this.#closeCalendarsOverlay}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        aria-hidden="true"
+                        class="event-calendar-nav-icon"
+                      >
+                        <path
+                          d="M6 6l12 12M18 6L6 18"
+                          stroke-linecap="round"
+                        ></path>
+                      </svg>
+                    </lc-button>
+                  </div>
+                  <calendars-sidebar
+                    class="event-calendar-calendars-sidebar"
+                    dir=${headerDirection}
+                    .calendars=${this.calendars}
+                    .visibleCalendarIds=${this.visibleCalendarIds}
+                    .selectedCalendarId=${this.selectedCalendarId}
+                    @visibleCalendarIds-changed=${this.#handlevisibleCalendarIdsChanged}
+                    @selectedCalendarId-changed=${this.#handleSelectedCalendarIdChanged}
+                  ></calendars-sidebar>
+                </div>
+              </dialog>
+            `
+            : nothing
+        }
+        <div class="event-calendar-main">
+          <header
+            class="event-calendar-header"
+            dir=${headerDirection}
           >
-            <div class="event-calendar-heading-row" dir=${headerDirection}>
+            <div
+              class="event-calendar-toolbar"
+              style=${EVENT_CALENDAR_GHOST_ICON_BUTTON_STYLE}
+            >
+              ${
+                hasCalendars
+                  ? html`
+                    <lc-button
+                      class="event-calendar-calendars-toggle"
+                      .label=${getCalendarsMenuLabel(this.lang)}
+                      .disclosureExpanded=${this.#calendarsOverlayOpen}
+                      .hasPopup=${"dialog"}
+                      style=${EVENT_CALENDAR_MENU_BUTTON_STYLE}
+                      @click=${this.#toggleCalendarsOverlay}
+                    >
+                      ${renderHamburgerIcon({ className: "event-calendar-nav-icon" })}
+                    </lc-button>
+                  `
+                  : nothing
+              }
+              <div class="event-calendar-heading-row" dir=${headerDirection}>
               <div class="event-calendar-nav-buttons">
                 <lc-button
                   compact
@@ -385,65 +754,67 @@ export class EventCalendar extends BaseElement {
             </div>
             <lc-button
               .label=${getTodayLabel(this.lang)}
-              style="--_lc-grid-line-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%)); --_lc-button-border-color: light-dark(rgb(15 23 42 / 14%), rgb(255 255 255 / 16%));"
+              style=${EVENT_CALENDAR_MENU_BUTTON_STYLE}
               @click=${() => this.goToday()}
             >
               ${renderCalendarIcon({ className: "event-calendar-nav-icon" })}
               <span class="event-calendar-today-label">${getTodayLabel(this.lang)}</span>
             </lc-button>
-          </div>
-          <div class="event-calendar-controls-row">
-            <tab-switch
-              class="event-calendar-switch"
-              .showHotkeys=${false}
-              .options=${getViewOptions(this.lang)}
-              .value=${this.view}
-              name="event-calendar-grid-view-tabs"
-              group-label="Calendar view"
-              @value-changed=${this.#handleViewTabChanged}
-            ></tab-switch>
-            <span
-              class="event-calendar-divider event-calendar-divider--controls"
-              aria-hidden="true"
-            ></span>
-            <tab-switch
-              class="event-calendar-switch"
-              compact
-              .showHotkeys=${false}
-              .options=${getPresentationOptions()}
-              .value=${this.presentation}
-              name="event-calendar-presentation-tabs"
-              group-label="Calendar layout"
-              @value-changed=${this.#handlePresentationChanged}
-            ></tab-switch>
-          </div>
-        </header>
-        <calendar-grid-view-group
-          class="event-calendar-content"
-          style="--_lc-week-sticky-top: 0px;"
-          .view=${this.view}
-          .presentation=${this.presentation}
-          .startDate=${this.#startDate}
-          .weekStart=${this.weekStart}
-          .daysPerWeek=${this.daysPerWeek}
-          .events=${this.events}
-          .lang=${this.lang}
-          .timezone=${this.timezone}
-          .currentTime=${this.currentTime}
-          .snapInterval=${this.snapInterval}
-          .visibleHours=${this.visibleHours}
-          .rtl=${this.rtl}
-          .defaultEventSummary=${this.defaultEventSummary}
-          .defaultEventColor=${this.defaultEventColor}
-          .defaultCalendarId=${this.defaultCalendarId}
-          @view-changed=${this.#syncFromViewGroup}
-          @start-date-changed=${this.#syncFromViewGroup}
-          @day-selection=${this.#syncFromViewGroup}
-          @event-created=${this.#reemit}
-          @event-selected=${this.#reemit}
-          @event-updated=${this.#reemit}
-          @event-deleted=${this.#reemit}
-        ></calendar-grid-view-group>
+            </div>
+            <div class="event-calendar-controls-row">
+              <tab-switch
+                class="event-calendar-switch"
+                .showHotkeys=${false}
+                .options=${getViewOptions(this.lang)}
+                .value=${this.view}
+                name="event-calendar-grid-view-tabs"
+                group-label="Calendar view"
+                @value-changed=${this.#handleViewTabChanged}
+              ></tab-switch>
+              <span
+                class="event-calendar-divider event-calendar-divider--controls"
+                aria-hidden="true"
+              ></span>
+              <tab-switch
+                class="event-calendar-switch"
+                compact
+                .showHotkeys=${false}
+                .options=${getPresentationOptions()}
+                .value=${this.presentation}
+                name="event-calendar-presentation-tabs"
+                group-label="Calendar layout"
+                @value-changed=${this.#handlePresentationChanged}
+              ></tab-switch>
+            </div>
+          </header>
+          <calendar-grid-view-group
+            class="event-calendar-content"
+            style="--_lc-week-sticky-top: 0px;"
+            role="region"
+            tabindex="0"
+            aria-label=${getCalendarContentRegionLabel(this.lang)}
+            .view=${this.view}
+            .presentation=${this.presentation}
+            .startDate=${this.#startDate}
+            .weekStart=${this.weekStart}
+            .daysPerWeek=${this.daysPerWeek}
+            .events=${this.#visibleEvents}
+            .lang=${this.lang}
+            .timezone=${this.timezone}
+            .currentTime=${this.currentTime}
+            .snapInterval=${this.snapInterval}
+            .visibleHours=${this.visibleHours}
+            .rtl=${isHeaderRtl}
+            .defaultEventSummary=${this.defaultEventSummary}
+            @view-changed=${this.#syncFromViewGroup}
+            @start-date-changed=${this.#syncFromViewGroup}
+            @day-selection=${this.#syncFromViewGroup}
+            @event-created=${this.#reemit}
+            @event-selected=${this.#reemit}
+            @event-updated=${this.#reemit}
+            @event-deleted=${this.#reemit}
+          ></calendar-grid-view-group>
+        </div>
       </div>
     `;
   }
@@ -543,6 +914,12 @@ export class EventCalendar extends BaseElement {
 
   override updated(changedProperties: Map<PropertyKey, unknown>): void {
     super.updated(changedProperties);
+    if (changedProperties.has("calendars")) {
+      this.#mergeSelectionWhenCalendarsMapChanges();
+    }
+    if (changedProperties.has("calendars") || changedProperties.has("visibleCalendarIds")) {
+      this.#mergeSelectedCalendarIdWhenCalendarsMapChanges();
+    }
     this.#eventsAPIProvider.setValue(this.#eventsAPIContextValue, true);
     const viewGroup = this.#calendarViewGroup;
     if (!viewGroup) return;

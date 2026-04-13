@@ -13,7 +13,8 @@ function createSeriesEventMap(): CalendarEventsMap {
       "daily",
       {
         eventId: "daily@example.test",
-        calendarId: "/calendars/wouter/work/",
+        accountId: "account-john",
+        calendarId: "cal-john-work",
         data: {
           start: Temporal.PlainDateTime.from("2025-01-13T09:00:00"),
           end: Temporal.PlainDateTime.from("2025-01-13T09:15:00"),
@@ -85,7 +86,8 @@ describe("EventsAPI recurring series (regression)", () => {
         end: Temporal.PlainDateTime.from("2025-01-19T10:15:00"),
         summary: "Daily Standup",
         color: "#10B981",
-        calendarId: "/calendars/wouter/work/",
+        accountId: "account-john",
+        calendarId: "cal-john-work",
       },
     });
 

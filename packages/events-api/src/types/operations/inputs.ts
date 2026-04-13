@@ -25,7 +25,7 @@ export type UpdateInput = {
   target: EventTarget;
   scope: Scope;
   patch: Partial<Pick<CalendarEventData, "summary" | "color" | "location" | "allDay" | "timeZone">> &
-    Partial<Pick<CalendarEventEnvelope, "calendarId">> &
+    Partial<Pick<CalendarEventEnvelope, "calendarId" | "accountId">> &
     Partial<TimeRangeInput>;
 };
 
@@ -80,12 +80,12 @@ export type RemoveExclusionInput = {
 
 export type AddExceptionEventInput =
   | (Partial<Pick<CalendarEventData, "summary" | "color" | "location">> &
-      Partial<Pick<CalendarEventEnvelope, "calendarId">> & {
+      Partial<Pick<CalendarEventEnvelope, "calendarId" | "accountId">> & {
         start: Temporal.PlainDateTime;
         end: Temporal.PlainDateTime;
       })
   | (Partial<Pick<CalendarEventData, "summary" | "color" | "location">> &
-      Partial<Pick<CalendarEventEnvelope, "calendarId">> & {
+      Partial<Pick<CalendarEventEnvelope, "calendarId" | "accountId">> & {
         start: Temporal.PlainDateTime;
         duration: Temporal.Duration;
       });

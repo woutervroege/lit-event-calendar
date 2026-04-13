@@ -8,7 +8,8 @@ export type CalendarEventData = {
   allDay?: boolean;
   timeZone?: IANATimeZone;
   summary: string;
-  color: string;
+  /** When omitted or empty, consumers resolve display color from the parent calendar. */
+  color?: string;
   location?: string;
   recurrenceRule?: CalendarRecurrenceRule;
   exclusionDates?: CalendarExclusionDates;

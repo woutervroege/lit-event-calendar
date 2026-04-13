@@ -15,7 +15,7 @@ export type EventKeyDetail = {
 
 /** Internal: maps UI create gesture to `EventsAPI` create input (not used as DOM `CustomEvent` detail). */
 export type EventCreateRequestDetail = {
-  envelope: Pick<CalendarEventEnvelope, "calendarId">;
+  envelope: Pick<CalendarEventEnvelope, "calendarId" | "accountId">;
   content: CalendarEventUIData;
 };
 
@@ -23,20 +23,23 @@ export type EventCreateRequestDetail = {
 export type EventUpdateRequestDetail = {
   envelope: Pick<
     CalendarEventEnvelope,
-    "eventId" | "calendarId" | "recurrenceId" | "isException" | "isRecurring"
+    "eventId" | "accountId" | "calendarId" | "recurrenceId" | "isException" | "isRecurring"
   >;
   content: CalendarEventUIData;
 };
 
 /** Internal: maps UI delete gesture to API remove input (not DOM event detail). */
 export type EventDeleteRequestDetail = {
-  envelope: Pick<CalendarEventEnvelope, "calendarId" | "eventId" | "recurrenceId" | "isRecurring">;
+  envelope: Pick<
+    CalendarEventEnvelope,
+    "accountId" | "calendarId" | "eventId" | "recurrenceId" | "isRecurring"
+  >;
 };
 
 export type EventExceptionRequestDetail = {
   envelope: Pick<
     CalendarEventEnvelope,
-    "eventId" | "calendarId" | "recurrenceId" | "isException" | "isRecurring"
+    "eventId" | "accountId" | "calendarId" | "recurrenceId" | "isException" | "isRecurring"
   >;
   content: CalendarEventUIData;
   source: "move";
