@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+:host {
+  @apply block h-full min-h-0 min-w-0;
+  color: var(--_lc-calendars-sidebar-fg, light-dark(rgb(15 23 42), rgb(248 250 252)));
+}
+
+.calendars-sidebar {
+  @apply flex flex-col h-full min-h-0 gap-2 p-3;
+  background-color: var(
+    --_lc-calendars-sidebar-bg,
+    var(--lg-background-color, var(--_lc-surface-bg, light-dark(#f8fafc, #1e293b)))
+  );
+  border-inline-end: 1px solid
+    var(--_lc-calendars-sidebar-border, light-dark(rgb(226 232 240), rgb(51 65 85)));
+}
+
+.calendars-sidebar-heading {
+  @apply text-xs font-semibold uppercase tracking-wide m-0;
+  color: var(--_lc-calendars-sidebar-heading-fg, light-dark(rgb(100 116 139), rgb(148 163 184)));
+}
+
+.calendar-list {
+  @apply list-none m-0 p-0 flex flex-col gap-1.5 overflow-y-auto min-h-0;
+}
+
+.calendar-row {
+  @apply flex items-center gap-2 min-w-0 text-sm;
+}
+
+.calendar-swatch {
+  @apply shrink-0 rounded-sm;
+  width: var(--_lc-calendars-sidebar-swatch-size, 12px);
+  height: var(--_lc-calendars-sidebar-swatch-size, 12px);
+  border: 1px solid var(--_lc-calendars-sidebar-swatch-border, rgb(0 0 0 / 12%));
+}
+
+.calendar-name {
+  @apply truncate min-w-0;
+}

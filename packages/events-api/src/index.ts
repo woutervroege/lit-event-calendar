@@ -1,15 +1,18 @@
 export { expandEvents } from "./core/expandEvents.js";
 export { applyOperation, EventsAPI } from "./core/reducer/index.js";
 export type {
+  Calendar,
   CalendarExclusionDates,
   CalendarRecurrenceFrequency,
   CalendarRecurrenceRule,
   CalendarRecurrenceTermination,
   CalendarRecurrenceWeekday,
   CalendarRecurrenceWeekdayRule,
+  CalendarId,
+  CalendarsMap,
   IANATimeZone,
-} from "./types/calendar.js";
-export { isIANATimeZone, toIANATimeZone, UTC_TIMEZONE } from "./types/calendar.js";
+} from "./types/calendar/index.js";
+export { isIANATimeZone, toIANATimeZone, UTC_TIMEZONE } from "./types/calendar/index.js";
 export type {
   CalendarEvent,
   CalendarEventData,
