@@ -4,7 +4,7 @@ import { html, nothing, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { BaseElement } from "../BaseElement/BaseElement.js";
 import "../Button/Button.js";
-import "../CalendarsSidebar/CalendarsSidebar.js";
+import { CalendarsSidebar } from "../CalendarsSidebar/CalendarsSidebar.js";
 import "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarViewGroup } from "../CalendarViewGroup/CalendarViewGroup.js";
 import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
@@ -142,7 +142,7 @@ export class EventCalendar extends BaseElement {
   visibleHours?: number;
   rtl = false;
   defaultEventSummary = "New event";
-  defaultCalendarId?: string;
+  selectedCalendarId?: string;
   /** When set and non-empty, shows a calendar list beside the grid; on narrow containers it opens as an overlay. */
   declare calendars?: CalendarsMap;
   /**
@@ -166,7 +166,7 @@ export class EventCalendar extends BaseElement {
       return accounts;
     },
     getSelectedCalendarIds: () => this.selectedCalendarIds,
-    getCalendarIdForNewEvent: () => this.#effectiveCalendarIdForNewEvent(),
+    getSelectedCalendarId: () => this.#effectiveSelectedCalendarId(),
     getApi: () =>
       new EventsAPI(this.events ?? new Map(), {
         timezone: this.timezone,
@@ -221,9 +221,17 @@ export class EventCalendar extends BaseElement {
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
-      defaultCalendarId: { type: String, attribute: "default-source-id" },
+      selectedCalendarId: {
+        type: String,
+        attribute: "selected-calendar-id",
+        dispatchChangeEvent: { bubbles: true, composed: true },
+      },
       calendars: { type: Object, attribute: false },
-      selectedCalendarIds: { type: Array, attribute: false },
+      selectedCalendarIds: {
+        type: Array,
+        attribute: false,
+        dispatchChangeEvent: { bubbles: true, composed: true },
+      },
     } as const;
   }
 
@@ -271,9 +279,10 @@ export class EventCalendar extends BaseElement {
     return filtered;
   }
 
-  #handleVisibleCalendarIdsChanged = (event: Event) => {
-    const custom = event as CustomEvent<{ visibleCalendarIds?: string[] }>;
-    const next = custom.detail?.visibleCalendarIds;
+  #handleSelectedCalendarIdsChanged = (event: Event) => {
+    const el = event.target;
+    if (!(el instanceof CalendarsSidebar)) return;
+    const next = el.selectedCalendarIds;
     if (!Array.isArray(next)) return;
     const prev = this.selectedCalendarIds;
     if (
@@ -286,12 +295,12 @@ export class EventCalendar extends BaseElement {
     this.selectedCalendarIds = [...next];
   };
 
-  #handleDefaultCalendarIdChanged = (event: Event) => {
-    const custom = event as CustomEvent<{ defaultCalendarId?: string }>;
-    if (!custom.detail || !("defaultCalendarId" in custom.detail)) return;
-    const next = custom.detail.defaultCalendarId;
-    if (next === this.defaultCalendarId) return;
-    this.defaultCalendarId = next;
+  #handleSelectedCalendarIdChanged = (event: Event) => {
+    const el = event.target;
+    if (!(el instanceof CalendarsSidebar)) return;
+    const next = el.selectedCalendarId;
+    if (next === this.selectedCalendarId) return;
+    this.selectedCalendarId = next;
   };
 
   #mergeSelectionWhenCalendarsMapChanges(): void {
@@ -318,20 +327,20 @@ export class EventCalendar extends BaseElement {
     }
   }
 
-  #normalizedDefaultCalendarId(): string | undefined {
-    const raw = this.defaultCalendarId;
+  #normalizedSelectedCalendarId(): string | undefined {
+    const raw = this.selectedCalendarId;
     if (raw === undefined || raw === null) return undefined;
     const trimmed = String(raw).trim();
     return trimmed === "" ? undefined : trimmed;
   }
 
   /**
-   * Resolved calendar for new events: explicit default when valid, otherwise first visible calendar
-   * in sidebar order (matches {@link #mergeDefaultCalendarWhenCalendarsMapChanges}).
+   * Resolved calendar for new events: explicit selection when valid, otherwise first visible calendar
+   * in sidebar order (matches {@link #mergeSelectedCalendarIdWhenCalendarsMapChanges}).
    */
-  #effectiveCalendarIdForNewEvent(): string | undefined {
+  #effectiveSelectedCalendarId(): string | undefined {
     const map = this.calendars;
-    const normalized = this.#normalizedDefaultCalendarId();
+    const normalized = this.#normalizedSelectedCalendarId();
     if (!map || map.size === 0) {
       return normalized;
     }
@@ -339,10 +348,10 @@ export class EventCalendar extends BaseElement {
     if (normalized !== undefined && keys.has(normalized)) {
       return normalized;
     }
-    return this.#firstDefaultCalendarCandidate(map);
+    return this.#firstSelectedCalendarCandidate(map);
   }
 
-  #firstDefaultCalendarCandidate(map: CalendarsMap): string | undefined {
+  #firstSelectedCalendarCandidate(map: CalendarsMap): string | undefined {
     const ordered = calendarIdsInSidebarOrder(map);
     if (ordered.length === 0) return undefined;
     const selected = this.selectedCalendarIds;
@@ -356,16 +365,16 @@ export class EventCalendar extends BaseElement {
     return ordered.find((id) => allow.has(id));
   }
 
-  #mergeDefaultCalendarWhenCalendarsMapChanges(): void {
+  #mergeSelectedCalendarIdWhenCalendarsMapChanges(): void {
     const map = this.calendars;
     if (!map || map.size === 0) {
       return;
     }
 
-    const next = this.#effectiveCalendarIdForNewEvent();
+    const next = this.#effectiveSelectedCalendarId();
 
-    if (next !== this.defaultCalendarId) {
-      this.defaultCalendarId = next;
+    if (next !== this.selectedCalendarId) {
+      this.selectedCalendarId = next;
     }
   }
 
@@ -550,10 +559,10 @@ export class EventCalendar extends BaseElement {
                     class="event-calendar-calendars-sidebar"
                     dir=${headerDirection}
                     .calendars=${this.calendars}
-                    .visibleCalendarIds=${this.selectedCalendarIds}
-                    .defaultCalendarId=${this.defaultCalendarId}
-                    @visible-calendar-ids-changed=${this.#handleVisibleCalendarIdsChanged}
-                    @default-calendar-id-changed=${this.#handleDefaultCalendarIdChanged}
+                    .selectedCalendarIds=${this.selectedCalendarIds}
+                    .selectedCalendarId=${this.selectedCalendarId}
+                    @selectedCalendarIds-changed=${this.#handleSelectedCalendarIdsChanged}
+                    @selectedCalendarId-changed=${this.#handleSelectedCalendarIdChanged}
                   ></calendars-sidebar>
                 </div>
               </div>
@@ -811,7 +820,7 @@ export class EventCalendar extends BaseElement {
       this.#mergeSelectionWhenCalendarsMapChanges();
     }
     if (changedProperties.has("calendars") || changedProperties.has("selectedCalendarIds")) {
-      this.#mergeDefaultCalendarWhenCalendarsMapChanges();
+      this.#mergeSelectedCalendarIdWhenCalendarsMapChanges();
     }
     this.#eventsAPIProvider.setValue(this.#eventsAPIContextValue, true);
     const viewGroup = this.#calendarViewGroup;

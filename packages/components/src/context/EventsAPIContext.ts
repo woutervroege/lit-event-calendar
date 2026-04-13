@@ -33,7 +33,7 @@ export type EventsAPIContextValue = {
    * Calendar id used when creating a new event (e.g. `event-calendar` sidebar selection), or `undefined`
    * when none applies.
    */
-  getCalendarIdForNewEvent: () => string | undefined;
+  getSelectedCalendarId: () => string | undefined;
   apply: (operation: EventOperation) => ApplyResult;
   getApi: () => EventsAPI;
   create: (input: CreateInput) => ApplyResult;

@@ -102,10 +102,10 @@ function renderCalendar(
   if (args.defaultEventSummary) {
     el.setAttribute("default-event-summary", String(args.defaultEventSummary));
   }
-  if (args.defaultCalendarId) {
-    el.setAttribute("default-source-id", String(args.defaultCalendarId));
+  if (args.selectedCalendarId) {
+    el.setAttribute("selected-calendar-id", String(args.selectedCalendarId));
   } else {
-    el.removeAttribute("default-source-id");
+    el.removeAttribute("selected-calendar-id");
   }
 
   el.events = storyEventsFromArg(args.events, sampleEvents);
@@ -166,7 +166,7 @@ const meta: Meta = {
       options: VISIBLE_HOUR_OPTIONS,
     },
     defaultEventSummary: { control: "text", description: "Default created event summary" },
-    defaultCalendarId: { control: "text", description: "Default created event source id" },
+    selectedCalendarId: { control: "text", description: "Selected calendar for new events" },
     calendars: {
       control: false,
       description:
@@ -185,7 +185,7 @@ const meta: Meta = {
     snapInterval: 15,
     visibleHours: 12,
     defaultEventSummary: "New event",
-    defaultCalendarId: "",
+    selectedCalendarId: "",
     events: sampleEvents,
   },
   render: (args) => renderCalendar(args),

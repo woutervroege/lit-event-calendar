@@ -252,7 +252,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           .snapInterval=${this.snapInterval}
           .visibleHours=${this.visibleHours}
           .defaultEventSummary=${this.defaultEventSummary}
-          .defaultCalendarId=${this.defaultCalendarId}
+          .selectedCalendarId=${this.selectedCalendarId}
           @active-date-changed=${this.#handleWeekActiveDateChanged}
           @day-selection=${this.#handleDaySelectionRequested}
           @event-created=${this.forwardComposedCalendarEvent}
@@ -273,7 +273,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
           .defaultEventSummary=${this.defaultEventSummary}
-          .defaultCalendarId=${this.defaultCalendarId}
+          .selectedCalendarId=${this.selectedCalendarId}
           @day-selection=${this.#handleDaySelectionRequested}
           @event-created=${this.forwardComposedCalendarEvent}
           @event-selected=${this.forwardComposedCalendarEvent}
@@ -293,7 +293,7 @@ export class CalendarViewGroup extends CalendarViewBase {
         .timezone=${this.timezone}
         .currentTime=${this.#resolvedCurrentTime}
         .defaultEventSummary=${this.defaultEventSummary}
-        .defaultCalendarId=${this.defaultCalendarId}
+        .selectedCalendarId=${this.selectedCalendarId}
         @day-selection=${this.#handleDaySelectionRequested}
         @event-created=${this.forwardComposedCalendarEvent}
         @event-selected=${this.forwardComposedCalendarEvent}

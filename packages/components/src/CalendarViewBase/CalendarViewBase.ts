@@ -61,7 +61,7 @@ export abstract class CalendarViewBase extends BaseElement {
 
   declare events?: EventsMap;
   defaultEventSummary = "New event";
-  defaultCalendarId?: string;
+  selectedCalendarId?: string;
 
   static get properties() {
     return {
@@ -77,7 +77,7 @@ export abstract class CalendarViewBase extends BaseElement {
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
       defaultEventSummary: { type: String, attribute: "default-event-summary" },
-      defaultCalendarId: { type: String, attribute: "default-source-id" },
+      selectedCalendarId: { type: String, attribute: "selected-calendar-id" },
     } as const;
   }
 
@@ -152,16 +152,16 @@ export abstract class CalendarViewBase extends BaseElement {
   }
 
   /**
-   * Calendar id for create gestures: from {@link EventsAPIContextValue.getCalendarIdForNewEvent} when the
-   * host provides it (e.g. `event-calendar`), otherwise {@link defaultCalendarId}.
+   * Calendar id for create gestures: from {@link EventsAPIContextValue.getSelectedCalendarId} when the
+   * host provides it (e.g. `event-calendar`), otherwise {@link selectedCalendarId}.
    */
   protected calendarIdForNewEvent(): string | undefined {
-    const fromContext = this.#eventsAPI?.getCalendarIdForNewEvent();
+    const fromContext = this.#eventsAPI?.getSelectedCalendarId();
     if (fromContext !== undefined && fromContext !== null) {
       const trimmed = String(fromContext).trim();
       if (trimmed !== "") return trimmed;
     }
-    const raw = this.defaultCalendarId;
+    const raw = this.selectedCalendarId;
     if (raw === undefined || raw === null) return undefined;
     const trimmed = String(raw).trim();
     return trimmed === "" ? undefined : trimmed;
