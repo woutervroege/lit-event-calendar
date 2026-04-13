@@ -1,12 +1,9 @@
 export { expandEvents } from "./core/expandEvents.js";
 export { applyOperation, EventsAPI } from "./core/reducer.js";
 export type {
-  CalendarDuration,
   CalendarEventDateValue,
   CalendarRecurrenceFrequency,
-  CalendarRecurrenceId,
   CalendarRecurrenceRule,
-  CalendarRecurrenceRuleJson,
   CalendarRecurrenceWeekday,
   CalendarRecurrenceWeekdayRule,
   IANATimeZone,

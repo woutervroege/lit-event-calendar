@@ -1,2 +1,1 @@
-export * from "./calendar/index.js";
 export * from "./recurrence/index.js";
