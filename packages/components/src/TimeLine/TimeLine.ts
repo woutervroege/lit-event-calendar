@@ -41,6 +41,26 @@ type TimelineMoveSession = {
   gridMax: number;
 };
 
+type TimelineCellEventSegment = {
+  ev: TimelineEvent;
+  index: number;
+  segIndex: number;
+  segStart: number;
+  segEnd: number;
+  rowSpan: number;
+  showResizeStart: boolean;
+  showResizeEnd: boolean;
+};
+
+type LaneLayout = { laneCount: number; laneByEventIndex: number[] };
+
+type TimeLineGridLayout = {
+  horiz: boolean;
+  span: number;
+  cellCount: number;
+  gridMax: number;
+};
+
 @customElement("time-line")
 export class TimeLine extends LitElement {
   @property({ type: Number }) accessor max = 100;
@@ -176,11 +196,7 @@ export class TimeLine extends LitElement {
   disconnectedCallback() {
     const move = this.#moveSession;
     if (move) {
-      try {
-        move.captureTarget.releasePointerCapture(move.pointerId);
-      } catch {
-        // Ignore if capture was already released or unsupported.
-      }
+      this.#releasePointerCaptureSafe(move.captureTarget, move.pointerId);
     }
     this.#detachResizeWindowListeners();
     this.#detachMoveWindowListeners();
@@ -205,8 +221,12 @@ export class TimeLine extends LitElement {
     window.removeEventListener("pointercancel", this.#onMoveWindowPointerEnd, true);
   }
 
+  #minGridStep(): number {
+    return this.step > 0 ? this.step : 1;
+  }
+
   #snapTime(t: number): number {
-    const step = this.step > 0 ? this.step : 1;
+    const step = this.#minGridStep();
     return Math.round(t / step) * step;
   }
 
@@ -231,10 +251,73 @@ export class TimeLine extends LitElement {
     window.addEventListener("pointercancel", this.#onMoveWindowPointerEnd, true);
   }
 
+  #readGridLayout(): TimeLineGridLayout {
+    const horiz = this.flow === "horizontal";
+    const span = this.max > 0 ? this.max : 1;
+    const cellCount = Math.max(1, this.cells);
+    return { horiz, span, cellCount, gridMax: span * cellCount };
+  }
+
+  #pointerGridTime(
+    clientX: number,
+    clientY: number,
+    layout: TimeLineGridLayout = this.#readGridLayout()
+  ): number {
+    return this.#gridTimeFromClient(
+      clientX,
+      clientY,
+      layout.span,
+      layout.cellCount,
+      layout.horiz,
+      layout.gridMax
+    );
+  }
+
+  #releasePointerCaptureSafe(target: Element, pointerId: number) {
+    try {
+      target.releasePointerCapture(pointerId);
+    } catch {
+      // Ignore if capture was already released or unsupported.
+    }
+  }
+
+  #beginSingleEventResizePreview(index: number, start: number, end: number) {
+    const preview = new Map<number, { start: number; end: number }>();
+    preview.set(index, { start, end });
+    this.resizePreviewByIndex = preview;
+  }
+
+  #mergeResizePreviewRange(index: number, range: { start: number; end: number }) {
+    const next = new Map(this.resizePreviewByIndex ?? []);
+    next.set(index, range);
+    this.resizePreviewByIndex = next;
+  }
+
   /**
    * Maps a screen point to absolute time on the grid [0, gridMax], using each cell’s `.cell-main`
    * as that cell’s span so resizing stays correct when the pointer moves across cells.
    */
+  #gridSampleFromCellMain(
+    clientX: number,
+    clientY: number,
+    main: HTMLElement,
+    cellIndex: number,
+    span: number,
+    horiz: boolean
+  ): { distSq: number; t: number } | null {
+    const r = main.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return null;
+    const cx = Math.min(Math.max(clientX, r.left), r.right);
+    const cy = Math.min(Math.max(clientY, r.top), r.bottom);
+    const dx = clientX - cx;
+    const dy = clientY - cy;
+    const distSq = dx * dx + dy * dy;
+    const along = horiz ? (cx - r.left) / r.width : (cy - r.top) / r.height;
+    const frac = Math.min(1, Math.max(0, Number.isFinite(along) ? along : 0));
+    const t = cellIndex * span + frac * span;
+    return { distSq, t };
+  }
+
   #gridTimeFromClient(
     clientX: number,
     clientY: number,
@@ -247,7 +330,7 @@ export class TimeLine extends LitElement {
     if (!root) return 0;
 
     let bestT = 0;
-    let bestDist = Infinity;
+    let bestDistSq = Infinity;
 
     for (const cellEl of root.querySelectorAll(".cell")) {
       if (!(cellEl instanceof HTMLElement)) continue;
@@ -255,33 +338,77 @@ export class TimeLine extends LitElement {
       if (!Number.isFinite(cellIndex) || cellIndex < 0 || cellIndex >= cellCount) continue;
       const main = cellEl.querySelector(".cell-main");
       if (!(main instanceof HTMLElement)) continue;
-      const r = main.getBoundingClientRect();
-      if (r.width <= 0 || r.height <= 0) continue;
-
-      const cx = Math.min(Math.max(clientX, r.left), r.right);
-      const cy = Math.min(Math.max(clientY, r.top), r.bottom);
-      const dx = clientX - cx;
-      const dy = clientY - cy;
-      const dist = dx * dx + dy * dy;
-
-      const along = horiz ? (cx - r.left) / r.width : (cy - r.top) / r.height;
-      const frac = Math.min(1, Math.max(0, Number.isFinite(along) ? along : 0));
-      const t = cellIndex * span + frac * span;
-
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestT = t;
+      const sample = this.#gridSampleFromCellMain(clientX, clientY, main, cellIndex, span, horiz);
+      if (!sample) continue;
+      if (sample.distSq < bestDistSq) {
+        bestDistSq = sample.distSq;
+        bestT = sample.t;
       }
     }
 
-    if (bestDist === Infinity) return 0;
+    if (bestDistSq === Infinity) return 0;
     return Math.max(0, Math.min(gridMax, bestT));
   }
 
-  #applyResizePointer(clientX: number, clientY: number, session: TimelineResizeSession) {
-    const ev = this.events[session.eventIndex];
-    if (!ev) return;
+  #clampResizeRangeToMinDuration(
+    nextStart: number,
+    nextEnd: number,
+    minStep: number,
+    edge: TimelineResizeEdge,
+    gridMax: number
+  ): { start: number; end: number } {
+    let start = nextStart;
+    let end = nextEnd;
+    if (end - start < minStep) {
+      if (edge === "start") {
+        start = Math.max(0, end - minStep);
+      } else {
+        end = Math.min(gridMax, start + minStep);
+      }
+    }
+    if (start >= end) {
+      if (edge === "start") {
+        start = Math.max(0, end - minStep);
+      } else {
+        end = Math.min(gridMax, start + minStep);
+      }
+    }
+    return { start, end };
+  }
 
+  #resizedRangeForPointer(
+    session: TimelineResizeSession,
+    pointerT: number
+  ): {
+    start: number;
+    end: number;
+  } | null {
+    const ev = this.events[session.eventIndex];
+    if (!ev) return null;
+
+    const deltaT = pointerT - session.originPointerGridT;
+    let nextStart = session.initialStart;
+    let nextEnd = session.initialEnd;
+    if (session.edge === "start") {
+      nextStart = this.#snapTime(session.initialStart + deltaT);
+    } else {
+      nextEnd = this.#snapTime(session.initialEnd + deltaT);
+    }
+
+    const minStep = this.#minGridStep();
+    nextStart = Math.max(0, Math.min(nextStart, session.gridMax));
+    nextEnd = Math.max(0, Math.min(nextEnd, session.gridMax));
+
+    return this.#clampResizeRangeToMinDuration(
+      nextStart,
+      nextEnd,
+      minStep,
+      session.edge,
+      session.gridMax
+    );
+  }
+
+  #applyResizePointer(clientX: number, clientY: number, session: TimelineResizeSession) {
     const span = this.max > 0 ? this.max : 1;
     const cellCount = Math.max(1, this.cells);
     const pointerT = this.#gridTimeFromClient(
@@ -292,79 +419,12 @@ export class TimeLine extends LitElement {
       session.horiz,
       session.gridMax
     );
-    const deltaT = pointerT - session.originPointerGridT;
-
-    let nextStart = session.initialStart;
-    let nextEnd = session.initialEnd;
-    if (session.edge === "start") {
-      nextStart = this.#snapTime(session.initialStart + deltaT);
-    } else {
-      nextEnd = this.#snapTime(session.initialEnd + deltaT);
-    }
-
-    const minStep = this.step > 0 ? this.step : 1;
-    nextStart = Math.max(0, Math.min(nextStart, session.gridMax));
-    nextEnd = Math.max(0, Math.min(nextEnd, session.gridMax));
-
-    if (nextEnd - nextStart < minStep) {
-      if (session.edge === "start") {
-        nextStart = Math.max(0, nextEnd - minStep);
-      } else {
-        nextEnd = Math.min(session.gridMax, nextStart + minStep);
-      }
-    }
-
-    if (nextStart >= nextEnd) {
-      if (session.edge === "start") {
-        nextStart = Math.max(0, nextEnd - minStep);
-      } else {
-        nextEnd = Math.min(session.gridMax, nextStart + minStep);
-      }
-    }
-
-    const next = new Map(this.resizePreviewByIndex ?? []);
-    next.set(session.eventIndex, { start: nextStart, end: nextEnd });
-    this.resizePreviewByIndex = next;
+    const range = this.#resizedRangeForPointer(session, pointerT);
+    if (!range) return;
+    this.#mergeResizePreviewRange(session.eventIndex, range);
   }
 
-  #finishResizeGesture(
-    session: TimelineResizeSession,
-    clientX: number,
-    clientY: number,
-    cancelled: boolean
-  ) {
-    this.#detachResizeWindowListeners();
-    this.#resizeSession = null;
-
-    try {
-      session.handle.releasePointerCapture(session.pointerId);
-    } catch {
-      // Ignore if capture was already released or unsupported.
-    }
-
-    if (!cancelled) {
-      this.#applyResizePointer(clientX, clientY, session);
-    }
-
-    const preview = cancelled ? undefined : this.resizePreviewByIndex?.get(session.eventIndex);
-    const previousStart = session.initialStart;
-    const previousEnd = session.initialEnd;
-
-    this.resizePreviewByIndex = null;
-
-    if (cancelled || !preview) return;
-
-    if (preview.start === previousStart && preview.end === previousEnd) return;
-
-    const detail: TimelineEventResizeCommitDetail = {
-      index: session.eventIndex,
-      edge: session.edge,
-      start: preview.start,
-      end: preview.end,
-      previousStart,
-      previousEnd,
-    };
-
+  #emitTimelineResizeCommit(detail: TimelineEventResizeCommitDetail) {
     this.dispatchEvent(
       new CustomEvent<TimelineEventResizeCommitDetail>("timeline-event-resize", {
         bubbles: true,
@@ -375,10 +435,68 @@ export class TimeLine extends LitElement {
     this.onTimelineEventResize?.(detail);
   }
 
-  #applyMovePointer(clientX: number, clientY: number, session: TimelineMoveSession) {
-    const ev = this.events[session.eventIndex];
-    if (!ev) return;
+  #finishResizeGesture(
+    session: TimelineResizeSession,
+    clientX: number,
+    clientY: number,
+    cancelled: boolean
+  ) {
+    this.#detachResizeWindowListeners();
+    this.#resizeSession = null;
+    this.#releasePointerCaptureSafe(session.handle, session.pointerId);
 
+    if (!cancelled) {
+      this.#applyResizePointer(clientX, clientY, session);
+    }
+
+    const preview = cancelled ? undefined : this.resizePreviewByIndex?.get(session.eventIndex);
+    const previousStart = session.initialStart;
+    const previousEnd = session.initialEnd;
+    this.resizePreviewByIndex = null;
+
+    if (cancelled || !preview) return;
+    if (preview.start === previousStart && preview.end === previousEnd) return;
+
+    this.#emitTimelineResizeCommit({
+      index: session.eventIndex,
+      edge: session.edge,
+      start: preview.start,
+      end: preview.end,
+      previousStart,
+      previousEnd,
+    });
+  }
+
+  #movedStartBounds(session: TimelineMoveSession, duration: number, minStep: number) {
+    if (duration > minStep) {
+      return { minStart: -duration + minStep, maxStart: session.gridMax - minStep };
+    }
+    return {
+      minStart: Math.min(0, session.initialStart),
+      maxStart: Math.max(session.gridMax, session.initialEnd) - duration,
+    };
+  }
+
+  #movedRangeForPointer(
+    session: TimelineMoveSession,
+    pointerT: number
+  ): {
+    start: number;
+    end: number;
+  } | null {
+    const ev = this.events[session.eventIndex];
+    if (!ev) return null;
+
+    const deltaT = pointerT - session.originPointerGridT;
+    const duration = session.initialEnd - session.initialStart;
+    const minStep = this.#minGridStep();
+    let nextStart = this.#snapTime(session.initialStart + deltaT);
+    const { minStart, maxStart } = this.#movedStartBounds(session, duration, minStep);
+    nextStart = Math.max(minStart, Math.min(nextStart, maxStart));
+    return { start: nextStart, end: nextStart + duration };
+  }
+
+  #applyMovePointer(clientX: number, clientY: number, session: TimelineMoveSession) {
     const span = this.max > 0 ? this.max : 1;
     const cellCount = Math.max(1, this.cells);
     const pointerT = this.#gridTimeFromClient(
@@ -389,67 +507,12 @@ export class TimeLine extends LitElement {
       session.horiz,
       session.gridMax
     );
-    const deltaT = pointerT - session.originPointerGridT;
-    const duration = session.initialEnd - session.initialStart;
-    const minStep = this.step > 0 ? this.step : 1;
-    let nextStart = this.#snapTime(session.initialStart + deltaT);
-
-    let minStart: number;
-    let maxStart: number;
-    if (duration > minStep) {
-      minStart = -duration + minStep;
-      maxStart = session.gridMax - minStep;
-    } else {
-      minStart = Math.min(0, session.initialStart);
-      maxStart = Math.max(session.gridMax, session.initialEnd) - duration;
-    }
-    nextStart = Math.max(minStart, Math.min(nextStart, maxStart));
-    const nextEnd = nextStart + duration;
-
-    const next = new Map(this.resizePreviewByIndex ?? []);
-    next.set(session.eventIndex, { start: nextStart, end: nextEnd });
-    this.resizePreviewByIndex = next;
+    const range = this.#movedRangeForPointer(session, pointerT);
+    if (!range) return;
+    this.#mergeResizePreviewRange(session.eventIndex, range);
   }
 
-  #finishMoveGesture(
-    session: TimelineMoveSession,
-    clientX: number,
-    clientY: number,
-    cancelled: boolean
-  ) {
-    this.#detachMoveWindowListeners();
-    this.#moveSession = null;
-
-    try {
-      session.captureTarget.releasePointerCapture(session.pointerId);
-    } catch {
-      // Ignore if capture was already released or unsupported.
-    }
-
-    this.draggingEventIndex = null;
-
-    if (!cancelled) {
-      this.#applyMovePointer(clientX, clientY, session);
-    }
-
-    const preview = cancelled ? undefined : this.resizePreviewByIndex?.get(session.eventIndex);
-    const previousStart = session.initialStart;
-    const previousEnd = session.initialEnd;
-
-    this.resizePreviewByIndex = null;
-
-    if (cancelled || !preview) return;
-
-    if (preview.start === previousStart && preview.end === previousEnd) return;
-
-    const detail: TimelineEventMoveCommitDetail = {
-      index: session.eventIndex,
-      start: preview.start,
-      end: preview.end,
-      previousStart,
-      previousEnd,
-    };
-
+  #emitTimelineMoveCommit(detail: TimelineEventMoveCommitDetail) {
     this.dispatchEvent(
       new CustomEvent<TimelineEventMoveCommitDetail>("timeline-event-move", {
         bubbles: true,
@@ -460,23 +523,74 @@ export class TimeLine extends LitElement {
     this.onTimelineEventMove?.(detail);
   }
 
+  #finishMoveGesture(
+    session: TimelineMoveSession,
+    clientX: number,
+    clientY: number,
+    cancelled: boolean
+  ) {
+    this.#detachMoveWindowListeners();
+    this.#moveSession = null;
+    this.#releasePointerCaptureSafe(session.captureTarget, session.pointerId);
+    this.draggingEventIndex = null;
+
+    if (!cancelled) {
+      this.#applyMovePointer(clientX, clientY, session);
+    }
+
+    const preview = cancelled ? undefined : this.resizePreviewByIndex?.get(session.eventIndex);
+    const previousStart = session.initialStart;
+    const previousEnd = session.initialEnd;
+    this.resizePreviewByIndex = null;
+
+    if (cancelled || !preview) return;
+    if (preview.start === previousStart && preview.end === previousEnd) return;
+
+    this.#emitTimelineMoveCommit({
+      index: session.eventIndex,
+      start: preview.start,
+      end: preview.end,
+      previousStart,
+      previousEnd,
+    });
+  }
+
+  #interactiveControlUnderPointer(target: EventTarget | null): boolean {
+    if (!(target instanceof Element)) return false;
+    return Boolean(
+      target.closest(
+        'a[href], button:not([disabled]), input, textarea, select, [contenteditable="true"]'
+      )
+    );
+  }
+
+  #composedPathContainsResizeHandle(path: EventTarget[]): boolean {
+    return path.some((n) => n instanceof Element && n.localName === "resize-handle");
+  }
+
+  #trySetPointerCapture(target: Element, pointerId: number) {
+    try {
+      target.setPointerCapture(pointerId);
+    } catch {
+      // Synthetic pointers may not support capture.
+    }
+  }
+
+  #resizeHandleFromComposedPath(path: EventTarget[]): HTMLElement | null {
+    const handle = path.find((n) => n instanceof HTMLElement && n.localName === "resize-handle");
+    return handle instanceof HTMLElement ? handle : null;
+  }
+
+  #resizeEdgeFromHandle(handle: HTMLElement): TimelineResizeEdge | null {
+    const position = handle.getAttribute("position");
+    return position === "start" || position === "end" ? position : null;
+  }
+
   #onEventBodyPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
     if (this.#resizeSession || this.#moveSession) return;
-
-    const target = e.target;
-    if (target instanceof Element) {
-      if (
-        target.closest(
-          'a[href], button:not([disabled]), input, textarea, select, [contenteditable="true"]'
-        )
-      ) {
-        return;
-      }
-    }
-
-    const path = e.composedPath();
-    if (path.some((n) => n instanceof Element && n.localName === "resize-handle")) return;
+    if (this.#interactiveControlUnderPointer(e.target)) return;
+    if (this.#composedPathContainsResizeHandle(e.composedPath())) return;
 
     const eventEl = e.currentTarget;
     if (!(eventEl instanceof HTMLElement)) return;
@@ -490,24 +604,10 @@ export class TimeLine extends LitElement {
     e.stopPropagation();
     if (e.cancelable) e.preventDefault();
 
-    try {
-      this.setPointerCapture(e.pointerId);
-    } catch {
-      // Synthetic pointers may not support capture.
-    }
+    this.#trySetPointerCapture(this, e.pointerId);
 
-    const horiz = this.flow === "horizontal";
-    const span = this.max > 0 ? this.max : 1;
-    const cellCount = Math.max(1, this.cells);
-    const gridMax = span * cellCount;
-    const originPointerGridT = this.#gridTimeFromClient(
-      e.clientX,
-      e.clientY,
-      span,
-      cellCount,
-      horiz,
-      gridMax
-    );
+    const layout = this.#readGridLayout();
+    const originPointerGridT = this.#pointerGridTime(e.clientX, e.clientY, layout);
 
     this.#moveSession = {
       pointerId: e.pointerId,
@@ -516,24 +616,20 @@ export class TimeLine extends LitElement {
       originPointerGridT,
       initialStart: ev.start,
       initialEnd: ev.end,
-      horiz,
-      gridMax,
+      horiz: layout.horiz,
+      gridMax: layout.gridMax,
     };
 
     this.draggingEventIndex = index;
-
-    const m = new Map<number, { start: number; end: number }>();
-    m.set(index, { start: ev.start, end: ev.end });
-    this.resizePreviewByIndex = m;
-
+    this.#beginSingleEventResizePreview(index, ev.start, ev.end);
     this.#attachMoveWindowListeners();
   };
 
   #onResizeHandlePointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
-    const path = e.composedPath();
-    const handle = path.find((n) => n instanceof HTMLElement && n.localName === "resize-handle");
-    if (!(handle instanceof HTMLElement)) return;
+
+    const handle = this.#resizeHandleFromComposedPath(e.composedPath());
+    if (!handle) return;
 
     const eventEl = handle.closest(".event");
     if (!(eventEl instanceof HTMLElement)) return;
@@ -541,22 +637,7 @@ export class TimeLine extends LitElement {
     const index = Number(eventEl.dataset.index);
     if (!Number.isFinite(index) || index < 0 || index >= this.events.length) return;
 
-    const horiz = this.flow === "horizontal";
-    const span = this.max > 0 ? this.max : 1;
-    const cellCount = Math.max(1, this.cells);
-    const gridMax = span * cellCount;
-    const originPointerGridT = this.#gridTimeFromClient(
-      e.clientX,
-      e.clientY,
-      span,
-      cellCount,
-      horiz,
-      gridMax
-    );
-
-    const position = handle.getAttribute("position");
-    const edge: TimelineResizeEdge | null =
-      position === "start" || position === "end" ? position : null;
+    const edge = this.#resizeEdgeFromHandle(handle);
     if (!edge) return;
 
     const ev = this.events[index];
@@ -565,11 +646,10 @@ export class TimeLine extends LitElement {
     e.stopPropagation();
     if (e.cancelable) e.preventDefault();
 
-    try {
-      handle.setPointerCapture(e.pointerId);
-    } catch {
-      // Synthetic pointers may not support capture.
-    }
+    this.#trySetPointerCapture(handle, e.pointerId);
+
+    const layout = this.#readGridLayout();
+    const originPointerGridT = this.#pointerGridTime(e.clientX, e.clientY, layout);
 
     this.#resizeSession = {
       pointerId: e.pointerId,
@@ -579,14 +659,11 @@ export class TimeLine extends LitElement {
       originPointerGridT,
       initialStart: ev.start,
       initialEnd: ev.end,
-      horiz,
-      gridMax,
+      horiz: layout.horiz,
+      gridMax: layout.gridMax,
     };
 
-    const m = new Map<number, { start: number; end: number }>();
-    m.set(index, { start: ev.start, end: ev.end });
-    this.resizePreviewByIndex = m;
-
+    this.#beginSingleEventResizePreview(index, ev.start, ev.end);
     this.#attachResizeWindowListeners();
   };
 
@@ -724,9 +801,9 @@ export class TimeLine extends LitElement {
     cols: number,
     span: number,
     gridMax: number
-  ) {
+  ): LaneLayout[] {
     const C = Math.max(1, cols);
-    const rows: { laneCount: number; laneByEventIndex: number[] }[] = [];
+    const rows: LaneLayout[] = [];
     for (let r = 0, n = Math.ceil(cellCount / C); r < n; r++) {
       const t0 = r * C * span;
       const t1 = Math.min((r + 1) * C, cellCount) * span;
@@ -766,8 +843,8 @@ export class TimeLine extends LitElement {
     cellCount: number,
     span: number,
     gridMax: number
-  ): { laneCount: number; laneByEventIndex: number[] }[] {
-    const layouts: { laneCount: number; laneByEventIndex: number[] }[] = [];
+  ): LaneLayout[] {
+    const layouts: LaneLayout[] = [];
     for (let cell = 0; cell < cellCount; cell++) {
       const inCell = events
         .map((ev, i) => ({ ev, i }))
@@ -796,6 +873,237 @@ export class TimeLine extends LitElement {
       layouts.push({ laneCount: Math.max(1, laneCount), laneByEventIndex });
     }
     return layouts;
+  }
+
+  #laneIndexForEvent(
+    horiz: boolean,
+    rl: LaneLayout | null | undefined,
+    vl: LaneLayout | null | undefined,
+    eventIndex: number
+  ): number {
+    return (horiz ? rl?.laneByEventIndex[eventIndex] : vl?.laneByEventIndex[eventIndex]) ?? 0;
+  }
+
+  #collectSegmentsForEventInCell(
+    ev: TimelineEvent,
+    eventIndex: number,
+    cell: number,
+    horiz: boolean,
+    cols: number,
+    span: number,
+    gridMax: number
+  ): TimelineCellEventSegment[] {
+    const segments: TimelineCellEventSegment[] = [];
+    const evEnd = Math.min(ev.end, gridMax);
+    let t = ev.start;
+    let segIndex = 0;
+    while (t < evEnd) {
+      const c0 = Math.floor(t / span);
+      const row = Math.floor(c0 / cols);
+      const segEndAbs = horiz
+        ? Math.min(evEnd, (row + 1) * cols * span)
+        : Math.min(evEnd, (c0 + 1) * span);
+      const c1 = horiz
+        ? Math.min(Math.floor((segEndAbs - Number.EPSILON) / span), (row + 1) * cols - 1)
+        : c0;
+      if (c0 === cell) {
+        const { showResizeStart, showResizeEnd } = this.segmentResizeHandleFlags(
+          t,
+          segEndAbs,
+          ev.start,
+          evEnd
+        );
+        segments.push({
+          ev,
+          index: eventIndex,
+          segIndex,
+          segStart: t - c0 * span,
+          segEnd: segEndAbs - c1 * span,
+          rowSpan: horiz ? c1 - c0 : 0,
+          showResizeStart,
+          showResizeEnd,
+        });
+      }
+      t = segEndAbs;
+      segIndex++;
+    }
+    return segments;
+  }
+
+  #segmentsInCell(
+    layoutEvents: TimelineEvent[],
+    cell: number,
+    horiz: boolean,
+    cols: number,
+    span: number,
+    gridMax: number
+  ): TimelineCellEventSegment[] {
+    return layoutEvents.flatMap((ev, i) =>
+      this.#collectSegmentsForEventInCell(ev, i, cell, horiz, cols, span, gridMax)
+    );
+  }
+
+  #segmentVisibleUnderLaneClip(
+    clip: boolean,
+    horiz: boolean,
+    eventIndex: number,
+    rowSpan: number,
+    cell: number,
+    cols: number,
+    cellCount: number,
+    rl: LaneLayout | null | undefined,
+    vl: LaneLayout | null | undefined
+  ): boolean {
+    if (!clip) return true;
+    const lane = this.#laneIndexForEvent(horiz, rl, vl, eventIndex);
+    const effectiveCap = horiz
+      ? this.minLaneCapAcrossSpan(cell, rowSpan, cols, cellCount)
+      : (this.cellVisibleLanes[cell] ?? Infinity);
+    return lane < effectiveCap;
+  }
+
+  #eventVisibleUnderLaneClipForFooter(
+    ev: TimelineEvent,
+    eventIndex: number,
+    cell: number,
+    row: number,
+    clip: boolean,
+    horiz: boolean,
+    cols: number,
+    cellCount: number,
+    span: number,
+    gridMax: number,
+    rl: LaneLayout | null | undefined,
+    vl: LaneLayout | null | undefined
+  ): boolean {
+    if (!this.eventOverlapsCell(ev, cell, span, gridMax)) return false;
+    if (!clip) return true;
+    const lane = this.#laneIndexForEvent(horiz, rl, vl, eventIndex);
+    const effectiveCap = horiz
+      ? this.minLaneCapForEventInRow(ev, row, cols, span, gridMax, cellCount)
+      : (this.cellVisibleLanes[cell] ?? Infinity);
+    return lane < effectiveCap;
+  }
+
+  #cellLaneStackStyle(
+    horiz: boolean,
+    laneMode: "timeline" | "masonry" | null,
+    laneCount: number
+  ): string {
+    return horiz && laneMode ? ` --__lane-stack: calc(${laneCount} * var(--__event-height))` : "";
+  }
+
+  #resizeHandleFragment(position: "start" | "end", title: string) {
+    return html`<resize-handle
+      .axis=${this.flow}
+      position=${position}
+      title=${title}
+      @pointerdown=${this.#onResizeHandlePointerDown}
+    ></resize-handle>`;
+  }
+
+  #eventSegmentFragment(
+    seg: TimelineCellEventSegment,
+    laneMode: "timeline" | "masonry" | null,
+    horiz: boolean,
+    rl: LaneLayout | null | undefined,
+    vl: LaneLayout | null | undefined
+  ) {
+    const { ev, index, segIndex, segStart, segEnd, rowSpan, showResizeStart, showResizeEnd } = seg;
+    const draggingClass = this.draggingEventIndex === index ? " event--dragging" : "";
+    const lane = laneMode ? this.#laneIndexForEvent(horiz, rl, vl, index) : 0;
+    const endInset =
+      rowSpan > 0
+        ? `calc(-${rowSpan * 100}% + ${100 - this.tToPct(segEnd)}%)`
+        : `${100 - this.tToPct(segEnd)}%`;
+
+    return html`
+      <div
+        class="event${draggingClass}"
+        data-index=${index}
+        data-segment=${segIndex}
+        @pointerdown=${this.#onEventBodyPointerDown}
+        style="
+        --__lane:${lane};
+        --__start:${this.tToPct(segStart)}%;
+        --__end:${endInset};
+      "
+      >
+        ${showResizeStart ? this.#resizeHandleFragment("start", "Resize start") : nothing}
+        ${this.renderEventTemplate(ev)}
+        ${showResizeEnd ? this.#resizeHandleFragment("end", "Resize end") : nothing}
+      </div>
+    `;
+  }
+
+  #renderCell(
+    cell: number,
+    layoutEvents: TimelineEvent[],
+    cellCount: number,
+    span: number,
+    gridMax: number,
+    cols: number,
+    horiz: boolean,
+    clip: boolean,
+    laneMode: "timeline" | "masonry" | null,
+    rl: LaneLayout | null,
+    vl: LaneLayout | null
+  ) {
+    const row = Math.floor(cell / cols);
+    const cellEvents = this.#segmentsInCell(layoutEvents, cell, horiz, cols, span, gridMax);
+    const laneCount = horiz ? (rl?.laneCount ?? 1) : (vl?.laneCount ?? 1);
+    const laneStack = this.#cellLaneStackStyle(horiz, laneMode, laneCount);
+
+    const visibleCellEvents = cellEvents.filter(({ index, rowSpan }) =>
+      this.#segmentVisibleUnderLaneClip(clip, horiz, index, rowSpan, cell, cols, cellCount, rl, vl)
+    );
+
+    const allCellEvents = layoutEvents.filter((ev) =>
+      this.eventOverlapsCell(ev, cell, span, gridMax)
+    );
+
+    const visibleEvents = layoutEvents.filter((ev, index) =>
+      this.#eventVisibleUnderLaneClipForFooter(
+        ev,
+        index,
+        cell,
+        row,
+        clip,
+        horiz,
+        cols,
+        cellCount,
+        span,
+        gridMax,
+        rl,
+        vl
+      )
+    );
+
+    const laneVars = laneMode
+      ? `--__lane-count: ${laneCount};${laneStack}`
+      : `--__lane-count: ${laneCount}`;
+
+    return html`
+      <div class="cell" data-cell=${cell} style="${laneVars}">
+        ${
+          this.headerTemplate
+            ? html`<div class="cell-header">${this.renderHeaderTemplate(cell)}</div>`
+            : nothing
+        }
+        <div class="cell-main">
+          ${visibleCellEvents.map((seg) =>
+            this.#eventSegmentFragment(seg, laneMode, horiz, rl, vl)
+          )}
+        </div>
+        ${
+          this.footerTemplate
+            ? html`<div class="cell-footer">
+              ${this.renderFooterTemplate(cell, visibleEvents, allCellEvents)}
+            </div>`
+            : nothing
+        }
+      </div>
+    `;
   }
 
   renderHeaderTemplate(i: number) {
@@ -836,6 +1144,7 @@ export class TimeLine extends LitElement {
       !horiz && laneMode
         ? this.verticalCellLaneLayouts(layoutEvents, laneMode, cellCount, span, gridMax)
         : [];
+    const clip = this.laneClip();
 
     return html`
       <div
@@ -846,156 +1155,19 @@ export class TimeLine extends LitElement {
           ${cellIndexes.map((cell) => {
             const rl = horiz && laneMode ? rowLayouts[Math.floor(cell / cols)] : null;
             const vl = !horiz && laneMode ? verticalCellLayouts[cell] : null;
-            const clip = this.laneClip();
-            const row = Math.floor(cell / cols);
-            const cellEvents = layoutEvents.flatMap((ev, i) => {
-              const out: Array<{
-                ev: TimelineEvent;
-                index: number;
-                segIndex: number;
-                segStart: number;
-                segEnd: number;
-                rowSpan: number;
-                showResizeStart: boolean;
-                showResizeEnd: boolean;
-              }> = [];
-              const evEnd = Math.min(ev.end, gridMax);
-              let t = ev.start;
-              let segIndex = 0;
-              while (t < evEnd) {
-                const c0 = Math.floor(t / span);
-                const row = Math.floor(c0 / cols);
-                const segEndAbs = horiz
-                  ? Math.min(evEnd, (row + 1) * cols * span)
-                  : Math.min(evEnd, (c0 + 1) * span);
-                const c1 = horiz
-                  ? Math.min(Math.floor((segEndAbs - Number.EPSILON) / span), (row + 1) * cols - 1)
-                  : c0;
-                if (c0 === cell) {
-                  const { showResizeStart, showResizeEnd } = this.segmentResizeHandleFlags(
-                    t,
-                    segEndAbs,
-                    ev.start,
-                    evEnd
-                  );
-                  out.push({
-                    ev,
-                    index: i,
-                    segIndex,
-                    segStart: t - c0 * span,
-                    segEnd: segEndAbs - c1 * span,
-                    rowSpan: horiz ? c1 - c0 : 0,
-                    showResizeStart,
-                    showResizeEnd,
-                  });
-                }
-                t = segEndAbs;
-                segIndex++;
-              }
-              return out;
-            });
-
-            const laneCount = horiz ? (rl?.laneCount ?? 1) : (vl?.laneCount ?? 1);
-            const visibleCellEvents = cellEvents.filter(({ index, rowSpan }) => {
-              if (!clip) return true;
-              const lane = horiz
-                ? (rl?.laneByEventIndex[index] ?? 0)
-                : (vl?.laneByEventIndex[index] ?? 0);
-              const effCap = horiz
-                ? this.minLaneCapAcrossSpan(cell, rowSpan, cols, cellCount)
-                : (this.cellVisibleLanes[cell] ?? Infinity);
-              return lane < effCap;
-            });
-            const allCellEvents = layoutEvents.filter((ev) =>
-              this.eventOverlapsCell(ev, cell, span, gridMax)
+            return this.#renderCell(
+              cell,
+              layoutEvents,
+              cellCount,
+              span,
+              gridMax,
+              cols,
+              horiz,
+              clip,
+              laneMode,
+              rl,
+              vl
             );
-            const visibleEvents = layoutEvents.filter((ev, index) => {
-              if (!this.eventOverlapsCell(ev, cell, span, gridMax)) return false;
-              if (!clip) return true;
-              const lane = horiz
-                ? (rl?.laneByEventIndex[index] ?? 0)
-                : (vl?.laneByEventIndex[index] ?? 0);
-              const effCap = horiz
-                ? this.minLaneCapForEventInRow(ev, row, cols, span, gridMax, cellCount)
-                : (this.cellVisibleLanes[cell] ?? Infinity);
-              return lane < effCap;
-            });
-            const cellLaneStack =
-              horiz && laneMode
-                ? ` --__lane-stack: calc(${laneCount} * var(--__event-height))`
-                : "";
-            return html`
-              <div
-                class="cell"
-                data-cell=${cell}
-                style="${
-                  laneMode
-                    ? `--__lane-count: ${laneCount};${cellLaneStack}`
-                    : `--__lane-count: ${laneCount}`
-                }"
-              >
-                ${this.headerTemplate ? html`<div class="cell-header">${this.renderHeaderTemplate(cell)}</div>` : nothing}
-                <div class="cell-main">
-                  ${visibleCellEvents.map(
-                    ({
-                      ev,
-                      index,
-                      segIndex,
-                      segStart,
-                      segEnd,
-                      rowSpan,
-                      showResizeStart,
-                      showResizeEnd,
-                    }) => html`
-                      <div
-                        class="event${this.draggingEventIndex === index ? " event--dragging" : ""}"
-                        data-index=${index}
-                        data-segment=${segIndex}
-                        @pointerdown=${this.#onEventBodyPointerDown}
-                        style="
-                        --__lane:${laneMode ? ((horiz ? rl?.laneByEventIndex[index] : vl?.laneByEventIndex[index]) ?? 0) : 0};
-                        --__start:${this.tToPct(segStart)}%;
-                        --__end:${
-                          rowSpan > 0
-                            ? `calc(-${rowSpan * 100}% + ${100 - this.tToPct(segEnd)}%)`
-                            : `${100 - this.tToPct(segEnd)}%`
-                        };
-                      "
-                      >
-                        ${
-                          showResizeStart
-                            ? html`<resize-handle
-                                .axis=${this.flow}
-                                position="start"
-                                title="Resize start"
-                                @pointerdown=${this.#onResizeHandlePointerDown}
-                              ></resize-handle>`
-                            : nothing
-                        }
-                        ${this.renderEventTemplate(ev)}
-                        ${
-                          showResizeEnd
-                            ? html`<resize-handle
-                                .axis=${this.flow}
-                                position="end"
-                                title="Resize end"
-                                @pointerdown=${this.#onResizeHandlePointerDown}
-                              ></resize-handle>`
-                            : nothing
-                        }
-                      </div>
-                    `
-                  )}
-                </div>
-                ${
-                  this.footerTemplate
-                    ? html`<div class="cell-footer">
-                      ${this.renderFooterTemplate(cell, visibleEvents, allCellEvents)}
-                    </div>`
-                    : nothing
-                }
-              </div>
-            `;
           })}
         </div>
       </div>
