@@ -86,50 +86,24 @@
   @apply text-[var(--_lc-event-card-accent-color)];
   @apply transition-[color,background-color,border-color] duration-100;
   content: "";
+  border-inline-start: 3px solid var(--_lc-event-card-accent-color);
   outline: var(--_lc-event-focus-ring-width) solid var(--_lc-event-focus-ring-color);
   outline-offset: var(--_lc-event-focus-ring-gap);
   box-shadow: inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
 }
 
-:host .event-card-shell[data-first-segment]::before {
-  border-inline-start: 3px solid var(--_lc-event-card-accent-color);
+:host .event-card-shell[data-segment-direction="vertical"]::before {
+  border-radius: var(--_lc-event-card-segment-radius);
+}
+
+:host .event-card-shell[data-segment-direction="horizontal"]::before {
+  border-radius: var(--_lc-event-card-segment-radius);
 }
 
 :host .event-card-shell.event-card-overlap::before {
   box-shadow:
     var(--_lc-event-card-overlap-shadow),
     inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
-}
-
-:host .event-card-shell[data-segment-direction="vertical"]:not([data-first-segment])::before {
-  top: 0;
-}
-
-:host .event-card-shell[data-segment-direction="vertical"]:not([data-last-segment])::before {
-  bottom: 0;
-}
-
-:host .event-card-shell[data-segment-direction="vertical"][data-first-segment]::before {
-  border-top-left-radius: var(--_lc-event-card-segment-radius);
-  border-top-right-radius: var(--_lc-event-card-segment-radius);
-}
-
-:host .event-card-shell[data-segment-direction="vertical"][data-last-segment]::before {
-  border-bottom-left-radius: var(--_lc-event-card-segment-radius);
-  border-bottom-right-radius: var(--_lc-event-card-segment-radius);
-}
-
-:host .event-card-shell[data-segment-direction="horizontal"][data-first-segment][dir="ltr"]::before,
-:host .event-card-shell[data-segment-direction="horizontal"][data-last-segment][dir="rtl"]::before {
-  border-top-left-radius: var(--_lc-event-card-segment-radius);
-  border-bottom-left-radius: var(--_lc-event-card-segment-radius);
-}
-
-:host .event-card-shell[data-segment-direction="horizontal"][data-last-segment][dir="ltr"]::before,
-:host
-  .event-card-shell[data-segment-direction="horizontal"][data-first-segment][dir="rtl"]::before {
-  border-top-right-radius: var(--_lc-event-card-segment-radius);
-  border-bottom-right-radius: var(--_lc-event-card-segment-radius);
 }
 
 :host([segment-direction="horizontal"]) h6.sticky {

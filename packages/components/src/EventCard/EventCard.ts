@@ -5,8 +5,21 @@ import { classMap } from "lit/directives/class-map.js";
 import { BaseElement } from "../BaseElement/BaseElement";
 import { type CalendarViewContextValue, calendarViewContext } from "../context/CalendarViewContext";
 import { renderRecurringIcon } from "../icons/RecurringIcon";
+import { getEventColorStyles } from "../utils/EventColor";
 import { getLocaleDirection } from "../utils/Locale";
 import componentStyle from "./EventCard.css?inline";
+
+const EVENT_COLOR_HOST_KEYS = [
+  "--_lc-event-bg",
+  "--_lc-event-border-color",
+  "--_lc-event-bg-hover",
+  "--_lc-event-bg-active",
+  "--_lc-event-bg-focus",
+  "--_lc-event-text-color",
+  "--_lc-event-focus-ring-light",
+  "--_lc-event-accent-color",
+  "--_lc-event-shadow",
+] as const;
 
 @customElement("event-card")
 export class EventCard extends BaseElement {
@@ -35,11 +48,9 @@ export class EventCard extends BaseElement {
   @property({ type: String })
   location = "";
 
-  @property({ type: Boolean, attribute: "first-segment" })
-  firstSegment = false;
-
-  @property({ type: Boolean, attribute: "last-segment" })
-  lastSegment = false;
+  /** Hex (`#rrggbb`) or other CSS color; hex applies the shared tinted palette on this host. */
+  @property({ type: String })
+  color = "";
 
   @property({ type: String, attribute: "segment-direction" })
   segmentDirection: "horizontal" | "vertical" = "horizontal";
@@ -63,6 +74,31 @@ export class EventCard extends BaseElement {
   connectedCallback() {
     super.connectedCallback();
     void this.#calendarViewConsumer;
+    this.#syncColorFromProp();
+  }
+
+  override updated(changedProperties: Map<string | number | symbol, unknown>) {
+    super.updated(changedProperties);
+    if (changedProperties.has("color")) {
+      this.#syncColorFromProp();
+    }
+  }
+
+  #syncColorFromProp() {
+    for (const key of EVENT_COLOR_HOST_KEYS) {
+      this.style.removeProperty(key);
+    }
+    const trimmed = this.color?.trim() ?? "";
+    if (!trimmed) return;
+    const fromHex = getEventColorStyles(trimmed);
+    if (Object.keys(fromHex).length > 0) {
+      for (const [key, value] of Object.entries(fromHex)) {
+        this.style.setProperty(key, value);
+      }
+      return;
+    }
+    this.style.setProperty("--_lc-event-bg", trimmed);
+    this.style.setProperty("--_lc-event-accent-color", trimmed);
   }
 
   get dir() {
@@ -85,8 +121,6 @@ export class EventCard extends BaseElement {
             class=${classMap(this.#cardClasses)}
             dir="${this.dir}"
             data-segment-direction=${this.segmentDirection}
-            ?data-first-segment=${this.firstSegment}
-            ?data-last-segment=${this.lastSegment}
           >
               ${this.past ? html`<span class="sr-only">Past event.</span>` : ""}
               ${this.#recurrenceStatusSrLabel ? html`<span class="sr-only">${this.#recurrenceStatusSrLabel}</span>` : ""}

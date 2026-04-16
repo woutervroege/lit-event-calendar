@@ -4,7 +4,6 @@ import "../src/EventCard/EventCard.js";
 import "../src/TimeLine/TimeLine.js";
 import type { TimeLine } from "../src/TimeLine/TimeLine.js";
 import type { TimelineEvent } from "../src/types/TimeLine.js";
-import { getEventColorStyles } from "../src/utils/EventColor.js";
 
 const verticalTimedEvents: TimelineEvent[] = [
   { start: 10, end: 130, label: "Event 1", color: "#ff6347" },
@@ -51,17 +50,6 @@ const masonry100StepEvents: TimelineEvent[] = [
   { start: 3800, end: 4200, label: "Uniform", color: "#a8d8ea" },
 ];
 
-function eventCardStyleFromTimelineColor(color: string): string {
-  const palette = getEventColorStyles(color);
-  const sizing = "min-width:0;max-width:100%;height:100%";
-  if (Object.keys(palette).length === 0) {
-    return `--_lc-event-bg:${color};--_lc-event-accent-color:${color};--_lc-event-text-color:#111;${sizing}`;
-  }
-  return `${Object.entries(palette)
-    .map(([key, value]) => `${key}:${value}`)
-    .join(";")};${sizing}`;
-}
-
 function eventCardEventTemplate(ev: TimelineEvent, host: TimeLine) {
   const summary = String(ev.label ?? "");
   const color = String(ev.color ?? "#64748b");
@@ -69,11 +57,9 @@ function eventCardEventTemplate(ev: TimelineEvent, host: TimeLine) {
   const time = `${ev.start}–${ev.end}`;
   return html`<event-card
     layout="flow"
-    style=${eventCardStyleFromTimelineColor(color)}
+    .color=${color}
     .summary=${summary}
     .time=${time}
-    .firstSegment=${true}
-    .lastSegment=${true}
     segment-direction=${horizontal ? "horizontal" : "vertical"}
   ></event-card>`;
 }
@@ -98,7 +84,7 @@ export default meta;
 type Story = StoryObj;
 
 export const VerticalTimed: Story = {
-  name: "Vertical (timed)",
+  name: "Vertical (week view)",
   render: () => {
     const wrap = document.createElement("div");
     wrap.style.cssText =
@@ -121,7 +107,7 @@ export const VerticalTimed: Story = {
 };
 
 export const HorizontalMasonrySevenCells100Step: Story = {
-  name: "Horizontal · masonry · 7 cells · step 100",
+  name: "Horizontal (all day view)",
   render: () => {
     const wrap = document.createElement("div");
     wrap.style.cssText =
@@ -144,7 +130,7 @@ export const HorizontalMasonrySevenCells100Step: Story = {
 };
 
 export const HorizontalMasonryFortyTwoCells: Story = {
-  name: "Horizontal · masonry · 42 cells · step 100",
+  name: "Horizontal (month view)",
   render: () => {
     const wrap = document.createElement("div");
     wrap.style.cssText =
@@ -167,7 +153,7 @@ export const HorizontalMasonryFortyTwoCells: Story = {
 };
 
 export const HorizontalMasonrySingleRow: Story = {
-  name: "Horizontal · masonry · 7 cells (one row)",
+  name: "Horizontal (month view, timed)",
   render: () => {
     const wrap = document.createElement("div");
     wrap.style.cssText =
@@ -190,7 +176,7 @@ export const HorizontalMasonrySingleRow: Story = {
 };
 
 export const HorizontalTimeline: Story = {
-  name: "Horizontal · timeline · 14 cells",
+  name: "Horizontal (timeline week view)",
   render: () => {
     const wrap = document.createElement("div");
     wrap.style.cssText =
@@ -203,8 +189,8 @@ export const HorizontalTimeline: Story = {
     el.layout = "timeline";
     el.step = 5;
     el.max = 100;
-    el.cells = 14;
-    el.columns = 14;
+    el.cells = 7;
+    el.columns = 7;
     el.events = masonryDemoEvents;
     el.style.width = "100%";
     wrap.append(title, el);
