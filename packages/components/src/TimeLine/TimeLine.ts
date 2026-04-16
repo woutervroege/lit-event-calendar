@@ -11,6 +11,7 @@ import componentStyle from "./TimeLine.css?inline";
 import "../ResizeHandle/ResizeHandle";
 import type {
   TimelineEvent,
+  TimelineEventMoveCommitDetail,
   TimelineEventResizeCommitDetail,
   TimelineResizeEdge,
 } from "../types/TimeLine";
@@ -21,6 +22,18 @@ type TimelineResizeSession = {
   eventIndex: number;
   edge: TimelineResizeEdge;
   /** Absolute grid time under the pointer at pointerdown (same basis as `ev.start` / `ev.end`). */
+  originPointerGridT: number;
+  initialStart: number;
+  initialEnd: number;
+  horiz: boolean;
+  gridMax: number;
+};
+
+type TimelineMoveSession = {
+  pointerId: number;
+  /** Host element so capture survives re-renders while the preview geometry updates. */
+  captureTarget: HTMLElement;
+  eventIndex: number;
   originPointerGridT: number;
   initialStart: number;
   initialEnd: number;
@@ -76,9 +89,17 @@ export class TimeLine extends LitElement {
   @property({ attribute: false })
   accessor onTimelineEventResize: ((detail: TimelineEventResizeCommitDetail) => void) | undefined;
 
+  /** Optional hook; the same data is also dispatched as `timeline-event-move`. */
+  @property({ attribute: false })
+  accessor onTimelineEventMove: ((detail: TimelineEventMoveCommitDetail) => void) | undefined;
+
   @state()
   private accessor resizePreviewByIndex: ReadonlyMap<number, { start: number; end: number }> | null =
     null;
+
+  /** While moving an event, all its segments share the dragging affordance. */
+  @state()
+  private accessor draggingEventIndex: number | null = null;
 
   @state()
   private accessor cellVisibleLanes: number[] = [];
@@ -86,6 +107,8 @@ export class TimeLine extends LitElement {
   private cellsResizeObserver: ResizeObserver | null = null;
 
   #resizeSession: TimelineResizeSession | null = null;
+
+  #moveSession: TimelineMoveSession | null = null;
 
   static styles = unsafeCSS(componentStyle);
 
@@ -100,6 +123,19 @@ export class TimeLine extends LitElement {
     const session = this.#resizeSession;
     if (!session || e.pointerId !== session.pointerId) return;
     this.#finishResizeGesture(session, e.clientX, e.clientY, e.type === "pointercancel");
+  };
+
+  readonly #onMoveWindowPointerMove = (e: PointerEvent) => {
+    const session = this.#moveSession;
+    if (!session || e.pointerId !== session.pointerId) return;
+    if (e.cancelable) e.preventDefault();
+    this.#applyMovePointer(e.clientX, e.clientY, session);
+  };
+
+  readonly #onMoveWindowPointerEnd = (e: PointerEvent) => {
+    const session = this.#moveSession;
+    if (!session || e.pointerId !== session.pointerId) return;
+    this.#finishMoveGesture(session, e.clientX, e.clientY, e.type === "pointercancel");
   };
 
   private laneClip() {
@@ -136,9 +172,20 @@ export class TimeLine extends LitElement {
   }
 
   disconnectedCallback() {
+    const move = this.#moveSession;
+    if (move) {
+      try {
+        move.captureTarget.releasePointerCapture(move.pointerId);
+      } catch {
+        // Ignore if capture was already released or unsupported.
+      }
+    }
     this.#detachResizeWindowListeners();
+    this.#detachMoveWindowListeners();
     this.#resizeSession = null;
+    this.#moveSession = null;
     this.resizePreviewByIndex = null;
+    this.draggingEventIndex = null;
     this.cellsResizeObserver?.disconnect();
     this.cellsResizeObserver = null;
     super.disconnectedCallback();
@@ -148,6 +195,12 @@ export class TimeLine extends LitElement {
     window.removeEventListener("pointermove", this.#onResizeWindowPointerMove, true);
     window.removeEventListener("pointerup", this.#onResizeWindowPointerEnd, true);
     window.removeEventListener("pointercancel", this.#onResizeWindowPointerEnd, true);
+  }
+
+  #detachMoveWindowListeners() {
+    window.removeEventListener("pointermove", this.#onMoveWindowPointerMove, true);
+    window.removeEventListener("pointerup", this.#onMoveWindowPointerEnd, true);
+    window.removeEventListener("pointercancel", this.#onMoveWindowPointerEnd, true);
   }
 
   #snapTime(t: number): number {
@@ -168,6 +221,12 @@ export class TimeLine extends LitElement {
     window.addEventListener("pointermove", this.#onResizeWindowPointerMove, true);
     window.addEventListener("pointerup", this.#onResizeWindowPointerEnd, true);
     window.addEventListener("pointercancel", this.#onResizeWindowPointerEnd, true);
+  }
+
+  #attachMoveWindowListeners() {
+    window.addEventListener("pointermove", this.#onMoveWindowPointerMove, true);
+    window.addEventListener("pointerup", this.#onMoveWindowPointerEnd, true);
+    window.addEventListener("pointercancel", this.#onMoveWindowPointerEnd, true);
   }
 
   /**
@@ -313,6 +372,150 @@ export class TimeLine extends LitElement {
     );
     this.onTimelineEventResize?.(detail);
   }
+
+  #applyMovePointer(clientX: number, clientY: number, session: TimelineMoveSession) {
+    const ev = this.events[session.eventIndex];
+    if (!ev) return;
+
+    const span = this.max > 0 ? this.max : 1;
+    const cellCount = Math.max(1, this.cells);
+    const pointerT = this.#gridTimeFromClient(
+      clientX,
+      clientY,
+      span,
+      cellCount,
+      session.horiz,
+      session.gridMax
+    );
+    const deltaT = pointerT - session.originPointerGridT;
+    const duration = session.initialEnd - session.initialStart;
+    let nextStart = this.#snapTime(session.initialStart + deltaT);
+    const maxStart = Math.max(0, session.gridMax - duration);
+    nextStart = Math.max(0, Math.min(nextStart, maxStart));
+    const nextEnd = nextStart + duration;
+
+    const next = new Map(this.resizePreviewByIndex ?? []);
+    next.set(session.eventIndex, { start: nextStart, end: nextEnd });
+    this.resizePreviewByIndex = next;
+  }
+
+  #finishMoveGesture(
+    session: TimelineMoveSession,
+    clientX: number,
+    clientY: number,
+    cancelled: boolean
+  ) {
+    this.#detachMoveWindowListeners();
+    this.#moveSession = null;
+
+    try {
+      session.captureTarget.releasePointerCapture(session.pointerId);
+    } catch {
+      // Ignore if capture was already released or unsupported.
+    }
+
+    this.draggingEventIndex = null;
+
+    if (!cancelled) {
+      this.#applyMovePointer(clientX, clientY, session);
+    }
+
+    const preview = cancelled ? undefined : this.resizePreviewByIndex?.get(session.eventIndex);
+    const previousStart = session.initialStart;
+    const previousEnd = session.initialEnd;
+
+    this.resizePreviewByIndex = null;
+
+    if (cancelled || !preview) return;
+
+    if (preview.start === previousStart && preview.end === previousEnd) return;
+
+    const detail: TimelineEventMoveCommitDetail = {
+      index: session.eventIndex,
+      start: preview.start,
+      end: preview.end,
+      previousStart,
+      previousEnd,
+    };
+
+    this.dispatchEvent(
+      new CustomEvent<TimelineEventMoveCommitDetail>("timeline-event-move", {
+        bubbles: true,
+        composed: true,
+        detail,
+      })
+    );
+    this.onTimelineEventMove?.(detail);
+  }
+
+  #onEventBodyPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    if (this.#resizeSession || this.#moveSession) return;
+
+    const target = e.target;
+    if (target instanceof Element) {
+      if (
+        target.closest(
+          'a[href], button:not([disabled]), input, textarea, select, [contenteditable="true"]'
+        )
+      ) {
+        return;
+      }
+    }
+
+    const path = e.composedPath();
+    if (path.some((n) => n instanceof Element && n.localName === "resize-handle")) return;
+
+    const eventEl = e.currentTarget;
+    if (!(eventEl instanceof HTMLElement)) return;
+
+    const index = Number(eventEl.dataset.index);
+    if (!Number.isFinite(index) || index < 0 || index >= this.events.length) return;
+
+    const ev = this.events[index];
+    if (!ev) return;
+
+    e.stopPropagation();
+    if (e.cancelable) e.preventDefault();
+
+    try {
+      this.setPointerCapture(e.pointerId);
+    } catch {
+      // Synthetic pointers may not support capture.
+    }
+
+    const horiz = this.flow === "horizontal";
+    const span = this.max > 0 ? this.max : 1;
+    const cellCount = Math.max(1, this.cells);
+    const gridMax = span * cellCount;
+    const originPointerGridT = this.#gridTimeFromClient(
+      e.clientX,
+      e.clientY,
+      span,
+      cellCount,
+      horiz,
+      gridMax
+    );
+
+    this.#moveSession = {
+      pointerId: e.pointerId,
+      captureTarget: this,
+      eventIndex: index,
+      originPointerGridT,
+      initialStart: ev.start,
+      initialEnd: ev.end,
+      horiz,
+      gridMax,
+    };
+
+    this.draggingEventIndex = index;
+
+    const m = new Map<number, { start: number; end: number }>();
+    m.set(index, { start: ev.start, end: ev.end });
+    this.resizePreviewByIndex = m;
+
+    this.#attachMoveWindowListeners();
+  };
 
   #onResizeHandlePointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
@@ -734,9 +937,10 @@ export class TimeLine extends LitElement {
                       showResizeEnd,
                     }) => html`
                       <div
-                        class="event"
+                        class="event${this.draggingEventIndex === index ? " event--dragging" : ""}"
                         data-index=${index}
                         data-segment=${segIndex}
+                        @pointerdown=${this.#onEventBodyPointerDown}
                         style="
                         --__lane:${laneMode ? (horiz ? rl?.laneByEventIndex[index] : vl?.laneByEventIndex[index]) ?? 0 : 0};
                         --__start:${this.tToPct(segStart)}%;

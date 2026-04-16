@@ -64,6 +64,7 @@ export type { TabSwitchOption } from "./TabSwitch.js";
 
 export type {
   TimelineEvent,
+  TimelineEventMoveCommitDetail,
   TimelineEventResizeCommitDetail,
   TimelineResizeEdge,
 } from "./TimeLine.js";
