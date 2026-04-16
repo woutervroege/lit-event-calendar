@@ -68,6 +68,13 @@
   min-height: 0;
 }
 
+/* Vertical: split cell width across overlap lanes (see `masonryLanes` / timeline in TimeLine.ts). */
+:host([flow="vertical"][layout="timeline"]) .event,
+:host([flow="vertical"][layout="masonry"]) .event {
+  left: calc(var(--__lane, 0) * 100% / var(--__lane-count, 1));
+  right: calc((var(--__lane-count, 1) - var(--__lane, 0) - 1) * 100% / var(--__lane-count, 1));
+}
+
 :host([flow="horizontal"]) .event {
   top: 0;
   min-height: var(--__event-height);

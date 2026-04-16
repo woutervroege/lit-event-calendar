@@ -57,9 +57,10 @@ export class TimeLine extends LitElement {
   accessor flow: "vertical" | "horizontal" = "vertical";
 
   /**
-   * Horizontal only: `timeline` gives each event its own track (swimlane).
-   * `masonry` packs overlapping events into the fewest rows: each event uses the
-   * lowest lane where no still-active event (started, not yet ended) occupies that lane at its start.
+   * `timeline`: each overlapping event gets its own track (swimlane).
+   * Horizontal: vertical lanes by time; vertical: horizontal columns by time.
+   * `masonry`: pack overlaps into the fewest tracks — each event takes the lowest free lane at its
+   * start (still-active intervals `end > start` share space evenly across that lane count).
    */
   @property({ type: String, reflect: true })
   accessor layout: "default" | "timeline" | "masonry" = "default";
@@ -172,10 +173,6 @@ export class TimeLine extends LitElement {
   /**
    * Maps a screen point to absolute time on the grid [0, gridMax], using each cell’s `.cell-main`
    * as that cell’s span so resizing stays correct when the pointer moves across cells.
-   *
-   * Vertical time axis: pick the cell column that contains `clientX`, then map `clientY` along that
-   * cell’s height. Using plain 2D distance lets a neighbouring column “win” with a clamped point at
-   * ~50% width → ~50% of the day (wrong). Horizontal axis: same idea with X/Y swapped.
    */
   #gridTimeFromClient(
     clientX: number,
@@ -188,8 +185,9 @@ export class TimeLine extends LitElement {
     const root = this.renderRoot as ShadowRoot | undefined;
     if (!root) return 0;
 
-    const edgeEps = 1e-3;
-    const cells: { cellIndex: number; r: DOMRect }[] = [];
+    let bestT = 0;
+    let bestDist = Infinity;
+
     for (const cellEl of root.querySelectorAll(".cell")) {
       if (!(cellEl instanceof HTMLElement)) continue;
       const cellIndex = Number(cellEl.dataset.cell);
@@ -198,64 +196,17 @@ export class TimeLine extends LitElement {
       if (!(main instanceof HTMLElement)) continue;
       const r = main.getBoundingClientRect();
       if (r.width <= 0 || r.height <= 0) continue;
-      cells.push({ cellIndex, r });
-    }
 
-    for (const { cellIndex, r } of cells) {
-      if (
-        clientX >= r.left - edgeEps &&
-        clientX <= r.right + edgeEps &&
-        clientY >= r.top - edgeEps &&
-        clientY <= r.bottom + edgeEps
-      ) {
-        const along = horiz ? (clientX - r.left) / r.width : (clientY - r.top) / r.height;
-        const frac = Math.min(1, Math.max(0, Number.isFinite(along) ? along : 0));
-        return Math.max(0, Math.min(gridMax, cellIndex * span + frac * span));
-      }
-    }
-
-    let bestT = 0;
-    let bestDist = Infinity;
-
-    if (!horiz) {
-      for (const { cellIndex, r } of cells) {
-        if (clientX < r.left || clientX > r.right) continue;
-        const cy = Math.min(Math.max(clientY, r.top), r.bottom);
-        const distY = Math.abs(clientY - cy);
-        const frac = Math.min(1, Math.max(0, (cy - r.top) / r.height));
-        const t = cellIndex * span + frac * span;
-        if (distY < bestDist) {
-          bestDist = distY;
-          bestT = t;
-        }
-      }
-    } else {
-      for (const { cellIndex, r } of cells) {
-        if (clientY < r.top || clientY > r.bottom) continue;
-        const cx = Math.min(Math.max(clientX, r.left), r.right);
-        const distX = Math.abs(clientX - cx);
-        const frac = Math.min(1, Math.max(0, (cx - r.left) / r.width));
-        const t = cellIndex * span + frac * span;
-        if (distX < bestDist) {
-          bestDist = distX;
-          bestT = t;
-        }
-      }
-    }
-
-    if (bestDist !== Infinity) {
-      return Math.max(0, Math.min(gridMax, bestT));
-    }
-
-    for (const { cellIndex, r } of cells) {
       const cx = Math.min(Math.max(clientX, r.left), r.right);
       const cy = Math.min(Math.max(clientY, r.top), r.bottom);
       const dx = clientX - cx;
       const dy = clientY - cy;
       const dist = dx * dx + dy * dy;
+
       const along = horiz ? (cx - r.left) / r.width : (cy - r.top) / r.height;
       const frac = Math.min(1, Math.max(0, Number.isFinite(along) ? along : 0));
       const t = cellIndex * span + frac * span;
+
       if (dist < bestDist) {
         bestDist = dist;
         bestT = t;
@@ -375,13 +326,7 @@ export class TimeLine extends LitElement {
     const index = Number(eventEl.dataset.index);
     if (!Number.isFinite(index) || index < 0 || index >= this.events.length) return;
 
-    const axisAttr = handle.getAttribute("axis");
-    const horiz =
-      axisAttr === "horizontal"
-        ? true
-        : axisAttr === "vertical"
-          ? false
-          : this.flow === "horizontal";
+    const horiz = this.flow === "horizontal";
     const span = this.max > 0 ? this.max : 1;
     const cellCount = Math.max(1, this.cells);
     const gridMax = span * cellCount;
@@ -548,7 +493,7 @@ export class TimeLine extends LitElement {
     const lanes = new Array<number>(events.length);
     for (const { ev, i } of order) {
       let L = 0;
-      while (L < ends.length && ends[L]! > ev.start) L++;
+      while (L < ends.length && (ends[L] ?? 0) > ev.start) L++;
       if (L === ends.length) ends.push(ev.end);
       else ends[L] = ev.end;
       lanes[i] = L;
@@ -581,16 +526,61 @@ export class TimeLine extends LitElement {
       let laneCount: number;
       if (mode === "timeline") {
         inRow.sort((a, b) => a.i - b.i);
-        inRow.forEach(({ i }, L) => (laneByEventIndex[i] = L));
+        for (let L = 0; L < inRow.length; L++) {
+          const item = inRow[L];
+          if (item) laneByEventIndex[item.i] = L;
+        }
         laneCount = inRow.length;
       } else {
         const subLanes = this.masonryLanes(inRow.map((x) => x.ev));
-        inRow.forEach(({ i }, j) => (laneByEventIndex[i] = subLanes[j]!));
+        for (let j = 0; j < inRow.length; j++) {
+          const item = inRow[j];
+          if (item) laneByEventIndex[item.i] = subLanes[j] ?? 0;
+        }
         laneCount = Math.max(...subLanes, 0) + 1;
       }
       rows.push({ laneCount: Math.max(1, laneCount), laneByEventIndex });
     }
     return rows;
+  }
+
+  /** Per cell (vertical flow): lane index and count for splitting width between overlapping events. */
+  private verticalCellLaneLayouts(
+    events: TimelineEvent[],
+    mode: "timeline" | "masonry",
+    cellCount: number,
+    span: number,
+    gridMax: number
+  ): { laneCount: number; laneByEventIndex: number[] }[] {
+    const layouts: { laneCount: number; laneByEventIndex: number[] }[] = [];
+    for (let cell = 0; cell < cellCount; cell++) {
+      const inCell = events
+        .map((ev, i) => ({ ev, i }))
+        .filter(({ ev }) => this.eventOverlapsCell(ev, cell, span, gridMax));
+      const laneByEventIndex = new Array<number>(events.length);
+      if (!inCell.length) {
+        layouts.push({ laneCount: 1, laneByEventIndex });
+        continue;
+      }
+      let laneCount: number;
+      if (mode === "timeline") {
+        inCell.sort((a, b) => a.i - b.i);
+        for (let L = 0; L < inCell.length; L++) {
+          const item = inCell[L];
+          if (item) laneByEventIndex[item.i] = L;
+        }
+        laneCount = inCell.length;
+      } else {
+        const subLanes = this.masonryLanes(inCell.map((x) => x.ev));
+        for (let j = 0; j < inCell.length; j++) {
+          const item = inCell[j];
+          if (item) laneByEventIndex[item.i] = subLanes[j] ?? 0;
+        }
+        laneCount = Math.max(...subLanes, 0) + 1;
+      }
+      layouts.push({ laneCount: Math.max(1, laneCount), laneByEventIndex });
+    }
+    return layouts;
   }
 
   renderHeaderTemplate(i: number) {
@@ -619,15 +609,19 @@ export class TimeLine extends LitElement {
     const cols = Math.max(1, this.columns);
     const horiz = this.flow === "horizontal";
     const layoutEvents = this.#eventsForLayout();
-    const laneMode =
-      horiz && layoutEvents.length
-        ? this.layout === "timeline" || this.layout === "masonry"
-          ? this.layout
-          : null
+    const laneMode: "timeline" | "masonry" | null =
+      layoutEvents.length > 0 &&
+      (this.layout === "timeline" || this.layout === "masonry")
+        ? this.layout
         : null;
-    const rowLayouts = laneMode
-      ? this.rowLaneLayouts(layoutEvents, laneMode, cellCount, cols, span, gridMax)
-      : [];
+    const rowLayouts =
+      horiz && laneMode
+        ? this.rowLaneLayouts(layoutEvents, laneMode, cellCount, cols, span, gridMax)
+        : [];
+    const verticalCellLayouts =
+      !horiz && laneMode
+        ? this.verticalCellLaneLayouts(layoutEvents, laneMode, cellCount, span, gridMax)
+        : [];
 
     return html`
       <div
@@ -636,7 +630,8 @@ export class TimeLine extends LitElement {
       >
         <div class="cells">
           ${cellIndexes.map((cell) => {
-            const rl = laneMode ? rowLayouts[Math.floor(cell / cols)] : null;
+            const rl = horiz && laneMode ? rowLayouts[Math.floor(cell / cols)] : null;
+            const vl = !horiz && laneMode ? verticalCellLayouts[cell] : null;
             const clip = this.laneClip();
             const row = Math.floor(cell / cols);
             const cellEvents = layoutEvents.flatMap((ev, i) => {
@@ -686,10 +681,12 @@ export class TimeLine extends LitElement {
               return out;
             });
 
-            const laneCount = rl?.laneCount ?? 1;
+            const laneCount = horiz ? (rl?.laneCount ?? 1) : (vl?.laneCount ?? 1);
             const visibleCellEvents = cellEvents.filter(({ index, rowSpan }) => {
               if (!clip) return true;
-              const lane = rl?.laneByEventIndex[index] ?? 0;
+              const lane = horiz
+                ? (rl?.laneByEventIndex[index] ?? 0)
+                : (vl?.laneByEventIndex[index] ?? 0);
               const effCap = horiz
                 ? this.minLaneCapAcrossSpan(cell, rowSpan, cols, cellCount)
                 : (this.cellVisibleLanes[cell] ?? Infinity);
@@ -701,19 +698,25 @@ export class TimeLine extends LitElement {
             const visibleEvents = layoutEvents.filter((ev, index) => {
               if (!this.eventOverlapsCell(ev, cell, span, gridMax)) return false;
               if (!clip) return true;
-              const lane = rl?.laneByEventIndex[index] ?? 0;
+              const lane = horiz
+                ? (rl?.laneByEventIndex[index] ?? 0)
+                : (vl?.laneByEventIndex[index] ?? 0);
               const effCap = horiz
                 ? this.minLaneCapForEventInRow(ev, row, cols, span, gridMax, cellCount)
                 : (this.cellVisibleLanes[cell] ?? Infinity);
               return lane < effCap;
             });
+            const cellLaneStack =
+              horiz && laneMode
+                ? ` --__lane-stack: calc(${laneCount} * var(--__event-height))`
+                : "";
             return html`
               <div
                 class="cell"
                 data-cell=${cell}
                 style="${
                   laneMode
-                    ? `--__lane-count: ${laneCount}; --__lane-stack: calc(${laneCount} * var(--__event-height))`
+                    ? `--__lane-count: ${laneCount};${cellLaneStack}`
                     : `--__lane-count: ${laneCount}`
                 }"
               >
@@ -735,7 +738,7 @@ export class TimeLine extends LitElement {
                         data-index=${index}
                         data-segment=${segIndex}
                         style="
-                        --__lane:${laneMode ? (rl?.laneByEventIndex[index] ?? 0) : 0};
+                        --__lane:${laneMode ? (horiz ? rl?.laneByEventIndex[index] : vl?.laneByEventIndex[index]) ?? 0 : 0};
                         --__start:${this.tToPct(segStart)}%;
                         --__end:${
                           rowSpan > 0

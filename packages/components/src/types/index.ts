@@ -62,5 +62,9 @@ export type { DayOverflowPopoverEvent } from "./DayOverflowPopover.js";
 export type { DropdownOption } from "./Dropdown.js";
 export type { TabSwitchOption } from "./TabSwitch.js";
 
-export type { TimelineEvent } from "./TimeLine.js";
+export type {
+  TimelineEvent,
+  TimelineEventResizeCommitDetail,
+  TimelineResizeEdge,
+} from "./TimeLine.js";
 export type { WeekdayNumber } from "./Weekday.js";

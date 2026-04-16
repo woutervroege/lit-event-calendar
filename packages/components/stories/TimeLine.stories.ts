@@ -92,6 +92,7 @@ export const VerticalTimed: Story = {
     title.textContent = "Vertical (timed)";
     const el = createTimeLine();
     el.flow = "vertical";
+    el.layout = "masonry";
     el.step = 5;
     el.max = 100;
     el.cells = 7;
