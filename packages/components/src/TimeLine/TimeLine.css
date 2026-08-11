@@ -124,6 +124,37 @@
   border-inline-start: 2px solid var(--time-line-marker-color, light-dark(#e0342f, #ff6b64));
 }
 
+/* Snapped drop-target ghost during a move gesture: plain translucent tint at the snapped
+   placement (grid-view parity with `--_lc-grid-ghost-color`) while the dragged card follows
+   the pointer freely above it. Sits above resting events (z 2…) and below the lifted card (600). */
+.move-ghost {
+  position: absolute;
+  z-index: 500;
+  pointer-events: none;
+  border-radius: 4px;
+  background: var(--time-line-move-ghost-color, light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%)));
+}
+
+:host([flow="vertical"]) .move-ghost {
+  inset-inline: 0;
+  top: var(--__start, 0);
+  bottom: var(--__end, 0);
+}
+
+:host([flow="horizontal"]) .move-ghost {
+  top: 0;
+  height: var(--__event-height);
+  inset-inline-start: var(--__start, 0);
+  inset-inline-end: var(--__end, 0);
+}
+
+/* Horizontal lane layouts: park the ghost on the dragged event's (frozen) lane. */
+:host([flow="horizontal"][layout="timeline"]) .move-ghost,
+:host([flow="horizontal"][layout="masonry"]) .move-ghost,
+:host([flow="horizontal"][layout="stagger"]) .move-ghost {
+  top: calc(var(--__lane, 0) * var(--__event-height));
+}
+
 /* Drag-to-create preview (placeholder look; positioned like an event segment). */
 .create-preview {
   position: absolute;
@@ -166,6 +197,8 @@
 .event.event--dragging {
   cursor: grabbing;
   z-index: 600;
+  /* Subtle lift for the free-following card (follows the card's shape, not the wrapper box). */
+  filter: drop-shadow(0 3px 8px light-dark(rgb(15 23 42 / 22%), rgb(0 0 0 / 45%)));
 }
 
 /* Time axis in vertical flow: % on top/bottom resolve against .cell-main height (not margin-% which uses width). */

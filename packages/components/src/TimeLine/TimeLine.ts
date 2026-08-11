@@ -39,6 +39,9 @@ type TimelineMoveSession = {
   captureTarget: HTMLElement;
   eventIndex: number;
   originPointerGridT: number;
+  /** Pointer position at pointerdown; raw deltas from here drive the free-following card. */
+  originClientX: number;
+  originClientY: number;
   initialStart: number;
   initialEnd: number;
   horiz: boolean;
@@ -203,6 +206,14 @@ export class TimeLine extends LitElement {
   @state()
   private accessor draggingEventIndex: number | null = null;
 
+  /**
+   * Raw pointer delta (px) since move-gesture pointerdown. The dragged card keeps its pre-drag
+   * geometry and follows the pointer freely via this translate, while the snapped preview
+   * renders separately as the `.move-ghost` drop target (grid-view drag feel).
+   */
+  @state()
+  private accessor moveDragOffset: { x: number; y: number } | null = null;
+
   /** Snapped range shown while a drag-to-create gesture is in progress. */
   @state()
   private accessor createPreview: { start: number; end: number } | null = null;
@@ -336,6 +347,7 @@ export class TimeLine extends LitElement {
     this.#createSession = null;
     this.resizePreviewByIndex = null;
     this.draggingEventIndex = null;
+    this.moveDragOffset = null;
     this.createPreview = null;
     this.cellsResizeObserver?.disconnect();
     this.cellsResizeObserver = null;
@@ -375,7 +387,12 @@ export class TimeLine extends LitElement {
   #eventsForLayout(): TimelineEvent[] {
     const preview = this.resizePreviewByIndex;
     if (!preview?.size) return this.events;
+    // The event in a MOVE gesture keeps its pre-drag geometry — the card free-follows the
+    // pointer via `moveDragOffset` and the snapped preview renders as the ghost instead.
+    // Resize previews still reshape the event itself (snapped, grid-view parity).
+    const movingIndex = this.#moveSession?.eventIndex ?? null;
     return this.events.map((ev, i) => {
+      if (i === movingIndex) return ev;
       const p = preview.get(i);
       return p ? { ...ev, start: p.start, end: p.end } : ev;
     });
@@ -705,6 +722,11 @@ export class TimeLine extends LitElement {
   }
 
   #applyMovePointer(clientX: number, clientY: number, session: TimelineMoveSession) {
+    // Raw (unsnapped) delta for the free-following card.
+    this.moveDragOffset = {
+      x: clientX - session.originClientX,
+      y: clientY - session.originClientY,
+    };
     const span = this.max > 0 ? this.max : 1;
     const cellCount = Math.max(1, this.cells);
     const pointerT = this.#gridTimeFromClient(
@@ -745,6 +767,7 @@ export class TimeLine extends LitElement {
     if (!cancelled) {
       this.#applyMovePointer(clientX, clientY, session);
     }
+    this.moveDragOffset = null;
 
     const preview = cancelled ? undefined : this.resizePreviewByIndex?.get(session.eventIndex);
     const previousStart = session.initialStart;
@@ -901,6 +924,8 @@ export class TimeLine extends LitElement {
       captureTarget: this,
       eventIndex: index,
       originPointerGridT,
+      originClientX: e.clientX,
+      originClientY: e.clientY,
       initialStart: ev.start,
       initialEnd: ev.end,
       horiz: layout.horiz,
@@ -908,6 +933,7 @@ export class TimeLine extends LitElement {
     };
 
     this.draggingEventIndex = index;
+    this.moveDragOffset = { x: 0, y: 0 };
     this.#beginSingleEventResizePreview(index, ev.start, ev.end);
     this.#attachMoveWindowListeners();
   };
@@ -1389,6 +1415,12 @@ export class TimeLine extends LitElement {
             vl?.indentByEventIndex?.[index] ?? 0
           };`
         : "";
+    // Free-follow: the moving card keeps its pre-drag geometry and translates 1:1 with the raw
+    // pointer delta (grid-view drag feel); the snapped position renders as `.move-ghost`.
+    const dragOffset = this.draggingEventIndex === index ? this.moveDragOffset : null;
+    const dragTransform = dragOffset
+      ? `transform:translate(${dragOffset.x}px, ${dragOffset.y}px);`
+      : "";
 
     return html`
       <div
@@ -1398,7 +1430,7 @@ export class TimeLine extends LitElement {
         @pointerdown=${this.#onEventBodyPointerDown}
         style="
         --__lane:${lane};
-        ${staggerVars}
+        ${staggerVars}${dragTransform}
         --__start:${this.#axisPct(segStart, w0, w1)}%;
         --__end:${endInset};
       "
@@ -1453,6 +1485,51 @@ export class TimeLine extends LitElement {
       return html`<div
         class="create-preview"
         style="--__start:${this.#axisPct(seg.segStart, w0, w1)}%;--__end:${endInset};"
+      ></div>`;
+    });
+  }
+
+  /**
+   * Snapped drop-target ghost for the active move gesture (same segment math as events). Shown
+   * once the pointer has actually moved; the free-following card floats above it. In horizontal
+   * lane layouts the ghost sits on the dragged event's (frozen) lane.
+   */
+  #moveGhostFragments(
+    cell: number,
+    horiz: boolean,
+    cols: number,
+    span: number,
+    gridMax: number,
+    w0: number,
+    w1: number,
+    laneMode: LaneMode | null,
+    rl: LaneLayout | null,
+    vl: LaneLayout | null
+  ) {
+    const session = this.#moveSession;
+    if (!session) return nothing;
+    const offset = this.moveDragOffset;
+    if (!offset || (offset.x === 0 && offset.y === 0)) return nothing;
+    const preview = this.resizePreviewByIndex?.get(session.eventIndex);
+    if (!preview) return nothing;
+    const lane =
+      horiz && laneMode ? this.#laneIndexForEvent(horiz, rl, vl, session.eventIndex) : 0;
+    const segs = this.#collectSegmentsForEventInCell(
+      { start: preview.start, end: preview.end },
+      -1,
+      cell,
+      horiz,
+      cols,
+      span,
+      gridMax
+    );
+    return segs.map((seg) => {
+      const endPct = this.#axisPct(seg.segEnd, w0, w1);
+      const endInset =
+        seg.rowSpan > 0 ? `calc(-${seg.rowSpan * 100}% + ${100 - endPct}%)` : `${100 - endPct}%`;
+      return html`<div
+        class="move-ghost"
+        style="--__lane:${lane};--__start:${this.#axisPct(seg.segStart, w0, w1)}%;--__end:${endInset};"
       ></div>`;
     });
   }
@@ -1524,6 +1601,7 @@ export class TimeLine extends LitElement {
           )}
           ${this.#markerFragments(cell, span, gridMax, w0, w1)}
           ${this.#createPreviewFragments(cell, horiz, cols, span, gridMax, w0, w1)}
+          ${this.#moveGhostFragments(cell, horiz, cols, span, gridMax, w0, w1, laneMode, rl, vl)}
         </div>
         ${
           this.footerTemplate
