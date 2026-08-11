@@ -84,6 +84,23 @@ export function toTimelineAllDayRange(
   return toTimelineRange(dayStart, dayEndExclusive, scale);
 }
 
+export type TimelineEventFilter = "all" | "timed-only" | "all-day-only";
+
+/**
+ * Which events a single-timeline presentation should include:
+ * - explicit `variant="all-day"` is the standalone all-day presentation → all-day events only
+ * - a preset all-day mapping (month mode's day cells) → timed events only
+ * - timed variants (gantt, horizontal timed) → everything, plotted with real ranges
+ */
+export function resolveTimelineEventFilter(
+  explicitVariant: string | undefined,
+  resolvedVariant: "timed" | "all-day"
+): TimelineEventFilter {
+  if (resolvedVariant !== "all-day") return "all";
+  if (explicitVariant === "all-day") return "all-day-only";
+  return "timed-only";
+}
+
 export function fromTimelineRange(
   start: number,
   end: number,
@@ -98,4 +115,42 @@ export function fromTimelineRange(
 export function timelineGridMax(scale: CalendarTimelineScale): number {
   const { unitsPerDay, numDays } = normalizeScale(scale);
   return unitsPerDay * numDays;
+}
+
+/**
+ * First cell of a month grid window: the week-start-aligned day on or before the 1st of
+ * `monthAnchor`'s month (same alignment as `CalendarMonthView.startDate`).
+ */
+export function alignedMonthGridStart(
+  monthAnchor: Temporal.PlainDate,
+  weekStart: number
+): Temporal.PlainDate {
+  const firstOfMonth = monthAnchor.with({ day: 1 });
+  const weekdayOffset = (firstOfMonth.dayOfWeek - weekStart + 7) % 7;
+  return firstOfMonth.subtract({ days: weekdayOffset });
+}
+
+/**
+ * Maps the grid views' `visibleHours` concept (+ optional start hour) onto TimeLine's per-cell
+ * axis window. Returns the full range (`start: 0, end: null`) when `visibleHours` is unset or
+ * covers the whole day. Note the semantic difference: the grid scrolls the remaining hours into
+ * view, while the timeline axis window clips them (v1 limitation).
+ */
+export function visibleHoursWindow(
+  unitsPerDay: number,
+  visibleHours: number | undefined,
+  visibleHoursStart?: number
+): { windowStart: number; windowEnd: number | null } {
+  const hours = Number(visibleHours);
+  if (!Number.isFinite(hours) || hours <= 0) return { windowStart: 0, windowEnd: null };
+  const clampedHours = Math.max(1, Math.min(24, Math.floor(hours)));
+  const startRaw = Number(visibleHoursStart);
+  const start = Number.isFinite(startRaw)
+    ? Math.max(0, Math.min(24 - clampedHours, Math.floor(startRaw)))
+    : 0;
+  if (clampedHours >= 24) return { windowStart: 0, windowEnd: null };
+  return {
+    windowStart: (start / 24) * unitsPerDay,
+    windowEnd: ((start + clampedHours) / 24) * unitsPerDay,
+  };
 }

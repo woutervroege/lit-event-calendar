@@ -1,14 +1,79 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { html, type TemplateResult, unsafeCSS } from "lit";
+import { html, nothing, type TemplateResult, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
+import { ifDefined } from "lit/directives/if-defined.js";
+import { styleMap } from "lit/directives/style-map.js";
 import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import { resolvedDataEnd } from "../domain/events-api/eventMapBridge.js";
 import "../EventCard/EventCard.js";
-import type { TimelineEvent } from "../types/TimeLine.js";
+import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
+import "../DayOverflowPopover/DayOverflowPopover.js";
+import type { CalendarEvent as ApiCalendarEvent } from "@lit-calendar/events-api";
+import type {
+  EventCreateRequestDetail,
+  EventDeleteRequestDetail,
+  EventSelectionRequestDetail,
+  EventUpdateRequestDetail,
+} from "../types/CalendarEventRequests.js";
+import {
+  isCalendarEventException,
+  isCalendarEventRecurring,
+} from "../types/calendarEventSemantics.js";
+import type { DayOverflowPopoverEvent } from "../types/DayOverflowPopover.js";
+import type {
+  TimelineEvent,
+  TimelineEventCreateDetail,
+  TimelineEventMoveCommitDetail,
+  TimelineEventResizeCommitDetail,
+} from "../types/TimeLine.js";
 import "../TimeLine/TimeLine.js";
+import { getLocaleWeekInfo } from "../utils/Locale.js";
 import { formatShortTimeRange } from "../utils/TimeFormatting.js";
-import { toTimelineAllDayRange, toTimelineRange } from "./CalendarTimelineScale.js";
+import {
+  alignedMonthGridStart,
+  fromTimelineRange,
+  fromTimelineValue,
+  resolveTimelineEventFilter,
+  toTimelineAllDayRange,
+  toTimelineRange,
+  toTimelineValue,
+  visibleHoursWindow,
+} from "./CalendarTimelineScale.js";
 import componentStyle from "./CalendarTimelineView.css?inline";
+
+const MINUTES_PER_DAY = 24 * 60;
+const SECONDS_PER_DAY = MINUTES_PER_DAY * 60;
+
+export type CalendarTimelineViewMode = "day" | "week" | "month" | "gantt";
+
+type TimelineVariant = "timed" | "all-day";
+
+type TimelineFlow = "vertical" | "horizontal";
+type TimelineLayout = "default" | "timeline" | "masonry";
+
+type ModePreset = {
+  numDays: number;
+  /** `"days"` resolves to the resolved day count (one continuous row for gantt). */
+  columns?: number | "days";
+  flow: TimelineFlow;
+  layout: TimelineLayout;
+  height?: "auto";
+  variant: TimelineVariant;
+};
+
+const MODE_PRESETS: Record<CalendarTimelineViewMode, ModePreset> = {
+  day: { numDays: 1, flow: "vertical", layout: "masonry", variant: "timed" },
+  week: { numDays: 7, flow: "vertical", layout: "masonry", variant: "timed" },
+  month: {
+    numDays: 42,
+    columns: 7,
+    flow: "horizontal",
+    layout: "masonry",
+    height: "auto",
+    variant: "all-day",
+  },
+  gantt: { numDays: 7, columns: "days", flow: "horizontal", layout: "timeline", variant: "timed" },
+};
 
 type CalendarTimelineEvent = TimelineEvent & {
   key: string;
@@ -17,39 +82,149 @@ type CalendarTimelineEvent = TimelineEvent & {
   location: string;
   originalStart: Temporal.PlainDateTime;
   originalEnd: Temporal.PlainDateTime;
+  allDay: boolean;
+  past: boolean;
+  recurring: boolean;
+  exception: boolean;
 };
+
+/* Header/footer templates render inside <time-line>'s shadow root, out of reach of this
+ * component's stylesheet, so their chrome is styled inline (same trade-off as the selection
+ * ring on event cards). */
+const DAY_HEADER_STYLE = [
+  "display:flex",
+  "align-items:center",
+  "gap:6px",
+  "min-height:24px",
+  "padding:3px 6px",
+  "font-size:12px",
+  "font-weight:500",
+  "line-height:1.2",
+  "white-space:nowrap",
+  "overflow:hidden",
+  "user-select:none",
+  "color:var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)))",
+].join(";");
+
+const DAY_NUMBER_STYLE = [
+  "display:inline-flex",
+  "align-items:center",
+  "justify-content:center",
+  "min-width:20px",
+  "height:20px",
+  "padding:0 5px",
+  "border-radius:999px",
+  "font-variant-numeric:tabular-nums",
+].join(";");
+
+const DAY_NUMBER_TODAY_STYLE = [
+  DAY_NUMBER_STYLE,
+  "background:var(--lc-higlight-color, #ff0000)",
+  "color:#fff",
+  "font-weight:600",
+].join(";");
+
+const OVERFLOW_BUTTON_STYLE = [
+  "pointer-events:auto",
+  "appearance:none",
+  "border:0",
+  "background:transparent",
+  "cursor:pointer",
+  "display:block",
+  "width:100%",
+  "text-align:start",
+  "padding:2px 6px 4px",
+  "font-size:11px",
+  "font-weight:600",
+  "line-height:1.2",
+  "color:var(--lc-muted-text-color, #64748b)",
+].join(";");
 
 @customElement("calendar-timeline-view")
 export class CalendarTimelineView extends CalendarViewBase {
-  variant: "timed" | "all-day" = "timed";
+  /**
+   * Convenience preset configuring flow/layout/day count/variant for the four calendar modes.
+   * Explicitly set individual properties always win over the preset.
+   */
+  mode?: CalendarTimelineViewMode;
+  variant?: TimelineVariant;
+  /**
+   * Opt-in for the composed all-day row above the timed timeline in day/week (vertical timed)
+   * modes, with round-trip gestures and drag-create of whole-day events. Off by default:
+   * day/week then show only timed events (a header-only strip keeps the day labels).
+   */
+  allDayRow = false;
   startDate = Temporal.Now.plainDateISO().toString();
-  numDays = 7;
+  numDays?: number;
   daysPerWeek?: number;
   columns?: number;
+  /** Week start override for the month-mode grid alignment (1 = Monday … 7 = Sunday). */
+  weekStart?: number;
   timelineMax = 24 * 60;
-  timelineStep = 5;
-  timelineFlow: "vertical" | "horizontal" = "vertical";
-  timelineLayout: "default" | "timeline" | "masonry" = "masonry";
-  timelineHeight: "auto" | "" = "";
+  /**
+   * Explicit snapping step in raw time-line axis units. When unset, `snapInterval`
+   * (minutes, same concept as the grid views) is converted to axis units instead.
+   */
+  timelineStep?: number;
+  /** Snap interval in minutes, mirroring the grid views' `snap-interval` attribute. */
+  snapInterval?: number;
+  timelineFlow?: TimelineFlow;
+  timelineLayout?: TimelineLayout;
+  timelineHeight?: "auto" | "";
+  /**
+   * Grid-parity `visibleHours`: shows only this many hours per day in vertical modes, mapped
+   * through the time-line axis window. Unlike the grid (which scrolls the remaining hours into
+   * view), hours outside the window are clipped (v1 axis-window limitation).
+   */
+  visibleHours?: number;
+  /** First visible hour when `visibleHours` is active (default 0). */
+  visibleHoursStart?: number;
+  rtl = false;
+
+  /** Events passed to the timed `<time-line>` in the latest render; commit indexes point here. */
+  #renderedTimedEvents: CalendarTimelineEvent[] = [];
+  /** Events passed to the all-day `<time-line>` in the latest render. */
+  #renderedAllDayEvents: CalendarTimelineEvent[] = [];
+  #selectedEventKey: string | null = null;
+  /** Set right after a gesture commit so the trailing click does not also select the event. */
+  #suppressNextCardSelect = false;
+  #suppressNextCardSelectTimeout: ReturnType<typeof setTimeout> | null = null;
+  /** Cell whose overflow popover is (being) opened; its popover renders the full event list. */
+  #activeOverflowCellIndex: number | null = null;
 
   static get properties() {
     return {
       ...CalendarViewBase.properties,
+      mode: { type: String, reflect: true },
       variant: { type: String, reflect: true },
+      allDayRow: { type: Boolean, attribute: "all-day-row", reflect: true },
       startDate: { type: String, attribute: "start-date" },
       numDays: { type: Number, attribute: "num-days" },
       daysPerWeek: { type: Number, attribute: "days-per-week" },
       columns: { type: Number, attribute: "columns" },
+      weekStart: { type: Number, attribute: "week-start" },
       timelineMax: { type: Number, attribute: "timeline-max" },
       timelineStep: { type: Number, attribute: "timeline-step" },
+      snapInterval: { type: Number, attribute: "snap-interval" },
       timelineFlow: { type: String, attribute: "timeline-flow" },
       timelineLayout: { type: String, attribute: "timeline-layout" },
       timelineHeight: { type: String, attribute: "timeline-height" },
+      visibleHours: { type: Number, attribute: "visible-hours" },
+      visibleHoursStart: { type: Number, attribute: "visible-hours-start" },
+      rtl: { type: Boolean, reflect: true },
     } as const;
   }
 
   static get styles() {
     return [...CalendarViewBase.styles, unsafeCSS(componentStyle)];
+  }
+
+  disconnectedCallback() {
+    if (this.#suppressNextCardSelectTimeout) {
+      clearTimeout(this.#suppressNextCardSelectTimeout);
+      this.#suppressNextCardSelectTimeout = null;
+    }
+    super.disconnectedCallback();
   }
 
   protected willUpdate(changedProperties: Map<string | number | symbol, unknown>): void {
@@ -62,9 +237,17 @@ export class CalendarTimelineView extends CalendarViewBase {
     }
   }
 
+  get #modePreset(): ModePreset | undefined {
+    const mode = this.mode;
+    if (mode === "day" || mode === "week" || mode === "month" || mode === "gantt") {
+      return MODE_PRESETS[mode];
+    }
+    return undefined;
+  }
+
   get #scale() {
     return {
-      startDate: this.#parsedStartDate,
+      startDate: this.#gridStartDate,
       numDays: this.#resolvedNumDays,
       unitsPerDay: this.#resolvedTimelineMax,
     };
@@ -78,17 +261,31 @@ export class CalendarTimelineView extends CalendarViewBase {
     }
   }
 
+  /** First rendered day; month mode aligns the 42-cell window to the locale week start. */
+  get #gridStartDate(): Temporal.PlainDate {
+    if (this.mode === "month") {
+      return alignedMonthGridStart(
+        this.#parsedStartDate,
+        this.resolveWeekStart(this.weekStart, this.lang)
+      );
+    }
+    return this.#parsedStartDate;
+  }
+
   get #resolvedNumDays(): number {
     const fromNumDays = Number(this.numDays);
     if (Number.isFinite(fromNumDays) && fromNumDays > 0) return Math.floor(fromNumDays);
     const fromDaysPerWeek = Number(this.daysPerWeek);
     if (Number.isFinite(fromDaysPerWeek) && fromDaysPerWeek > 0) return Math.floor(fromDaysPerWeek);
-    return 7;
+    return this.#modePreset?.numDays ?? 7;
   }
 
   get #resolvedColumns(): number {
     const value = Number(this.columns);
     if (Number.isFinite(value) && value > 0) return Math.floor(value);
+    const preset = this.#modePreset?.columns;
+    if (preset === "days") return this.#resolvedNumDays;
+    if (typeof preset === "number") return preset;
     return this.#resolvedNumDays <= 7 ? this.#resolvedNumDays : 7;
   }
 
@@ -98,25 +295,106 @@ export class CalendarTimelineView extends CalendarViewBase {
     return Math.floor(value);
   }
 
+  /**
+   * Snapping step handed to the timed `<time-line>` (axis units).
+   * Precedence: an explicitly set `timelineStep` (raw axis units) always wins; otherwise
+   * `snapInterval` (minutes, the grid views' concept) is converted via unitsPerDay / 1440;
+   * fallback is 5 axis units.
+   */
   get #resolvedTimelineStep(): number {
-    const value = Number(this.timelineStep);
-    if (!Number.isFinite(value) || value <= 0) return 5;
-    return Math.floor(value);
+    const explicit = Number(this.timelineStep);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    const snapMinutes = Number(this.snapInterval);
+    if (Number.isFinite(snapMinutes) && snapMinutes > 0) {
+      const units = (snapMinutes * this.#resolvedTimelineMax) / MINUTES_PER_DAY;
+      if (units > 0) return units;
+    }
+    return 5;
   }
 
-  get #resolvedVariant(): "timed" | "all-day" {
-    return this.variant === "all-day" ? "all-day" : "timed";
+  get #resolvedVariant(): TimelineVariant {
+    if (this.variant === "all-day" || this.variant === "timed") return this.variant;
+    return this.#modePreset?.variant ?? "timed";
   }
 
-  get #timelineEvents(): CalendarTimelineEvent[] {
-    const rangeStart = this.#parsedStartDate.toPlainDateTime(Temporal.PlainTime.from("00:00"));
+  get #resolvedFlow(): TimelineFlow {
+    if (this.timelineFlow === "vertical" || this.timelineFlow === "horizontal") {
+      return this.timelineFlow;
+    }
+    return this.#modePreset?.flow ?? "vertical";
+  }
+
+  get #resolvedLayout(): TimelineLayout {
+    if (
+      this.timelineLayout === "default" ||
+      this.timelineLayout === "timeline" ||
+      this.timelineLayout === "masonry"
+    ) {
+      return this.timelineLayout;
+    }
+    return this.#modePreset?.layout ?? "masonry";
+  }
+
+  get #resolvedHeight(): "auto" | undefined {
+    if (this.timelineHeight === "auto") return "auto";
+    if (this.timelineHeight === "") return undefined;
+    return this.#modePreset?.height;
+  }
+
+  /** Vertical timed modes compose the full chrome: time sidebar + all-day row + timed timeline. */
+  get #composedVertical(): boolean {
+    return this.#resolvedFlow === "vertical" && this.#resolvedVariant === "timed";
+  }
+
+  /** Clamped `visibleHours` sub-range, or `null` when the full day is visible. */
+  get #resolvedVisibleHours(): { hours: number; startHour: number } | null {
+    const hours = Number(this.visibleHours);
+    if (!Number.isFinite(hours) || hours <= 0) return null;
+    const clampedHours = Math.max(1, Math.min(24, Math.floor(hours)));
+    if (clampedHours >= 24) return null;
+    const startRaw = Number(this.visibleHoursStart);
+    const startHour = Number.isFinite(startRaw)
+      ? Math.max(0, Math.min(24 - clampedHours, Math.floor(startRaw)))
+      : 0;
+    return { hours: clampedHours, startHour };
+  }
+
+  get #currentDateTime(): Temporal.PlainDateTime {
+    const value = this.currentTime;
+    try {
+      if (value.includes("[")) {
+        return Temporal.ZonedDateTime.from(value).withTimeZone(this.timezone).toPlainDateTime();
+      }
+      return Temporal.PlainDateTime.from(value);
+    } catch {
+      return Temporal.Now.plainDateTimeISO();
+    }
+  }
+
+  /** Current-time marker on the absolute axis, only when it falls within the rendered range. */
+  get #currentTimeMarkers(): number[] {
+    const value = toTimelineValue(this.#currentDateTime, this.#scale);
+    const gridMax = this.#resolvedTimelineMax * this.#resolvedNumDays;
+    if (!Number.isFinite(value) || value < 0 || value >= gridMax) return [];
+    return [value];
+  }
+
+  get #renderedEntries(): [string, ApiCalendarEvent][] {
+    const rangeStart = this.#gridStartDate.toPlainDateTime(Temporal.PlainTime.from("00:00"));
     const rangeEnd = rangeStart.add({ days: this.#resolvedNumDays });
-    const renderedEvents = this.getRenderedEvents({ start: rangeStart, end: rangeEnd });
-    return Array.from(renderedEvents.entries()).map(([key, event]) => {
+    return Array.from(this.getRenderedEvents({ start: rangeStart, end: rangeEnd }).entries());
+  }
+
+  #mapTimelineEvents(
+    entries: [string, ApiCalendarEvent][],
+    variant: TimelineVariant
+  ): CalendarTimelineEvent[] {
+    const now = this.#currentDateTime;
+    return entries.map(([key, event]) => {
       const originalStart = event.data.start;
       const originalEnd = resolvedDataEnd(event.data);
       const range =
-        this.#resolvedVariant === "all-day"
+        variant === "all-day"
           ? toTimelineAllDayRange(originalStart, originalEnd, this.#scale)
           : toTimelineRange(originalStart, originalEnd, this.#scale);
       return {
@@ -128,42 +406,624 @@ export class CalendarTimelineView extends CalendarViewBase {
         color: this.resolveEventDisplayColor(event),
         originalStart,
         originalEnd,
+        allDay: event.data.allDay === true,
+        past: Temporal.PlainDateTime.compare(originalEnd, now) <= 0,
+        recurring: isCalendarEventRecurring(event),
+        exception: isCalendarEventException(event),
       };
     });
   }
 
+  #renderedEventsFor(variant: TimelineVariant): CalendarTimelineEvent[] {
+    return variant === "all-day" ? this.#renderedAllDayEvents : this.#renderedTimedEvents;
+  }
+
+  #handleTimelineMoveCommit(event: Event, variant: TimelineVariant) {
+    const detail = (event as CustomEvent<TimelineEventMoveCommitDetail>).detail;
+    if (!detail) return;
+    const timelineEvent = this.#renderedEventsFor(variant)[detail.index];
+    if (!timelineEvent) return;
+    const next = this.#nextRangeForMove(timelineEvent, detail, variant);
+    if (!next) {
+      // Nothing to commit (e.g. sub-day move in the all-day variant); re-render so the
+      // timeline snaps back to the unchanged events map.
+      this.requestUpdate();
+      return;
+    }
+    this.#markGestureCommitted();
+    this.#applyTimelineUpdate(timelineEvent, next);
+  }
+
+  #handleTimelineResizeCommit(event: Event, variant: TimelineVariant) {
+    const detail = (event as CustomEvent<TimelineEventResizeCommitDetail>).detail;
+    if (!detail) return;
+    const timelineEvent = this.#renderedEventsFor(variant)[detail.index];
+    if (!timelineEvent) return;
+    const next = this.#nextRangeForResize(timelineEvent, detail, variant);
+    if (!next) {
+      this.requestUpdate();
+      return;
+    }
+    this.#markGestureCommitted();
+    this.#applyTimelineUpdate(timelineEvent, next);
+  }
+
+  /** Drag-to-create commit: numeric range → datetimes → create API (grid-view semantics). */
+  #handleTimelineCreate(event: Event, variant: TimelineVariant) {
+    const detail = (event as CustomEvent<TimelineEventCreateDetail>).detail;
+    if (!detail) return;
+    if (variant === "all-day") {
+      const unitsPerDay = this.#resolvedTimelineMax;
+      const startDay = Math.floor(detail.start / unitsPerDay + 1e-9);
+      const endDay = Math.max(startDay + 1, Math.ceil(detail.end / unitsPerDay - 1e-9));
+      const dayStart = this.#gridStartDate.add({ days: startDay });
+      const dayEndExclusive = this.#gridStartDate.add({ days: endDay });
+      this.#emitEventCreateRequested({
+        start: dayStart.toPlainDateTime(Temporal.PlainTime.from("00:00")),
+        end: dayEndExclusive.toPlainDateTime(Temporal.PlainTime.from("00:00")),
+        allDay: true,
+      });
+      return;
+    }
+    const range = fromTimelineRange(detail.start, detail.end, this.#scale);
+    this.#emitEventCreateRequested({ start: range.start, end: range.end });
+  }
+
+  #emitEventCreateRequested(input: {
+    start: Temporal.PlainDateTime;
+    end: Temporal.PlainDateTime;
+    allDay?: boolean;
+  }) {
+    const calendarId = this.calendarIdForNewEvent();
+    const detail: EventCreateRequestDetail = {
+      envelope: {
+        calendarId,
+        accountId: this.accountIdForCalendar(calendarId),
+      },
+      content: {
+        start: input.start,
+        end: input.end,
+        allDay: input.allDay,
+        summary: this.defaultEventSummary,
+        color: this.resolveNewEventColor(calendarId),
+      },
+    };
+    this.applyCreateRequestToEventsAPI(detail);
+  }
+
+  /**
+   * Moves preserve the exact original duration: the committed numeric delta is applied to the
+   * original datetimes (all-day: rounded to whole days) instead of re-deriving both edges from
+   * axis values, so the events API classifies the change as a "move".
+   */
+  #nextRangeForMove(
+    timelineEvent: CalendarTimelineEvent,
+    detail: TimelineEventMoveCommitDetail,
+    variant: TimelineVariant
+  ): { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime } | null {
+    const unitsPerDay = this.#resolvedTimelineMax;
+    const deltaUnits = detail.start - detail.previousStart;
+    if (deltaUnits === 0) return null;
+
+    if (variant === "all-day") {
+      const dayDelta = Math.round(deltaUnits / unitsPerDay);
+      if (dayDelta === 0) return null;
+      return {
+        start: timelineEvent.originalStart.add({ days: dayDelta }),
+        end: timelineEvent.originalEnd.add({ days: dayDelta }),
+      };
+    }
+
+    const deltaSeconds = Math.round((deltaUnits * SECONDS_PER_DAY) / unitsPerDay);
+    if (deltaSeconds === 0) return null;
+    return {
+      start: timelineEvent.originalStart.add({ seconds: deltaSeconds }),
+      end: timelineEvent.originalEnd.add({ seconds: deltaSeconds }),
+    };
+  }
+
+  /** Resizes convert only the dragged edge back through the scale; the other edge stays exact. */
+  #nextRangeForResize(
+    timelineEvent: CalendarTimelineEvent,
+    detail: TimelineEventResizeCommitDetail,
+    variant: TimelineVariant
+  ): { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime } | null {
+    const allDay = variant === "all-day";
+    const convertEdge = (value: number): Temporal.PlainDateTime =>
+      allDay ? this.#dayRoundedDateTime(value) : fromTimelineValue(value, this.#scale);
+
+    const next =
+      detail.edge === "start"
+        ? { start: convertEdge(detail.start), end: timelineEvent.originalEnd }
+        : { start: timelineEvent.originalStart, end: convertEdge(detail.end) };
+
+    if (Temporal.PlainDateTime.compare(next.end, next.start) <= 0) return null;
+    if (
+      Temporal.PlainDateTime.compare(next.start, timelineEvent.originalStart) === 0 &&
+      Temporal.PlainDateTime.compare(next.end, timelineEvent.originalEnd) === 0
+    ) {
+      return null;
+    }
+    return next;
+  }
+
+  /** Nearest whole-day boundary for an axis value (all-day gestures commit in whole days). */
+  #dayRoundedDateTime(value: number): Temporal.PlainDateTime {
+    const dayIndex = Math.round(value / this.#resolvedTimelineMax);
+    return this.#gridStartDate
+      .add({ days: dayIndex })
+      .toPlainDateTime(Temporal.PlainTime.from("00:00"));
+  }
+
+  #applyTimelineUpdate(
+    timelineEvent: CalendarTimelineEvent,
+    next: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime }
+  ) {
+    const { event: current, recurrenceId } = this.#resolveSourceEvent(timelineEvent.key);
+    const detail: EventUpdateRequestDetail = {
+      envelope: {
+        eventId: current?.eventId ?? timelineEvent.key,
+        accountId: current?.accountId,
+        calendarId: current?.calendarId,
+        recurrenceId,
+        isException: current ? isCalendarEventException(current) : undefined,
+        isRecurring: current ? isCalendarEventRecurring(current) : undefined,
+      },
+      content: {
+        start: next.start,
+        end: next.end,
+        allDay: current?.data.allDay,
+        summary: timelineEvent.summary,
+        color: current?.data.color,
+        location: current?.data.location,
+      },
+    };
+    const result = this.applyUpdateRequestToEventsAPI(detail);
+    if (!result.handled || !result.accepted) {
+      // Rejected or unhandled: re-render from the unchanged events map so the
+      // timeline snaps back to the pre-gesture range.
+      this.requestUpdate();
+    }
+  }
+
+  #requestDeleteForKey(key: string) {
+    const { event: current, recurrenceId } = this.#resolveSourceEvent(key);
+    const detail: EventDeleteRequestDetail = {
+      envelope: {
+        accountId: current?.accountId,
+        calendarId: current?.calendarId,
+        eventId: current?.eventId ?? key,
+        recurrenceId,
+        isRecurring: current ? isCalendarEventRecurring(current) : undefined,
+      },
+    };
+    this.applyDeleteRequestToEventsAPI(detail);
+    if (this.#selectedEventKey === key) {
+      this.#selectedEventKey = null;
+      this.requestUpdate();
+    }
+  }
+
+  /** Rendered keys are `sourceKey::recurrenceId` for expanded occurrences (same as the grid views). */
+  #resolveSourceEvent(renderedEventKey: string): {
+    event: ApiCalendarEvent | undefined;
+    recurrenceId?: string;
+  } {
+    const separatorIndex = renderedEventKey.indexOf("::");
+    const sourceKey =
+      separatorIndex === -1 ? renderedEventKey : renderedEventKey.slice(0, separatorIndex);
+    const recurrenceId =
+      separatorIndex === -1 ? undefined : renderedEventKey.slice(separatorIndex + 2);
+    const event = this.events?.get(renderedEventKey) ?? this.events?.get(sourceKey);
+    return {
+      event,
+      recurrenceId: recurrenceId ?? event?.recurrenceId,
+    };
+  }
+
+  #markGestureCommitted() {
+    this.#suppressNextCardSelect = true;
+    if (this.#suppressNextCardSelectTimeout) {
+      clearTimeout(this.#suppressNextCardSelectTimeout);
+    }
+    this.#suppressNextCardSelectTimeout = setTimeout(() => {
+      this.#suppressNextCardSelect = false;
+      this.#suppressNextCardSelectTimeout = null;
+    }, 150);
+  }
+
+  #selectTimelineEvent(key: string) {
+    if (this.#selectedEventKey !== key) {
+      this.#selectedEventKey = key;
+      this.requestUpdate();
+    }
+    this.dispatchEvent(
+      new CustomEvent("event-selected", {
+        detail: { key } satisfies EventSelectionRequestDetail,
+      })
+    );
+  }
+
+  #handleEventCardClick(key: string, event: MouseEvent) {
+    if (this.#suppressNextCardSelect) {
+      this.#suppressNextCardSelect = false;
+      return;
+    }
+    // TimeLine cancels pointerdown (for the move gesture), which suppresses native focus;
+    // restore it so keyboard Delete works right after a click-selection.
+    const card = event.currentTarget;
+    if (card instanceof HTMLElement) {
+      card.focus({ preventScroll: true });
+    }
+    this.#selectTimelineEvent(key);
+  }
+
+  #handleEventCardKeydown(key: string, event: KeyboardEvent) {
+    if (event.defaultPrevented) return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const target = event.target;
+    if (target instanceof HTMLElement) {
+      if (target.isContentEditable) return;
+      const tagName = target.tagName;
+      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      this.#selectTimelineEvent(key);
+      return;
+    }
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      this.#requestDeleteForKey(key);
+    }
+  }
+
   #renderTimelineEvent = (event: TimelineEvent): TemplateResult => {
     const timelineEvent = event as CalendarTimelineEvent;
-    const originalRange = formatShortTimeRange(
-      this.lang,
-      timelineEvent.originalStart,
-      timelineEvent.originalEnd
-    );
+    const selected = this.#selectedEventKey === timelineEvent.key;
+    const timeLabel = timelineEvent.allDay
+      ? ""
+      : formatShortTimeRange(this.lang, timelineEvent.originalStart, timelineEvent.originalEnd);
+    // The card renders inside <time-line>'s shadow root, out of reach of this component's
+    // stylesheet, so the selection ring is applied inline.
+    const selectionStyle = selected
+      ? {
+          outline: "2px solid var(--_lc-event-accent-color, currentColor)",
+          "outline-offset": "1px",
+        }
+      : {};
     return html`
       <event-card
         layout="flow"
+        tabindex="0"
+        role="button"
+        aria-pressed=${selected ? "true" : "false"}
+        ?data-selected=${selected}
+        ?past=${timelineEvent.past}
+        ?recurring=${timelineEvent.recurring}
+        ?exception=${timelineEvent.exception}
+        style=${styleMap(selectionStyle)}
         .summary=${timelineEvent.summary}
         .location=${timelineEvent.location}
-        .time=${originalRange}
+        .time=${timeLabel}
         .color=${timelineEvent.color}
+        @click=${(clickEvent: MouseEvent) =>
+          this.#handleEventCardClick(timelineEvent.key, clickEvent)}
+        @keydown=${(keyEvent: KeyboardEvent) =>
+          this.#handleEventCardKeydown(timelineEvent.key, keyEvent)}
       ></event-card>
     `;
   };
 
-  render() {
-    const events = this.#timelineEvents;
+  #isWeekendDay(day: Temporal.PlainDate): boolean {
+    const weekend: readonly number[] = getLocaleWeekInfo(this.lang).weekend;
+    return weekend.includes(day.dayOfWeek);
+  }
+
+  /** Locale-aware weekday + day-number header per cell (today highlight, month-outside dimming). */
+  #dayHeaderTemplate = (cellIndex: number): TemplateResult => {
+    const day = this.#gridStartDate.add({ days: cellIndex });
+    const isMonthMode = this.mode === "month";
+    const anchor = this.#parsedStartDate;
+    const outsideMonth = isMonthMode && (day.month !== anchor.month || day.year !== anchor.year);
+    const isToday = Temporal.PlainDate.compare(day, this.#currentDateTime.toPlainDate()) === 0;
+    const isWeekend = this.#isWeekendDay(day);
+    // Month mode: weekday names only on the first row (like the grid month header).
+    const showWeekday = !isMonthMode || cellIndex < this.#resolvedColumns;
+    const weekdayLabel = showWeekday
+      ? new Intl.DateTimeFormat(this.lang, { weekday: "short" }).format(
+          new Date(Date.UTC(day.year, day.month - 1, day.day))
+        )
+      : "";
+    const dayNumber = new Intl.NumberFormat(this.lang).format(day.day);
+    const headerStyle = [
+      DAY_HEADER_STYLE,
+      outsideMonth ? "opacity:0.45" : "",
+      isWeekend && !outsideMonth
+        ? "color:var(--lc-weekend-day-label-color, light-dark(rgb(15 23 42 / 64%), rgb(255 255 255 / 66%)))"
+        : "",
+    ]
+      .filter(Boolean)
+      .join(";");
+    return html`
+      <div style=${headerStyle} aria-hidden="true">
+        ${weekdayLabel ? html`<span>${weekdayLabel}</span>` : nothing}
+        <span style=${isToday ? DAY_NUMBER_TODAY_STYLE : DAY_NUMBER_STYLE}>${dayNumber}</span>
+      </div>
+    `;
+  };
+
+  /** "+N more" affordance for clipped cells (height="auto" horizontal layouts, e.g. month mode). */
+  #overflowFooterTemplate = (
+    cellIndex: number,
+    visibleEvents: TimelineEvent[],
+    allCellEvents: TimelineEvent[]
+  ): TemplateResult => {
+    const hiddenCount = allCellEvents.length - visibleEvents.length;
+    if (hiddenCount <= 0) return html``;
+    const day = this.#gridStartDate.add({ days: cellIndex });
+    const popoverId = `timeline-day-overflow-${cellIndex}`;
+    const anchorName = `--timeline-day-overflow-anchor-${cellIndex}`;
+    const active = this.#activeOverflowCellIndex === cellIndex;
+    const popoverEvents: DayOverflowPopoverEvent[] = active
+      ? (allCellEvents as CalendarTimelineEvent[]).map((ev) => ({
+          id: ev.key,
+          start: ev.allDay ? ev.originalStart.toPlainDate().toString() : ev.originalStart.toString(),
+          end: ev.allDay ? ev.originalEnd.toPlainDate().toString() : ev.originalEnd.toString(),
+          summary: ev.summary,
+          color: ev.color,
+          hidden: false,
+        }))
+      : [];
+    const fullDateLabel = new Intl.DateTimeFormat(this.lang, { dateStyle: "full" }).format(
+      new Date(Date.UTC(day.year, day.month - 1, day.day))
+    );
+    const isMonthMode = this.mode === "month";
+    const anchor = this.#parsedStartDate;
+    // Keep edge-column popovers on screen: anchor them towards the grid instead of centering.
+    const columns = this.#resolvedColumns;
+    const columnIndex = cellIndex % columns;
+    const physicalColumnIndex =
+      this.resolveDirection(this.rtl) === "rtl" ? columns - 1 - columnIndex : columnIndex;
+    const inlineAlign =
+      physicalColumnIndex === 0 ? "start" : physicalColumnIndex === columns - 1 ? "end" : undefined;
+    return html`
+      <button
+        type="button"
+        style=${`${OVERFLOW_BUTTON_STYLE};anchor-name:${anchorName}`}
+        aria-haspopup="dialog"
+        .ariaLabel=${`Show all ${allCellEvents.length} events on ${fullDateLabel}`}
+        popovertarget=${popoverId}
+        popovertargetaction="toggle"
+        @click=${() => this.#prepareOverflowPopover(cellIndex)}
+      >
+        +${new Intl.NumberFormat(this.lang).format(hiddenCount)} more
+      </button>
+      <day-overflow-popover
+        id=${popoverId}
+        popover="auto"
+        role="dialog"
+        data-inline-align=${ifDefined(inlineAlign)}
+        .ariaLabel=${`Events on ${fullDateLabel}`}
+        style=${styleMap({
+          "position-anchor": anchorName,
+          "--_lc-all-day-day-number-space": "36px",
+        })}
+        .dayIso=${day.toString()}
+        .dayLabel=${new Intl.NumberFormat(this.lang).format(day.day)}
+        ?is-current-day=${Temporal.PlainDate.compare(day, this.#currentDateTime.toPlainDate()) ===
+        0}
+        ?outside-visible-month=${isMonthMode &&
+        (day.month !== anchor.month || day.year !== anchor.year)}
+        ?is-weekend=${this.#isWeekendDay(day)}
+        .events=${popoverEvents}
+        @toggle=${(event: Event) => this.#handleOverflowPopoverToggle(cellIndex, event)}
+        @select=${this.#handleOverflowPopoverSelect}
+        @delete=${this.#handleOverflowPopoverDelete}
+      ></day-overflow-popover>
+    `;
+  };
+
+  #prepareOverflowPopover(cellIndex: number) {
+    if (this.#activeOverflowCellIndex === cellIndex) return;
+    this.#activeOverflowCellIndex = cellIndex;
+    this.requestUpdate();
+  }
+
+  #handleOverflowPopoverToggle(cellIndex: number, event: Event) {
+    const newState = (event as ToggleEvent).newState;
+    if (newState === "open" && this.#activeOverflowCellIndex !== cellIndex) {
+      this.#activeOverflowCellIndex = cellIndex;
+      this.requestUpdate();
+      return;
+    }
+    if (newState === "closed" && this.#activeOverflowCellIndex === cellIndex) {
+      this.#activeOverflowCellIndex = null;
+      this.requestUpdate();
+    }
+  }
+
+  /** DayOverflowPopover re-emits `select`/`delete` with the inner event element as detail. */
+  #eventKeyFromPopoverDetail(event: Event): string | null {
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (detail && typeof detail === "object" && "eventId" in detail) {
+      const key = (detail as { eventId?: unknown }).eventId;
+      if (typeof key === "string" && key) return key;
+    }
+    return null;
+  }
+
+  #handleOverflowPopoverSelect = (event: Event) => {
+    const key = this.#eventKeyFromPopoverDetail(event);
+    if (key) this.#selectTimelineEvent(key);
+  };
+
+  #handleOverflowPopoverDelete = (event: Event) => {
+    const key = this.#eventKeyFromPopoverDetail(event);
+    if (key) this.#requestDeleteForKey(key);
+  };
+
+  /** Overflow footer applies where TimeLine clips lanes: horizontal flow + height auto. */
+  get #showOverflowFooter(): boolean {
+    return (
+      this.#resolvedFlow === "horizontal" &&
+      this.#resolvedHeight === "auto" &&
+      (this.#resolvedLayout === "timeline" || this.#resolvedLayout === "masonry")
+    );
+  }
+
+  /** All-day filtering for the single-timeline render paths (month, standalone all-day, gantt). */
+  get #filteredEntries(): [string, ApiCalendarEvent][] {
+    const entries = this.#renderedEntries;
+    const filter = resolveTimelineEventFilter(this.variant, this.#resolvedVariant);
+    if (filter === "all-day-only") {
+      return entries.filter(([, event]) => event.data.allDay === true);
+    }
+    if (filter === "timed-only") {
+      return entries.filter(([, event]) => event.data.allDay !== true);
+    }
+    return entries;
+  }
+
+  #renderSingleTimeline(variant: TimelineVariant): TemplateResult {
+    const events = this.#mapTimelineEvents(this.#filteredEntries, variant);
+    if (variant === "all-day") {
+      this.#renderedAllDayEvents = events;
+      this.#renderedTimedEvents = [];
+    } else {
+      this.#renderedTimedEvents = events;
+      this.#renderedAllDayEvents = [];
+    }
+    const unitsPerDay = this.#resolvedTimelineMax;
+    const step = variant === "all-day" ? unitsPerDay : this.#resolvedTimelineStep;
     return html`
       <time-line
+        class="timeline-main"
         .events=${events}
         .cells=${this.#resolvedNumDays}
         .columns=${this.#resolvedColumns}
-        .max=${this.#resolvedTimelineMax}
-        .step=${this.#resolvedTimelineStep}
-        .flow=${this.timelineFlow}
-        .layout=${this.timelineLayout}
-        .height=${this.timelineHeight === "auto" ? "auto" : undefined}
+        .max=${unitsPerDay}
+        .step=${step}
+        .flow=${this.#resolvedFlow}
+        .layout=${this.#resolvedLayout}
+        .height=${this.#resolvedHeight}
+        .markers=${variant === "timed" ? this.#currentTimeMarkers : []}
         .eventTemplate=${this.#renderTimelineEvent}
+        .headerTemplate=${this.#dayHeaderTemplate}
+        .footerTemplate=${this.#showOverflowFooter ? this.#overflowFooterTemplate : undefined}
+        @timeline-event-move=${(event: Event) => this.#handleTimelineMoveCommit(event, variant)}
+        @timeline-event-resize=${(event: Event) =>
+          this.#handleTimelineResizeCommit(event, variant)}
+        @timeline-event-create=${(event: Event) => this.#handleTimelineCreate(event, variant)}
       ></time-line>
+    `;
+  }
+
+  /**
+   * Day/week composition: time sidebar + timed timeline, with the all-day row above it when
+   * `allDayRow` is opted in (grid-week parity). Without the row, all-day events are hidden and
+   * a header-only strip keeps the day labels aligned with the timed columns.
+   */
+  #renderComposedVertical(): TemplateResult {
+    const showAllDayRow = this.allDayRow === true;
+    const entries = this.#renderedEntries;
+    const timedEntries = entries.filter(([, event]) => event.data.allDay !== true);
+    const allDayEntries = showAllDayRow
+      ? entries.filter(([, event]) => event.data.allDay === true)
+      : [];
+    const allDayEvents = this.#mapTimelineEvents(allDayEntries, "all-day");
+    const timedEvents = this.#mapTimelineEvents(timedEntries, "timed");
+    this.#renderedAllDayEvents = allDayEvents;
+    this.#renderedTimedEvents = timedEvents;
+
+    const numDays = this.#resolvedNumDays;
+    const unitsPerDay = this.#resolvedTimelineMax;
+    const visible = this.#resolvedVisibleHours;
+    const { windowStart, windowEnd } = visibleHoursWindow(
+      unitsPerDay,
+      visible?.hours,
+      visible?.startHour
+    );
+
+    const allDayRowTemplate = showAllDayRow
+      ? html`
+          <time-line
+            class="timeline-all-day"
+            .events=${allDayEvents}
+            .cells=${numDays}
+            .columns=${numDays}
+            .max=${unitsPerDay}
+            .step=${unitsPerDay}
+            flow="horizontal"
+            layout="masonry"
+            height="auto"
+            .eventTemplate=${this.#renderTimelineEvent}
+            .headerTemplate=${this.#dayHeaderTemplate}
+            @timeline-event-move=${(event: Event) =>
+              this.#handleTimelineMoveCommit(event, "all-day")}
+            @timeline-event-resize=${(event: Event) =>
+              this.#handleTimelineResizeCommit(event, "all-day")}
+            @timeline-event-create=${(event: Event) =>
+              this.#handleTimelineCreate(event, "all-day")}
+          ></time-line>
+        `
+      : html`
+          <time-line
+            class="timeline-all-day timeline-all-day--header-only"
+            .events=${[]}
+            .cells=${numDays}
+            .columns=${numDays}
+            .max=${unitsPerDay}
+            .step=${unitsPerDay}
+            flow="horizontal"
+            layout="masonry"
+            height="auto"
+            .headerTemplate=${this.#dayHeaderTemplate}
+          ></time-line>
+        `;
+
+    return html`
+      <calendar-time-sidebar
+        class="timeline-sidebar"
+        .lang=${this.lang}
+        .hours=${visible?.hours ?? 24}
+        .startHour=${visible?.startHour ?? 0}
+      ></calendar-time-sidebar>
+      <div class="timeline-all-day-shell">${allDayRowTemplate}</div>
+      <time-line
+        class="timeline-timed"
+        .events=${timedEvents}
+        .cells=${numDays}
+        .columns=${numDays}
+        .max=${unitsPerDay}
+        .step=${this.#resolvedTimelineStep}
+        .flow=${"vertical" as const}
+        .layout=${this.#resolvedLayout}
+        .windowStart=${windowStart}
+        .windowEnd=${windowEnd}
+        .markers=${this.#currentTimeMarkers}
+        .eventTemplate=${this.#renderTimelineEvent}
+        @timeline-event-move=${(event: Event) => this.#handleTimelineMoveCommit(event, "timed")}
+        @timeline-event-resize=${(event: Event) =>
+          this.#handleTimelineResizeCommit(event, "timed")}
+        @timeline-event-create=${(event: Event) => this.#handleTimelineCreate(event, "timed")}
+      ></time-line>
+    `;
+  }
+
+  render() {
+    const direction = this.resolveDirection(this.rtl);
+    if (this.#composedVertical) {
+      return html`
+        <div class="timeline-layout timeline-layout--composed" dir=${direction}>
+          ${this.#renderComposedVertical()}
+        </div>
+      `;
+    }
+    return html`
+      <div class="timeline-layout" dir=${direction}>
+        ${this.#renderSingleTimeline(this.#resolvedVariant)}
+      </div>
     `;
   }
 }

@@ -10,11 +10,58 @@
 }
 
 time-line {
+  /* Current-time indicator uses the same calendar token as the grid stack. */
+  --time-line-marker-color: var(--lc-higlight-color, #ff0000);
+}
+
+.timeline-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+time-line.timeline-main {
   flex: 1 1 auto;
   min-height: 0;
 }
 
-.calendar-timeline-view__header {
-  font: 600 0.75rem/1.2 system-ui, sans-serif;
-  color: var(--lc-muted-text-color, #64748b);
+/* Day/week composition: sidebar column beside a stack of all-day row + timed timeline.
+   The sidebar spans only the timed row, so its hour labels align with the timed cells. */
+.timeline-layout--composed {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.timeline-sidebar {
+  grid-column: 1;
+  grid-row: 2;
+  --_lc-time-sidebar-inline-padding: 6px;
+}
+
+.timeline-all-day-shell {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 0;
+}
+
+/* Keep at least one event lane of empty drag surface so all-day drag-to-create works on days
+   without events (TimeLine collapses empty height="auto" cells otherwise), while the row still
+   grows when overlapping events stack more lanes: TimeLine combines this floor with the
+   per-cell lane stack inside its own stylesheet (see --cell-min-height in TimeLine.css). */
+time-line.timeline-all-day {
+  --cell-min-height: var(--event-height, 32px);
+}
+
+/* All-day row disabled (default): the strip only carries the day headers, so collapse the
+   empty event lane / drag surface entirely (no floor → auto-height cells collapse). */
+time-line.timeline-all-day.timeline-all-day--header-only {
+  --cell-min-height: initial;
+}
+
+time-line.timeline-timed {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 0;
 }
