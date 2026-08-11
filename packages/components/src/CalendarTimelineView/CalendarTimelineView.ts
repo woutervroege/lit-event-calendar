@@ -721,42 +721,24 @@ export class CalendarTimelineView extends CalendarViewBase {
   }
 
   /**
-   * Card time label; while a gesture preview is active the numeric range converts back through
-   * the timeline scale so the label tracks the drag live. All-day presentations (and all-day
-   * events) preview at day granularity — their axis values are day-snapped, so a time-of-day
-   * label would be meaningless there.
+   * Card time label; while a gesture preview is active in timed presentations the numeric range
+   * converts back through the timeline scale so the label tracks the drag live. Day-snapped
+   * contexts keep their normal label during gestures: a day-snapped move never changes the time
+   * of day on month chips, and true all-day events show no time — their changing day span is
+   * already visible geometrically.
    */
   #timelineEventTimeLabel(
     variant: TimelineVariant,
     timelineEvent: CalendarTimelineEvent,
     preview?: TimelineEventPreviewRange
   ): string {
-    if (preview) {
+    const daySnapped = variant === "all-day" || timelineEvent.allDay;
+    if (preview && !daySnapped) {
       const range = fromTimelineRange(preview.start, preview.end, this.#scale);
-      if (variant === "all-day" || timelineEvent.allDay) {
-        return this.#formatDayRangeLabel(range.start, range.end);
-      }
       return formatShortTimeRange(this.lang, range.start, range.end);
     }
     if (timelineEvent.allDay) return "";
     return formatShortTimeRange(this.lang, timelineEvent.originalStart, timelineEvent.originalEnd);
-  }
-
-  /** Day-granularity label for all-day gesture previews ("Jan 7" or "Jan 7 – Jan 9"). */
-  #formatDayRangeLabel(
-    start: Temporal.PlainDateTime,
-    endExclusive: Temporal.PlainDateTime
-  ): string {
-    const startDay = start.toPlainDate();
-    // The preview end is exclusive (midnight after the last day); step back a hair for the
-    // inclusive last day, clamped so degenerate ranges still label a single day.
-    let lastDay = endExclusive.subtract({ nanoseconds: 1 }).toPlainDate();
-    if (Temporal.PlainDate.compare(lastDay, startDay) < 0) lastDay = startDay;
-    const formatter = new Intl.DateTimeFormat(this.lang, { month: "short", day: "numeric" });
-    const format = (day: Temporal.PlainDate) =>
-      formatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)));
-    if (Temporal.PlainDate.compare(startDay, lastDay) === 0) return format(startDay);
-    return `${format(startDay)} - ${format(lastDay)}`;
   }
 
   /** Stable per-variant template references so <time-line> props keep their identity. */
@@ -810,7 +792,11 @@ export class CalendarTimelineView extends CalendarViewBase {
     return weekend.includes(day.dayOfWeek);
   }
 
-  /** Locale-aware weekday + day-number header per cell (today highlight, month-outside dimming). */
+  /**
+   * Per-cell day header (today highlight, month-outside dimming). Day/week/gantt show a
+   * locale-aware weekday name + day number; month mode shows only the day number, with the
+   * short month name on each month's 1st.
+   */
   #dayHeaderTemplate = (cellIndex: number): TemplateResult => {
     const day = this.#gridStartDate.add({ days: cellIndex });
     const isMonthMode = this.mode === "month";
@@ -818,14 +804,19 @@ export class CalendarTimelineView extends CalendarViewBase {
     const outsideMonth = isMonthMode && (day.month !== anchor.month || day.year !== anchor.year);
     const isToday = Temporal.PlainDate.compare(day, this.#currentDateTime.toPlainDate()) === 0;
     const isWeekend = this.#isWeekendDay(day);
-    // Month mode: weekday names only on the first row (like the grid month header).
-    const showWeekday = !isMonthMode || cellIndex < this.#resolvedColumns;
-    const weekdayLabel = showWeekday
-      ? new Intl.DateTimeFormat(this.lang, { weekday: "short" }).format(
+    // Month mode renders no weekday names (a weekday header row composes outside the view);
+    // instead, the 1st of each month labels the month boundary ("Aug 1", locale-ordered).
+    const weekdayLabel = isMonthMode
+      ? ""
+      : new Intl.DateTimeFormat(this.lang, { weekday: "short" }).format(
           new Date(Date.UTC(day.year, day.month - 1, day.day))
-        )
-      : "";
-    const dayNumber = new Intl.NumberFormat(this.lang).format(day.day);
+        );
+    const dayNumber =
+      isMonthMode && day.day === 1
+        ? new Intl.DateTimeFormat(this.lang, { month: "short", day: "numeric" }).format(
+            new Date(Date.UTC(day.year, day.month - 1, day.day))
+          )
+        : new Intl.NumberFormat(this.lang).format(day.day);
     const headerStyle = [
       DAY_HEADER_STYLE,
       outsideMonth ? "opacity:0.45" : "",
