@@ -124,21 +124,62 @@ const DAY_NUMBER_TODAY_STYLE = [
   "font-weight:600",
 ].join(";");
 
+/* Ported from the grid month view's overflow affordance (CalendarGridView.css:
+ * `.day-overflow-button` / `.day-overflow-dots` / `.day-overflow-dot`): colored per-event
+ * dots next to the "+N more" count, ghost hover background and a focus ring. */
 const OVERFLOW_BUTTON_STYLE = [
   "pointer-events:auto",
   "appearance:none",
   "border:0",
-  "background:transparent",
   "cursor:pointer",
-  "display:block",
+  "display:flex",
+  "align-items:center",
+  "justify-content:flex-start",
+  "gap:5px",
   "width:100%",
+  "min-height:24px",
+  "margin:0",
+  "padding:2px 8px",
+  "border-radius:4px",
+  "font-size:12px",
+  "font-weight:500",
+  "line-height:1",
+  "white-space:nowrap",
+  "overflow:hidden",
+  "text-overflow:ellipsis",
   "text-align:start",
-  "padding:2px 6px 4px",
-  "font-size:11px",
-  "font-weight:600",
-  "line-height:1.2",
-  "color:var(--lc-muted-text-color, #64748b)",
+  "user-select:none",
+  "color:var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)))",
 ].join(";");
+
+const OVERFLOW_DOTS_STYLE = ["display:inline-flex", "align-items:center", "gap:3px", "flex:none"].join(
+  ";"
+);
+
+const OVERFLOW_DOT_STYLE = [
+  "width:7px",
+  "height:7px",
+  "border-radius:var(--lc-event-card-radius, 4px)",
+  "opacity:0.85",
+  "flex:none",
+].join(";");
+
+/* Hover/focus states cannot be expressed inline; this small sheet renders with the footer
+ * inside <time-line>'s shadow root (same ghost hover + focus ring as the grid's button).
+ * The background lives here too — an inline `background` would outrank the state rules. */
+const OVERFLOW_BUTTON_STATE_CSS = `
+  .day-overflow-button {
+    background: transparent;
+  }
+  .day-overflow-button:hover:not(:focus-visible) {
+    background-color: var(--_lc-grid-ghost-color, light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%)));
+  }
+  .day-overflow-button:focus-visible {
+    background-color: var(--_lc-grid-ghost-color, light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%)));
+    outline: 2px solid light-dark(rgb(15 23 42 / 92%), rgb(255 255 255 / 96%));
+    outline-offset: -2px;
+  }
+`;
 
 @customElement("calendar-timeline-view")
 export class CalendarTimelineView extends CalendarViewBase {
@@ -761,6 +802,12 @@ export class CalendarTimelineView extends CalendarViewBase {
   ): TemplateResult => {
     const hiddenCount = allCellEvents.length - visibleEvents.length;
     if (hiddenCount <= 0) return html``;
+    const visibleKeys = new Set(
+      (visibleEvents as CalendarTimelineEvent[]).map((visibleEvent) => visibleEvent.key)
+    );
+    const hiddenEvents = (allCellEvents as CalendarTimelineEvent[]).filter(
+      (cellEvent) => !visibleKeys.has(cellEvent.key)
+    );
     const day = this.#gridStartDate.add({ days: cellIndex });
     const popoverId = `timeline-day-overflow-${cellIndex}`;
     const anchorName = `--timeline-day-overflow-anchor-${cellIndex}`;
@@ -788,8 +835,10 @@ export class CalendarTimelineView extends CalendarViewBase {
     const inlineAlign =
       physicalColumnIndex === 0 ? "start" : physicalColumnIndex === columns - 1 ? "end" : undefined;
     return html`
+      <style>${OVERFLOW_BUTTON_STATE_CSS}</style>
       <button
         type="button"
+        class="day-overflow-button"
         style=${`${OVERFLOW_BUTTON_STYLE};anchor-name:${anchorName}`}
         aria-haspopup="dialog"
         .ariaLabel=${`Show all ${allCellEvents.length} events on ${fullDateLabel}`}
@@ -797,7 +846,8 @@ export class CalendarTimelineView extends CalendarViewBase {
         popovertargetaction="toggle"
         @click=${() => this.#prepareOverflowPopover(cellIndex)}
       >
-        +${new Intl.NumberFormat(this.lang).format(hiddenCount)} more
+        ${this.#renderOverflowDots(hiddenEvents, hiddenCount)}
+        <span>+${new Intl.NumberFormat(this.lang).format(hiddenCount)} more</span>
       </button>
       <day-overflow-popover
         id=${popoverId}
@@ -823,6 +873,33 @@ export class CalendarTimelineView extends CalendarViewBase {
       ></day-overflow-popover>
     `;
   };
+
+  /** Grid-parity dots: one per unique hidden-event color, falling back to currentColor. */
+  #renderOverflowDots(hiddenEvents: CalendarTimelineEvent[], hiddenCount: number): TemplateResult {
+    const colors: string[] = [];
+    const seenColors = new Set<string>();
+    for (const hiddenEvent of hiddenEvents) {
+      const color = hiddenEvent.color;
+      if (!color || seenColors.has(color)) continue;
+      seenColors.add(color);
+      colors.push(color);
+    }
+    const shownColors = colors.slice(0, hiddenCount);
+    return html`
+      <span style=${OVERFLOW_DOTS_STYLE} aria-hidden="true">
+        ${
+          shownColors.length
+            ? shownColors.map(
+                (color) => html`<span style=${`${OVERFLOW_DOT_STYLE};background-color:${color}`}></span>`
+              )
+            : Array.from(
+                { length: hiddenCount },
+                () => html`<span style=${`${OVERFLOW_DOT_STYLE};background-color:currentColor`}></span>`
+              )
+        }
+      </span>
+    `;
+  }
 
   #prepareOverflowPopover(cellIndex: number) {
     if (this.#activeOverflowCellIndex === cellIndex) return;
@@ -959,6 +1036,7 @@ export class CalendarTimelineView extends CalendarViewBase {
             height="auto"
             .eventTemplate=${this.#renderTimelineEvent}
             .headerTemplate=${this.#dayHeaderTemplate}
+            .footerTemplate=${this.#overflowFooterTemplate}
             @timeline-event-move=${(event: Event) =>
               this.#handleTimelineMoveCommit(event, "all-day")}
             @timeline-event-resize=${(event: Event) =>
