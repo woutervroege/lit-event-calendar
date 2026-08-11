@@ -38,6 +38,13 @@ time-line.timeline-main {
   grid-column: 1;
   grid-row: 2;
   --_lc-time-sidebar-inline-padding: 6px;
+  /* Center each hour label on the timed timeline's hour gridlines (grid-week parity):
+     the timed <time-line>'s .viewport carries a 0.5px border, so its gridline area is 1px
+     shorter than this sidebar and starts 0.5px lower — match that height, then pull the
+     rows up by half the 12px label height so label centers land on the 1px lines. */
+  --_lc-time-sidebar-timed-height: calc(100% - 1px);
+  --_lc-time-sidebar-timed-top-offset: -6px;
+  --_lc-hour-labels-margin-top: 0px;
 }
 
 .timeline-all-day-shell {
