@@ -24,10 +24,15 @@ export function formatShortTimeRange(
   return `${startLabel} - ${endLabel}`;
 }
 
-export function getHourlyTimeLabels(lang: string | null | undefined, hours = 24): string[] {
+export function getHourlyTimeLabels(
+  lang: string | null | undefined,
+  hours = 24,
+  startHour = 0
+): string[] {
   const clampedHours = Math.max(0, Math.floor(Number(hours) || 0));
+  const base = Math.max(0, Math.floor(Number(startHour) || 0));
 
-  return Array.from({ length: clampedHours }, (_, hour) =>
-    formatShortTime(lang, Temporal.PlainTime.from({ hour, minute: 0 }))
+  return Array.from({ length: clampedHours }, (_, index) =>
+    formatShortTime(lang, Temporal.PlainTime.from({ hour: (base + index) % 24, minute: 0 }))
   );
 }

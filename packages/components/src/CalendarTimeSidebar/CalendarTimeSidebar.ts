@@ -10,11 +10,14 @@ export class CalendarTimeSidebar extends BaseElement {
   lang = "";
   /** Raw property value; `get hours()` clamps to 1–24. */
   #hoursRaw = 24;
+  /** Raw property value; `get startHour()` clamps to 0–23. */
+  #startHourRaw = 0;
 
   static get properties() {
     return {
       lang: { type: String },
       hours: { type: Number },
+      startHour: { type: Number, attribute: "start-hour" },
     } as const;
   }
 
@@ -36,11 +39,27 @@ export class CalendarTimeSidebar extends BaseElement {
     this.requestUpdate("hours", previous);
   }
 
+  /** First labelled hour (default 0); with `hours < 24` this shows a sub-range like 08:00–20:00. */
+  get startHour(): number {
+    const parsed = Number(this.#startHourRaw);
+    return !Number.isFinite(parsed) ? 0 : Math.max(0, Math.min(23, Math.floor(parsed)));
+  }
+
+  set startHour(value: number | string | null | undefined) {
+    const n = Number(value);
+    const next = Number.isFinite(n) ? n : NaN;
+    if (Object.is(next, this.#startHourRaw)) return;
+    const previous = this.#startHourRaw;
+    this.#startHourRaw = next;
+    this.requestUpdate("startHour", previous);
+  }
+
   render() {
     const direction = getLocaleDirection(this.lang);
     const hours = this.hours;
-    const hourlyLabels = getHourlyTimeLabels(this.lang, hours);
-    const endLabel = getHourlyTimeLabels(this.lang, 1)[0] ?? "00:00";
+    const startHour = this.startHour;
+    const hourlyLabels = getHourlyTimeLabels(this.lang, hours, startHour);
+    const endLabel = getHourlyTimeLabels(this.lang, 1, startHour + hours)[0] ?? "00:00";
     const labels = [...hourlyLabels, endLabel];
     const hourSlots = Math.max(1, hours);
 
