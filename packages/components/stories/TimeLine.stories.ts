@@ -18,6 +18,22 @@ const verticalTimedEvents: TimelineEvent[] = [
   { start: 500, end: 870, label: "Event 4", color: "#fcf123" },
 ];
 
+const staggerDemoEvents: TimelineEvent[] = [
+  // Day 1: same-start pair (splits width) + a later overlap indented above both.
+  { start: 20, end: 70, label: "Standup A", color: "#3acf7a" },
+  { start: 20, end: 60, label: "Standup B", color: "#6495ed" },
+  { start: 40, end: 90, label: "Review (indent 2)", color: "#ff6347" },
+  // Day 2: cascade of later-and-later starts, each indenting one level deeper.
+  { start: 110, end: 195, label: "Focus block", color: "#3cb371" },
+  { start: 125, end: 180, label: "Call (indent 1)", color: "#ffa500" },
+  { start: 140, end: 170, label: "Sync (indent 2)", color: "#9b5de5" },
+  // Day 3/4: continuation — the cell-clamped start behaves like a start at the day boundary.
+  { start: 260, end: 340, label: "Crosses midnight", color: "#1e90ff" },
+  { start: 310, end: 360, label: "Morning overlap", color: "#e05add" },
+  // Day 5: no overlap, full width.
+  { start: 430, end: 480, label: "Solo", color: "#64748b" },
+];
+
 const masonryDemoEvents: TimelineEvent[] = [
   { start: 0, end: 1385, label: "Atlas (full grid)", color: "#ff6347" },
   { start: 12, end: 92, label: "Bravo", color: "#ff7f50" },
@@ -140,6 +156,32 @@ export const VerticalTimed: Story = {
     el.cells = 7;
     el.columns = 7;
     syncTimeLineEventsFromGestures(el, verticalTimedEvents);
+    el.style.flex = "1";
+    el.style.minHeight = "280px";
+    wrap.append(title, el);
+    return wrap;
+  },
+};
+
+export const VerticalStagger: Story = {
+  name: "Vertical (stagger, calendar-style overlaps)",
+  render: () => {
+    const wrap = document.createElement("div");
+    wrap.style.cssText =
+      "box-sizing:border-box;padding:16px;height:100%;min-height:360px;display:flex;flex-direction:column;gap:8px;";
+    const title = document.createElement("h2");
+    title.style.cssText = "margin:0;font:600 1rem system-ui,sans-serif;";
+    title.textContent =
+      "Vertical · stagger — same-start events split the width; later-starting overlaps indent " +
+      "(--time-line-stagger-indent, 12px per level) and stack on top";
+    const el = createTimeLine();
+    el.flow = "vertical";
+    el.layout = "stagger";
+    el.step = 5;
+    el.max = 100;
+    el.cells = 7;
+    el.columns = 7;
+    syncTimeLineEventsFromGestures(el, staggerDemoEvents);
     el.style.flex = "1";
     el.style.minHeight = "280px";
     wrap.append(title, el);

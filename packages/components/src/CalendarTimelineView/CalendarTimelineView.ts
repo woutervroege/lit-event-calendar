@@ -21,6 +21,7 @@ import {
 } from "../types/calendarEventSemantics.js";
 import type { DayOverflowPopoverEvent } from "../types/DayOverflowPopover.js";
 import type {
+  TimeLineLayout,
   TimelineEvent,
   TimelineEventCreateDetail,
   TimelineEventMoveCommitDetail,
@@ -50,7 +51,7 @@ export type CalendarTimelineViewMode = "day" | "week" | "month" | "gantt";
 type TimelineVariant = "timed" | "all-day";
 
 type TimelineFlow = "vertical" | "horizontal";
-type TimelineLayout = "default" | "timeline" | "masonry";
+type TimelineLayout = TimeLineLayout;
 
 type ModePreset = {
   numDays: number;
@@ -63,8 +64,8 @@ type ModePreset = {
 };
 
 const MODE_PRESETS: Record<CalendarTimelineViewMode, ModePreset> = {
-  day: { numDays: 1, flow: "vertical", layout: "masonry", variant: "timed" },
-  week: { numDays: 7, flow: "vertical", layout: "masonry", variant: "timed" },
+  day: { numDays: 1, flow: "vertical", layout: "stagger", variant: "timed" },
+  week: { numDays: 7, flow: "vertical", layout: "stagger", variant: "timed" },
   month: {
     numDays: 42,
     columns: 7,
@@ -370,7 +371,8 @@ export class CalendarTimelineView extends CalendarViewBase {
     if (
       this.timelineLayout === "default" ||
       this.timelineLayout === "timeline" ||
-      this.timelineLayout === "masonry"
+      this.timelineLayout === "masonry" ||
+      this.timelineLayout === "stagger"
     ) {
       return this.timelineLayout;
     }
@@ -985,7 +987,9 @@ export class CalendarTimelineView extends CalendarViewBase {
     return (
       this.#resolvedFlow === "horizontal" &&
       this.#resolvedHeight === "auto" &&
-      (this.#resolvedLayout === "timeline" || this.#resolvedLayout === "masonry")
+      (this.#resolvedLayout === "timeline" ||
+        this.#resolvedLayout === "masonry" ||
+        this.#resolvedLayout === "stagger")
     );
   }
 

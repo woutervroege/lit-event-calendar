@@ -100,9 +100,11 @@
   background-position: 100% 0;
 }
 
+/* Overlay z-order (events < create-preview < dragging < marker) leaves headroom below 500 so
+   stagger depths (z = 2 + depth per overlap level) can never climb past the overlays. */
 .marker {
   position: absolute;
-  z-index: 5;
+  z-index: 700;
   pointer-events: none;
 }
 
@@ -125,7 +127,7 @@
 /* Drag-to-create preview (placeholder look; positioned like an event segment). */
 .create-preview {
   position: absolute;
-  z-index: 3;
+  z-index: 500;
   pointer-events: none;
   border-radius: 4px;
   background: var(--time-line-create-preview-background, light-dark(rgb(59 130 246 / 0.18), rgb(96 165 250 / 0.25)));
@@ -163,7 +165,7 @@
 
 .event.event--dragging {
   cursor: grabbing;
-  z-index: 4;
+  z-index: 600;
 }
 
 /* Time axis in vertical flow: % on top/bottom resolve against .cell-main height (not margin-% which uses width). */
@@ -182,6 +184,31 @@
   inset-inline-end: calc((var(--__lane-count, 1) - var(--__lane, 0) - 1) * 100% / var(--__lane-count, 1));
 }
 
+/* Vertical stagger (calendar-style overlaps, see `verticalCellStaggerLayouts` in TimeLine.ts):
+   same-start events split the width via the lane vars (indent is 0 there); a later-starting
+   overlap keeps --__lane-count 1 and shifts by --__indent overlap levels at the inline start,
+   stacking above the earlier events (z = 2 + depth) so their summaries stay readable. */
+:host([flow="vertical"][layout="stagger"]) .event {
+  inset-inline-start: calc(
+    var(--__lane, 0) *
+    100% /
+    var(--__lane-count, 1) +
+    var(--__indent, 0) *
+    var(--time-line-stagger-indent, 12px)
+  );
+  inset-inline-end: calc(
+    (var(--__lane-count, 1) - var(--__lane, 0) - 1) *
+    100% /
+    var(--__lane-count, 1)
+  );
+  z-index: calc(2 + var(--__indent, 0));
+}
+
+/* The :host([...]) rule above outranks `.event--dragging`; keep the dragged event on top. */
+:host([flow="vertical"][layout="stagger"]) .event.event--dragging {
+  z-index: 600;
+}
+
 :host([flow="horizontal"]) .event {
   top: 0;
   min-height: var(--__event-height);
@@ -191,8 +218,11 @@
   inset-inline-end: var(--__end);
 }
 
+/* Horizontal flow has no stagger geometry; [layout="stagger"] falls back to masonry lanes
+   (see `horizLaneMode` in TimeLine.ts), so it shares the horizontal lane rules below. */
 :host([flow="horizontal"][layout="timeline"]) .cell-main,
-:host([flow="horizontal"][layout="masonry"]) .cell-main {
+:host([flow="horizontal"][layout="masonry"]) .cell-main,
+:host([flow="horizontal"][layout="stagger"]) .cell-main {
   min-height: var(--cell-height, var(--__lane-stack));
 }
 
@@ -204,12 +234,14 @@
    substituting it on the host would resolve --__lane-stack to its fallback before the per-cell
    value exists. */
 :host([flow="horizontal"][height="auto"][layout="timeline"]) .cell-main,
-:host([flow="horizontal"][height="auto"][layout="masonry"]) .cell-main {
+:host([flow="horizontal"][height="auto"][layout="masonry"]) .cell-main,
+:host([flow="horizontal"][height="auto"][layout="stagger"]) .cell-main {
   min-height: max(var(--cell-min-height), var(--__lane-stack, 0px));
 }
 
 :host([flow="horizontal"][layout="timeline"]) .event,
-:host([flow="horizontal"][layout="masonry"]) .event {
+:host([flow="horizontal"][layout="masonry"]) .event,
+:host([flow="horizontal"][layout="stagger"]) .event {
   top: calc(var(--__lane, 0) * var(--__event-height));
   min-height: var(--__event-height);
   max-height: var(--__event-height);

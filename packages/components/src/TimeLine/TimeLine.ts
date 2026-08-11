@@ -10,6 +10,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import componentStyle from "./TimeLine.css?inline";
 import "../ResizeHandle/ResizeHandle";
 import type {
+  TimeLineLayout,
   TimelineEvent,
   TimelineEventCreateDetail,
   TimelineEventMoveCommitDetail,
@@ -17,6 +18,7 @@ import type {
   TimelineEventResizeCommitDetail,
   TimelineResizeEdge,
 } from "../types/TimeLine";
+import { computeStaggerLayout } from "./StaggerLayout";
 
 type TimelineResizeSession = {
   pointerId: number;
@@ -71,7 +73,17 @@ type TimelineCellEventSegment = {
   showResizeEnd: boolean;
 };
 
-type LaneLayout = { laneCount: number; laneByEventIndex: number[] };
+type LaneLayout = {
+  laneCount: number;
+  laneByEventIndex: number[];
+  /** `stagger` only: per-event same-start group size (width divisor; overrides the cell value). */
+  laneCountByEventIndex?: number[];
+  /** `stagger` only: per-event indent depth (earlier-starting events still running). */
+  indentByEventIndex?: number[];
+};
+
+/** Non-`default` layouts that assign lanes / placement per event. */
+type LaneMode = Exclude<TimeLineLayout, "default">;
 
 type TimeLineGridLayout = {
   horiz: boolean;
@@ -121,9 +133,14 @@ export class TimeLine extends LitElement {
    * Horizontal: vertical lanes by time; vertical: horizontal columns by time.
    * `masonry`: pack overlaps into the fewest tracks — each event takes the lowest free lane at its
    * start (still-active intervals `end > start` share space evenly across that lane count).
+   * `stagger` (vertical flow): calendar-style overlaps — events with identical starts split the
+   * cell width evenly; a later-starting overlap keeps near-full width, indented at its inline
+   * start by `--time-line-stagger-indent` (default 12px) per still-active earlier event and
+   * stacked above it, so the earlier event's summary stays readable. Horizontal flow has no
+   * stagger geometry and falls back to `masonry` lanes.
    */
   @property({ type: String, reflect: true })
-  accessor layout: "default" | "timeline" | "masonry" = "default";
+  accessor layout: TimeLineLayout = "default";
 
   /** With horizontal `timeline` / `masonry`, omit event lanes that do not fit the cell (ResizeObserver). */
   @property({ type: String, reflect: true })
@@ -273,7 +290,7 @@ export class TimeLine extends LitElement {
     return (
       this.height === "auto" &&
       this.flow === "horizontal" &&
-      (this.layout === "timeline" || this.layout === "masonry")
+      (this.layout === "timeline" || this.layout === "masonry" || this.layout === "stagger")
     );
   }
 
@@ -1179,6 +1196,47 @@ export class TimeLine extends LitElement {
     return layouts;
   }
 
+  /**
+   * Per cell (vertical flow, `layout="stagger"`): same-start group split + stagger indent per
+   * event, computed on cell-clamped ranges so continuations from earlier cells behave like
+   * events starting at the cell boundary (grid-view parity). One `computeStaggerLayout` sweep
+   * per cell — O(k log k) in that cell's event count.
+   */
+  private verticalCellStaggerLayouts(
+    events: TimelineEvent[],
+    cellCount: number,
+    span: number,
+    gridMax: number
+  ): LaneLayout[] {
+    const layouts: LaneLayout[] = [];
+    for (let cell = 0; cell < cellCount; cell++) {
+      const t0 = cell * span;
+      const t1 = Math.min((cell + 1) * span, gridMax);
+      const indexes: number[] = [];
+      const clamped: { start: number; end: number }[] = [];
+      for (let i = 0; i < events.length; i++) {
+        const ev = events[i];
+        if (!ev || !this.eventOverlapsCell(ev, cell, span, gridMax)) continue;
+        indexes.push(i);
+        clamped.push({ start: Math.max(ev.start, t0), end: Math.min(ev.end, t1) });
+      }
+      const laneByEventIndex = new Array<number>(events.length);
+      const laneCountByEventIndex = new Array<number>(events.length);
+      const indentByEventIndex = new Array<number>(events.length);
+      const placements = computeStaggerLayout(clamped);
+      for (let j = 0; j < indexes.length; j++) {
+        const eventIndex = indexes[j] ?? 0;
+        const placement = placements[j];
+        if (!placement) continue;
+        laneByEventIndex[eventIndex] = placement.groupIndex;
+        laneCountByEventIndex[eventIndex] = placement.groupSize;
+        indentByEventIndex[eventIndex] = placement.indent;
+      }
+      layouts.push({ laneCount: 1, laneByEventIndex, laneCountByEventIndex, indentByEventIndex });
+    }
+    return layouts;
+  }
+
   #laneIndexForEvent(
     horiz: boolean,
     rl: LaneLayout | null | undefined,
@@ -1291,11 +1349,7 @@ export class TimeLine extends LitElement {
     return lane < effectiveCap;
   }
 
-  #cellLaneStackStyle(
-    horiz: boolean,
-    laneMode: "timeline" | "masonry" | null,
-    laneCount: number
-  ): string {
+  #cellLaneStackStyle(horiz: boolean, laneMode: LaneMode | null, laneCount: number): string {
     return horiz && laneMode ? ` --__lane-stack: calc(${laneCount} * var(--__event-height))` : "";
   }
 
@@ -1310,7 +1364,7 @@ export class TimeLine extends LitElement {
 
   #eventSegmentFragment(
     seg: TimelineCellEventSegment,
-    laneMode: "timeline" | "masonry" | null,
+    laneMode: LaneMode | null,
     horiz: boolean,
     rl: LaneLayout | null | undefined,
     vl: LaneLayout | null | undefined
@@ -1327,6 +1381,14 @@ export class TimeLine extends LitElement {
     const endPct = this.#axisPct(segEnd, w0, w1);
     const endInset =
       rowSpan > 0 ? `calc(-${rowSpan * 100}% + ${100 - endPct}%)` : `${100 - endPct}%`;
+    // Stagger (vertical only): per-event width divisor and indent depth; the per-event
+    // --__lane-count overrides the cell-level value.
+    const staggerVars =
+      !horiz && laneMode === "stagger"
+        ? `--__lane-count:${vl?.laneCountByEventIndex?.[index] ?? 1};--__indent:${
+            vl?.indentByEventIndex?.[index] ?? 0
+          };`
+        : "";
 
     return html`
       <div
@@ -1336,6 +1398,7 @@ export class TimeLine extends LitElement {
         @pointerdown=${this.#onEventBodyPointerDown}
         style="
         --__lane:${lane};
+        ${staggerVars}
         --__start:${this.#axisPct(segStart, w0, w1)}%;
         --__end:${endInset};
       "
@@ -1403,7 +1466,7 @@ export class TimeLine extends LitElement {
     cols: number,
     horiz: boolean,
     clip: boolean,
-    laneMode: "timeline" | "masonry" | null,
+    laneMode: LaneMode | null,
     rl: LaneLayout | null,
     vl: LaneLayout | null
   ) {
@@ -1505,17 +1568,22 @@ export class TimeLine extends LitElement {
     // (layoutEvents) follows the live preview. Lanes recompute normally after commit/cancel.
     const gestureActive = this.#resizeSession !== null || this.#moveSession !== null;
     const laneEvents = gestureActive ? this.events : layoutEvents;
-    const laneMode: "timeline" | "masonry" | null =
-      layoutEvents.length > 0 && (this.layout === "timeline" || this.layout === "masonry")
+    const laneMode: LaneMode | null =
+      layoutEvents.length > 0 &&
+      (this.layout === "timeline" || this.layout === "masonry" || this.layout === "stagger")
         ? this.layout
         : null;
+    // Stagger has no horizontal geometry (lanes are stacked rows there); fall back to masonry.
+    const horizLaneMode = laneMode === "stagger" ? "masonry" : laneMode;
     const rowLayouts =
-      horiz && laneMode
-        ? this.rowLaneLayouts(laneEvents, laneMode, cellCount, cols, span, gridMax)
+      horiz && horizLaneMode
+        ? this.rowLaneLayouts(laneEvents, horizLaneMode, cellCount, cols, span, gridMax)
         : [];
     const verticalCellLayouts =
       !horiz && laneMode
-        ? this.verticalCellLaneLayouts(laneEvents, laneMode, cellCount, span, gridMax)
+        ? laneMode === "stagger"
+          ? this.verticalCellStaggerLayouts(laneEvents, cellCount, span, gridMax)
+          : this.verticalCellLaneLayouts(laneEvents, laneMode, cellCount, span, gridMax)
         : [];
     const clip = this.laneClip();
 

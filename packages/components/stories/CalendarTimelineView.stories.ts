@@ -94,7 +94,10 @@ const meta: Meta = {
       description: "Explicit time-line step in raw axis units; overrides snapInterval when set.",
     },
     timelineFlow: { control: "select", options: [undefined, "vertical", "horizontal"] },
-    timelineLayout: { control: "select", options: [undefined, "default", "timeline", "masonry"] },
+    timelineLayout: {
+      control: "select",
+      options: [undefined, "default", "timeline", "masonry", "stagger"],
+    },
     timelineHeight: { control: "select", options: [undefined, "auto"] },
     visibleHours: {
       control: { type: "number", min: 1, max: 24 },
