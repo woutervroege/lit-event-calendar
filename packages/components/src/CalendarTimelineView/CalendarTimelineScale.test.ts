@@ -7,10 +7,12 @@ import {
   fromTimelineValue,
   resolveTimelineEventFilter,
   timelineGridMax,
+  timelineRangeOverlapsCell,
   toTimelineAllDayRange,
   toTimelineRange,
   toTimelineValue,
   visibleHoursWindow,
+  yearMonthStarts,
 } from "./CalendarTimelineScale.js";
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -194,6 +196,43 @@ describe("resolveTimelineEventFilter (per-presentation all-day filtering)", () =
 
   it("keeps only all-day events for the explicit standalone all-day variant", () => {
     expect(resolveTimelineEventFilter("all-day", "all-day")).toBe("all-day-only");
+  });
+});
+
+describe("yearMonthStarts (year-mode month windows)", () => {
+  it("returns the first day of all 12 months of the anchor's year", () => {
+    const months = yearMonthStarts(Temporal.PlainDate.from("2025-06-18"));
+    expect(months).toHaveLength(12);
+    expect(months[0]?.toString()).toBe("2025-01-01");
+    expect(months[5]?.toString()).toBe("2025-06-01");
+    expect(months[11]?.toString()).toBe("2025-12-01");
+    expect(months.every((month) => month.year === 2025 && month.day === 1)).toBe(true);
+  });
+
+  it("is anchored by year only (any day of the year yields the same windows)", () => {
+    const fromJanuary = yearMonthStarts(Temporal.PlainDate.from("2024-01-01"));
+    const fromLeapDay = yearMonthStarts(Temporal.PlainDate.from("2024-02-29"));
+    expect(fromJanuary.map(String)).toEqual(fromLeapDay.map(String));
+  });
+});
+
+describe("timelineRangeOverlapsCell (per-day-cell event lookup)", () => {
+  const units = MINUTES_PER_DAY;
+
+  it("matches ranges inside, spanning, and touching the cell", () => {
+    // Cell 2 spans [2 * units, 3 * units).
+    expect(timelineRangeOverlapsCell({ start: 2 * units, end: 3 * units }, 2, units)).toBe(true);
+    expect(
+      timelineRangeOverlapsCell({ start: 2 * units + 60, end: 2 * units + 120 }, 2, units)
+    ).toBe(true);
+    expect(timelineRangeOverlapsCell({ start: 0, end: 7 * units }, 2, units)).toBe(true);
+  });
+
+  it("treats ranges as [start, end): boundaries do not bleed into neighbours", () => {
+    const dayRange = { start: 1 * units, end: 2 * units };
+    expect(timelineRangeOverlapsCell(dayRange, 0, units)).toBe(false);
+    expect(timelineRangeOverlapsCell(dayRange, 1, units)).toBe(true);
+    expect(timelineRangeOverlapsCell(dayRange, 2, units)).toBe(false);
   });
 });
 

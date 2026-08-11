@@ -12,6 +12,24 @@
 time-line {
   /* Current-time indicator uses the same calendar token as the grid stack. */
   --time-line-marker-color: var(--lc-higlight-color, #ff0000);
+  /* Compact month flag: flipped by the lc-timeline-month container query below; inherits into
+     <time-line>'s shadow content so click handlers can read it via getComputedStyle (same
+     pattern as the grid's --_lc-compact-month-view). */
+  --_lc-timeline-compact-month: 0;
+}
+
+/* Month mode: the layout wrapper is the query container driving the compact treatment. Cells
+   are 1/7th of it, so 504px = 7 x 72px cells; keep in sync with COMPACT_MONTH_MAX_INLINE_SIZE
+   and the injected MONTH_DAY_HEADER_CSS in CalendarTimelineView.ts. Any month-mode instance
+   (composed by year mode or manually shrunk) degrades automatically. */
+.timeline-layout--month {
+  container: lc-timeline-month / inline-size;
+}
+
+@container lc-timeline-month (max-width: 504px) {
+  time-line.timeline-main {
+    --_lc-timeline-compact-month: 1;
+  }
 }
 
 .timeline-layout {
@@ -83,5 +101,65 @@ time-line.timeline-timed {
       var(--lc-grid-base-color, light-dark(#222, #fff)) 8%,
       var(--_lc-surface-bg, light-dark(#fff, #222))
     );
+  }
+}
+
+/* Year mode: responsive grid of twelve month-mode instances, mirroring the grid stack's
+   CalendarYearView layout (4/3/2/1 columns, month titles, square month blocks). */
+:host([mode="year"]) {
+  overflow: auto;
+  container: lc-timeline-year / inline-size;
+}
+
+.year-grid {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(var(--_lc-year-grid-effective-columns, 4), minmax(0, 1fr));
+  gap: var(--_lc-year-grid-gap, 64px);
+  width: 100%;
+  height: max-content;
+  min-height: 100%;
+  align-content: start;
+}
+
+.month-card {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+/* Square month blocks (grid-year parity); the outer-tree min-height wins over the nested
+   instance's own :host floor. */
+.month-card calendar-timeline-view {
+  aspect-ratio: 1 / 1;
+  height: auto;
+  min-height: 0;
+}
+
+.month-title {
+  margin: 0;
+  padding: 0 2px 14px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: start;
+  color: var(--lc-higlight-color, #ff0000);
+}
+
+@container lc-timeline-year (max-width: 1280px) {
+  .year-grid {
+    --_lc-year-grid-effective-columns: 3;
+  }
+}
+
+@container lc-timeline-year (max-width: 1040px) {
+  .year-grid {
+    --_lc-year-grid-effective-columns: 2;
+  }
+}
+
+@container lc-timeline-year (max-width: 512px) {
+  .year-grid {
+    --_lc-year-grid-effective-columns: 1;
   }
 }

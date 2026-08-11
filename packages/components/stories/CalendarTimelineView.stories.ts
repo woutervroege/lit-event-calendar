@@ -36,11 +36,12 @@ const meta: Meta = {
   argTypes: {
     mode: {
       control: "select",
-      options: [undefined, "day", "week", "month", "gantt"],
+      options: [undefined, "day", "week", "month", "gantt", "year"],
       description:
         "Preset configuring flow/layout/day count/variant; explicitly set props still win. " +
         "day/week/month show only timed events by default (gantt shows everything); " +
-        "see allDayRow for the composed day/week + all-day layout.",
+        "see allDayRow for the composed day/week + all-day layout. " +
+        "year composes 12 compact month grids for startDate's year.",
     },
     variant: {
       control: "select",
@@ -267,6 +268,26 @@ export const ModeMonth: Story = {
   },
   args: {
     mode: "month",
+    startDate: "2025-01-15",
+  },
+};
+
+export const ModeYear: Story = {
+  name: "Mode: year",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Twelve month-mode timelines (January–December of startDate's year) composed into " +
+          "the grid year view's responsive layout. Small month cells degrade automatically via " +
+          "container queries: no cell borders, centered day numbers, and event days marked with " +
+          "colored bullets. Clicking an event day opens its events popover; clicking an empty " +
+          "day emits day-selection.",
+      },
+    },
+  },
+  args: {
+    mode: "year",
     startDate: "2025-01-15",
   },
 };

@@ -36,17 +36,19 @@ import {
   fromTimelineRange,
   fromTimelineValue,
   resolveTimelineEventFilter,
+  timelineRangeOverlapsCell,
   toTimelineAllDayRange,
   toTimelineRange,
   toTimelineValue,
   visibleHoursWindow,
+  yearMonthStarts,
 } from "./CalendarTimelineScale.js";
 import componentStyle from "./CalendarTimelineView.css?inline";
 
 const MINUTES_PER_DAY = 24 * 60;
 const SECONDS_PER_DAY = MINUTES_PER_DAY * 60;
 
-export type CalendarTimelineViewMode = "day" | "week" | "month" | "gantt";
+export type CalendarTimelineViewMode = "day" | "week" | "month" | "gantt" | "year";
 
 type TimelineVariant = "timed" | "all-day";
 
@@ -63,7 +65,9 @@ type ModePreset = {
   variant: TimelineVariant;
 };
 
-const MODE_PRESETS: Record<CalendarTimelineViewMode, ModePreset> = {
+/* Year mode has no preset: it composes twelve month-mode instances instead of configuring
+ * a single <time-line> (see #renderYearGrid). */
+const MODE_PRESETS: Record<Exclude<CalendarTimelineViewMode, "year">, ModePreset> = {
   day: { numDays: 1, flow: "vertical", layout: "stagger", variant: "timed" },
   week: { numDays: 7, flow: "vertical", layout: "stagger", variant: "timed" },
   month: {
@@ -183,6 +187,135 @@ const OVERFLOW_BUTTON_STATE_CSS = `
   }
 `;
 
+/** Month cells narrower than this degrade to the compact (year-style) treatment. */
+const COMPACT_MONTH_CELL_MIN_WIDTH = 72;
+
+/**
+ * Compact query threshold on the month layout wrapper: 7 columns × the per-cell minimum.
+ * Must stay in sync with the `@container lc-timeline-month` query in CalendarTimelineView.css.
+ */
+const COMPACT_MONTH_MAX_INLINE_SIZE = 7 * COMPACT_MONTH_CELL_MIN_WIDTH;
+
+/* Month-mode day headers render inside <time-line>'s shadow root (like the overflow footer), so
+ * their chrome ships as an injected <style> with the cell-0 header. The base rules replicate the
+ * inline-styled day/week header look; the @container block is the compact treatment for tiny
+ * cells. The query container (`lc-timeline-month`) is the month layout wrapper in this
+ * component's own shadow root — container lookup follows the flat tree, so it resolves from
+ * inside <time-line>'s shadow root too. Compound selectors are used where TimeLine's own rules
+ * (adopted stylesheets sort after this tree <style>) must lose the tie. */
+const MONTH_DAY_HEADER_CSS = `
+  .timeline-day-header {
+    /* TimeLine's .viewport disables pointer events; re-enable for the interactive header
+       (same as the overflow footer button). */
+    pointer-events: auto;
+    appearance: none;
+    border: 0;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 24px;
+    padding: 3px 6px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    user-select: none;
+    text-align: start;
+    color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
+  }
+  .timeline-day-header:focus-visible {
+    outline: 2px solid light-dark(rgb(15 23 42 / 92%), rgb(255 255 255 / 96%));
+    outline-offset: -2px;
+    border-radius: 4px;
+  }
+  .timeline-day-header.is-outside-month {
+    opacity: 0.45;
+  }
+  .timeline-day-header.is-weekend:not(.is-outside-month) {
+    color: var(--lc-weekend-day-label-color, light-dark(rgb(15 23 42 / 64%), rgb(255 255 255 / 66%)));
+  }
+  .timeline-day-number {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+  }
+  .timeline-day-number.is-today {
+    background: var(--lc-higlight-color, #ff0000);
+    color: #fff;
+    font-weight: 600;
+  }
+  /* Keep the locale's spacing around the day number ("Jan 1"): flex items trim edge spaces. */
+  .timeline-day-month-prefix {
+    white-space: pre;
+  }
+  /* Event-day bullets: hidden at regular size, shown by the compact treatment below. Absolute
+     under the day number so it stays perfectly centered in the compact cell. */
+  .timeline-day-dots {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+    gap: 3px;
+    margin-top: 1px;
+    pointer-events: none;
+  }
+  .timeline-day-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    opacity: 0.9;
+    flex: none;
+  }
+
+  @container lc-timeline-month (max-width: ${COMPACT_MONTH_MAX_INLINE_SIZE}px) {
+    /* Chrome off: no outer border, no per-cell borders. */
+    div.viewport {
+      border: none;
+    }
+    .cells > .cell {
+      outline: none;
+    }
+    /* No chips, markers or drag-create surface in tiny cells; the "+N more" footer goes too. */
+    .cell > .cell-main,
+    .cell > .cell-footer {
+      display: none;
+    }
+    /* The header becomes the whole cell so the day number centers in it. */
+    .cell > .cell-header {
+      display: flex;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    .timeline-day-header {
+      flex: 1 1 auto;
+      justify-content: center;
+      gap: 0;
+      min-height: 0;
+      padding: 0;
+    }
+    .timeline-day-month-prefix {
+      display: none;
+    }
+    .timeline-day-dots {
+      display: inline-flex;
+    }
+  }
+`;
+
 @customElement("calendar-timeline-view")
 export class CalendarTimelineView extends CalendarViewBase {
   /**
@@ -234,6 +367,8 @@ export class CalendarTimelineView extends CalendarViewBase {
   #suppressNextCardSelectTimeout: ReturnType<typeof setTimeout> | null = null;
   /** Cell whose overflow popover is (being) opened; its popover renders the full event list. */
   #activeOverflowCellIndex: number | null = null;
+  /** Cell whose compact-month day-header popover is (being) opened (month/year compact mode). */
+  #activeHeaderPopoverCellIndex: number | null = null;
 
   static get properties() {
     return {
@@ -836,6 +971,270 @@ export class CalendarTimelineView extends CalendarViewBase {
     `;
   };
 
+  /** Month-mode events overlapping day cell `cellIndex` in the latest render. */
+  #monthEventsForCell(cellIndex: number): CalendarTimelineEvent[] {
+    return this.#renderedEventsFor(this.#resolvedVariant).filter((timelineEvent) =>
+      timelineRangeOverlapsCell(timelineEvent, cellIndex, this.#resolvedTimelineMax)
+    );
+  }
+
+  /**
+   * Whether the month presentation is currently compact (tiny cells). The flag is a custom
+   * property flipped by the `lc-timeline-month` container query in CalendarTimelineView.css and
+   * inherits into <time-line>'s shadow content, so it can be read from the clicked element
+   * (same computed-style pattern as the grid's `--_lc-compact-month-view`).
+   */
+  #isCompactMonthPresentation(element: Element): boolean {
+    if (typeof getComputedStyle === "undefined") return false;
+    const raw = getComputedStyle(element).getPropertyValue("--_lc-timeline-compact-month");
+    const state = Number.parseFloat(raw.trim());
+    return Number.isFinite(state) && state >= 0.5;
+  }
+
+  /**
+   * Month/year day-number click: in the compact treatment a day with events opens its events
+   * popover; otherwise (empty compact day, or any regular-size day) it emits the grid views'
+   * `day-selection` event so the host can e.g. navigate to that day.
+   */
+  #handleMonthDayHeaderClick(cellIndex: number, day: Temporal.PlainDate, event: MouseEvent) {
+    const button = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    if (
+      button &&
+      this.#monthEventsForCell(cellIndex).length > 0 &&
+      this.#isCompactMonthPresentation(button)
+    ) {
+      this.#openHeaderPopover(cellIndex, button);
+      return;
+    }
+    // Buttons synthesize click for Enter/Space (event.detail === 0), covering keyboard too.
+    const keyboard = event.detail === 0;
+    this.dispatchEvent(
+      new CustomEvent("day-selection", {
+        detail: {
+          date: day.toString(),
+          dayIndex: cellIndex,
+          trigger: keyboard ? "keyboard" : "click",
+          pointerType: keyboard ? "keyboard" : "mouse",
+          sourceEvent: event,
+        },
+      })
+    );
+  }
+
+  #openHeaderPopover(cellIndex: number, button: HTMLElement) {
+    if (this.#activeHeaderPopoverCellIndex !== cellIndex) {
+      this.#activeHeaderPopoverCellIndex = cellIndex;
+      this.requestUpdate();
+    }
+    // The popover renders as the button's next sibling (see #monthDayHeaderTemplate).
+    const popover = button.nextElementSibling;
+    if (
+      popover instanceof HTMLElement &&
+      typeof popover.showPopover === "function" &&
+      !popover.matches(":popover-open")
+    ) {
+      this.#setHeaderPopoverInlineAlign(popover, button);
+      popover.showPopover();
+    }
+  }
+
+  /**
+   * Viewport-aware inline alignment (grid parity: `#setOverflowPopoverInlineAlign` in
+   * CalendarGridView). The footer's column heuristic assumes a full-width month; in the year
+   * grid a month card can sit anywhere, so measure against the viewport at open time instead.
+   */
+  #setHeaderPopoverInlineAlign(popover: HTMLElement, button: HTMLElement) {
+    const anchorRect = button.getBoundingClientRect();
+    const anchorCenterX = (anchorRect.left + anchorRect.right) / 2;
+    const popoverWidth = this.#measurePopoverWidth(popover);
+    const viewportMarginPx = 12;
+    const availableLeft = anchorCenterX - viewportMarginPx;
+    const availableRight = window.innerWidth - viewportMarginPx - anchorCenterX;
+    const needsHalfWidth = popoverWidth / 2;
+    if (availableLeft >= needsHalfWidth && availableRight >= needsHalfWidth) {
+      popover.removeAttribute("data-inline-align");
+      return;
+    }
+    popover.setAttribute(
+      "data-inline-align",
+      anchorCenterX < window.innerWidth / 2 ? "start" : "end"
+    );
+  }
+
+  #measurePopoverWidth(popover: HTMLElement): number {
+    if (popover.matches(":popover-open")) {
+      return popover.getBoundingClientRect().width;
+    }
+    popover.setAttribute("data-measuring", "");
+    const width = popover.getBoundingClientRect().width;
+    popover.removeAttribute("data-measuring");
+    return width;
+  }
+
+  #handleHeaderPopoverToggle(cellIndex: number, event: Event) {
+    const newState = (event as ToggleEvent).newState;
+    if (newState === "open" && this.#activeHeaderPopoverCellIndex !== cellIndex) {
+      this.#activeHeaderPopoverCellIndex = cellIndex;
+      this.requestUpdate();
+      return;
+    }
+    if (newState === "closed" && this.#activeHeaderPopoverCellIndex === cellIndex) {
+      this.#activeHeaderPopoverCellIndex = null;
+      (event.currentTarget as HTMLElement | null)?.removeAttribute("data-inline-align");
+      this.requestUpdate();
+    }
+  }
+
+  /** Popover payload for a day's events (shared by the overflow footer and compact header). */
+  #popoverEventsFor(events: CalendarTimelineEvent[]): DayOverflowPopoverEvent[] {
+    return events.map((ev) => ({
+      id: ev.key,
+      start: ev.allDay ? ev.originalStart.toPlainDate().toString() : ev.originalStart.toString(),
+      end: ev.allDay ? ev.originalEnd.toPlainDate().toString() : ev.originalEnd.toString(),
+      summary: ev.summary,
+      color: ev.color,
+      hidden: false,
+    }));
+  }
+
+  /** Keep edge-column popovers on screen: anchor them towards the grid instead of centering. */
+  #popoverInlineAlign(cellIndex: number): "start" | "end" | undefined {
+    const columns = this.#resolvedColumns;
+    const columnIndex = cellIndex % columns;
+    const physicalColumnIndex =
+      this.resolveDirection(this.rtl) === "rtl" ? columns - 1 - columnIndex : columnIndex;
+    return physicalColumnIndex === 0
+      ? "start"
+      : physicalColumnIndex === columns - 1
+        ? "end"
+        : undefined;
+  }
+
+  /** Up to three unique event colors marking an event day in the compact treatment. */
+  #dayDotColors(events: CalendarTimelineEvent[]): string[] {
+    const colors: string[] = [];
+    const seen = new Set<string>();
+    for (const dayEvent of events) {
+      const color = dayEvent.color || "currentColor";
+      if (seen.has(color)) continue;
+      seen.add(color);
+      colors.push(color);
+      if (colors.length === 3) break;
+    }
+    return colors;
+  }
+
+  /**
+   * Month-mode day header: an interactive day-number button (grid-view parity: click/Enter/Space
+   * emit `day-selection`; in the compact treatment event days open their events popover instead).
+   * Styled by the injected MONTH_DAY_HEADER_CSS sheet, which also carries the container-query
+   * compact treatment; the sheet ships once with cell 0.
+   */
+  #monthDayHeaderTemplate = (cellIndex: number): TemplateResult => {
+    const day = this.#gridStartDate.add({ days: cellIndex });
+    const anchor = this.#parsedStartDate;
+    const outsideMonth = day.month !== anchor.month || day.year !== anchor.year;
+    const isToday = Temporal.PlainDate.compare(day, this.#currentDateTime.toPlainDate()) === 0;
+    const isWeekend = this.#isWeekendDay(day);
+    const dayDate = new Date(Date.UTC(day.year, day.month - 1, day.day));
+    // The 1st of each month labels the month boundary ("Aug 1", locale-ordered); the non-day
+    // parts collapse into prefix/suffix spans (white-space: pre keeps their spacing inside the
+    // inline-flex pill) so the compact treatment can hide them.
+    const dayNumberContent = (() => {
+      if (day.day !== 1) return html`${new Intl.NumberFormat(this.lang).format(day.day)}`;
+      const parts = new Intl.DateTimeFormat(this.lang, {
+        month: "short",
+        day: "numeric",
+      }).formatToParts(dayDate);
+      const dayPartIndex = parts.findIndex((part) => part.type === "day");
+      const before = parts
+        .slice(0, dayPartIndex)
+        .map((part) => part.value)
+        .join("");
+      const dayText = parts[dayPartIndex]?.value ?? String(day.day);
+      const after = parts
+        .slice(dayPartIndex + 1)
+        .map((part) => part.value)
+        .join("");
+      return html`${
+        before ? html`<span class="timeline-day-month-prefix">${before}</span>` : nothing
+      }<span>${dayText}</span>${
+        after ? html`<span class="timeline-day-month-prefix">${after}</span>` : nothing
+      }`;
+    })();
+    const dayEvents = this.#monthEventsForCell(cellIndex);
+    const dotColors = this.#dayDotColors(dayEvents);
+    const fullDateLabel = new Intl.DateTimeFormat(this.lang, { dateStyle: "full" }).format(
+      dayDate
+    );
+    const popoverId = `timeline-day-header-popover-${cellIndex}`;
+    const anchorName = `--timeline-day-header-anchor-${cellIndex}`;
+    const active = this.#activeHeaderPopoverCellIndex === cellIndex;
+    const headerClasses = [
+      "timeline-day-header",
+      outsideMonth ? "is-outside-month" : "",
+      isWeekend ? "is-weekend" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return html`
+      ${cellIndex === 0 ? html`<style>${MONTH_DAY_HEADER_CSS}</style>` : nothing}
+      <button
+        type="button"
+        class=${headerClasses}
+        style=${`anchor-name:${anchorName}`}
+        .ariaLabel=${fullDateLabel}
+        .ariaCurrent=${isToday ? "date" : null}
+        @click=${(clickEvent: MouseEvent) =>
+          this.#handleMonthDayHeaderClick(cellIndex, day, clickEvent)}
+      >
+        <span class="timeline-day-number ${isToday ? "is-today" : ""}">
+          ${dayNumberContent}
+          ${
+            dotColors.length
+              ? html`
+                  <span class="timeline-day-dots" aria-hidden="true">
+                    ${dotColors.map(
+                      (color) =>
+                        html`<span
+                          class="timeline-day-dot"
+                          style=${`background-color:${color}`}
+                        ></span>`
+                    )}
+                  </span>
+                `
+              : nothing
+          }
+        </span>
+      </button>
+      ${
+        dayEvents.length
+          ? html`
+              <day-overflow-popover
+                id=${popoverId}
+                popover="auto"
+                role="dialog"
+                .ariaLabel=${`Events on ${fullDateLabel}`}
+                style=${styleMap({
+                  "position-anchor": anchorName,
+                  "--_lc-all-day-day-number-space": "36px",
+                })}
+                .dayIso=${day.toString()}
+                .dayLabel=${new Intl.NumberFormat(this.lang).format(day.day)}
+                ?is-current-day=${isToday}
+                ?outside-visible-month=${outsideMonth}
+                ?is-weekend=${isWeekend}
+                .events=${active ? this.#popoverEventsFor(dayEvents) : []}
+                @toggle=${(event: Event) => this.#handleHeaderPopoverToggle(cellIndex, event)}
+                @select=${this.#handleOverflowPopoverSelect}
+                @delete=${this.#handleOverflowPopoverDelete}
+              ></day-overflow-popover>
+            `
+          : nothing
+      }
+    `;
+  };
+
   /** "+N more" affordance for clipped cells (height="auto" horizontal layouts, e.g. month mode). */
   #overflowFooterTemplate = (
     cellIndex: number,
@@ -855,27 +1254,14 @@ export class CalendarTimelineView extends CalendarViewBase {
     const anchorName = `--timeline-day-overflow-anchor-${cellIndex}`;
     const active = this.#activeOverflowCellIndex === cellIndex;
     const popoverEvents: DayOverflowPopoverEvent[] = active
-      ? (allCellEvents as CalendarTimelineEvent[]).map((ev) => ({
-          id: ev.key,
-          start: ev.allDay ? ev.originalStart.toPlainDate().toString() : ev.originalStart.toString(),
-          end: ev.allDay ? ev.originalEnd.toPlainDate().toString() : ev.originalEnd.toString(),
-          summary: ev.summary,
-          color: ev.color,
-          hidden: false,
-        }))
+      ? this.#popoverEventsFor(allCellEvents as CalendarTimelineEvent[])
       : [];
     const fullDateLabel = new Intl.DateTimeFormat(this.lang, { dateStyle: "full" }).format(
       new Date(Date.UTC(day.year, day.month - 1, day.day))
     );
     const isMonthMode = this.mode === "month";
     const anchor = this.#parsedStartDate;
-    // Keep edge-column popovers on screen: anchor them towards the grid instead of centering.
-    const columns = this.#resolvedColumns;
-    const columnIndex = cellIndex % columns;
-    const physicalColumnIndex =
-      this.resolveDirection(this.rtl) === "rtl" ? columns - 1 - columnIndex : columnIndex;
-    const inlineAlign =
-      physicalColumnIndex === 0 ? "start" : physicalColumnIndex === columns - 1 ? "end" : undefined;
+    const inlineAlign = this.#popoverInlineAlign(cellIndex);
     return html`
       <style>${OVERFLOW_BUTTON_STATE_CSS}</style>
       <button
@@ -1032,7 +1418,9 @@ export class CalendarTimelineView extends CalendarViewBase {
         .eventTemplate=${variant === "all-day"
           ? this.#renderAllDayTimelineEvent
           : this.#renderTimedTimelineEvent}
-        .headerTemplate=${this.#dayHeaderTemplate}
+        .headerTemplate=${this.mode === "month"
+          ? this.#monthDayHeaderTemplate
+          : this.#dayHeaderTemplate}
         .footerTemplate=${this.#showOverflowFooter ? this.#overflowFooterTemplate : undefined}
         @timeline-event-move=${(event: Event) => this.#handleTimelineMoveCommit(event, variant)}
         @timeline-event-resize=${(event: Event) =>
@@ -1136,8 +1524,54 @@ export class CalendarTimelineView extends CalendarViewBase {
     `;
   }
 
+  /**
+   * Year mode: twelve month-mode instances (January … December of `startDate`'s year) composed
+   * into the grid year view's responsive layout. Each instance brings the full month machinery
+   * (42-cell window, day chips, overflow popovers) and degrades to the compact treatment on its
+   * own via the container query, so this stays chrome-free: no sidebar, no all-day row, and the
+   * compact cells expose no drag surface.
+   */
+  #renderYearGrid(direction: "ltr" | "rtl"): TemplateResult {
+    const monthFormatter = new Intl.DateTimeFormat(this.lang, { month: "long" });
+    return html`
+      <div class="year-grid" dir=${direction}>
+        ${yearMonthStarts(this.#parsedStartDate).map(
+          (firstOfMonth) => html`
+            <section class="month-card">
+              <h3 class="month-title">
+                ${monthFormatter.format(
+                  new Date(Date.UTC(firstOfMonth.year, firstOfMonth.month - 1, 1))
+                )}
+              </h3>
+              <calendar-timeline-view
+                mode="month"
+                .startDate=${firstOfMonth.toString()}
+                .events=${this.events}
+                .lang=${this.lang}
+                .timezone=${this.timezone}
+                .currentTime=${this.currentTime}
+                .weekStart=${this.weekStart}
+                .defaultEventSummary=${this.defaultEventSummary}
+                .selectedCalendarId=${this.selectedCalendarId}
+                ?rtl=${this.rtl}
+                @day-selection=${this.forwardCalendarEvent}
+                @event-created=${this.forwardCalendarEvent}
+                @event-selected=${this.forwardCalendarEvent}
+                @event-updated=${this.forwardCalendarEvent}
+                @event-deleted=${this.forwardCalendarEvent}
+              ></calendar-timeline-view>
+            </section>
+          `
+        )}
+      </div>
+    `;
+  }
+
   render() {
     const direction = this.resolveDirection(this.rtl);
+    if (this.mode === "year") {
+      return this.#renderYearGrid(direction);
+    }
     if (this.#composedVertical) {
       return html`
         <div class="timeline-layout timeline-layout--composed" dir=${direction}>
@@ -1145,8 +1579,9 @@ export class CalendarTimelineView extends CalendarViewBase {
         </div>
       `;
     }
+    const monthClass = this.mode === "month" ? " timeline-layout--month" : "";
     return html`
-      <div class="timeline-layout" dir=${direction}>
+      <div class="timeline-layout${monthClass}" dir=${direction}>
         ${this.#renderSingleTimeline(this.#resolvedVariant)}
       </div>
     `;

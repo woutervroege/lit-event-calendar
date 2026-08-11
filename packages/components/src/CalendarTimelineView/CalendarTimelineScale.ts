@@ -131,6 +131,30 @@ export function alignedMonthGridStart(
 }
 
 /**
+ * First day of each month (January … December) of `anchor`'s calendar year — the twelve
+ * month-mode windows composed by the timeline year view.
+ */
+export function yearMonthStarts(anchor: Temporal.PlainDate): Temporal.PlainDate[] {
+  return Array.from({ length: 12 }, (_, index) =>
+    anchor.with({ month: index + 1, day: 1 })
+  );
+}
+
+/**
+ * Whether a numeric timeline range overlaps day cell `cellIndex`
+ * (cell `i` spans `[i * unitsPerDay, (i + 1) * unitsPerDay)`; ranges are `[start, end)`).
+ */
+export function timelineRangeOverlapsCell(
+  range: { start: number; end: number },
+  cellIndex: number,
+  unitsPerDay: number
+): boolean {
+  const units = Math.max(1, Number(unitsPerDay) || 1);
+  const cellStart = cellIndex * units;
+  return range.start < cellStart + units && range.end > cellStart;
+}
+
+/**
  * Maps the grid views' `visibleHours` concept (+ optional start hour) onto TimeLine's per-cell
  * axis window. Returns the full range (`start: 0, end: null`) when `visibleHours` is unset or
  * covers the whole day. Note the semantic difference: the grid scrolls the remaining hours into
