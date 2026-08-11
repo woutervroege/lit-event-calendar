@@ -64,4 +64,17 @@ time-line.timeline-timed {
   grid-column: 2;
   grid-row: 2;
   min-height: 0;
+  /* Hour gridlines: same look as the grid stack's timed horizontal lines
+     (CalendarGridView.css `--_lc-grid-line-color-horizontal`, timed variant). */
+  --time-line-grid-color: light-dark(rgb(231 235 241), rgb(84 90 101));
+}
+
+@supports (color: color-mix(in srgb, black, white)) {
+  time-line.timeline-timed {
+    --time-line-grid-color: color-mix(
+      in srgb,
+      var(--lc-grid-base-color, light-dark(#222, #fff)) 8%,
+      var(--_lc-surface-bg, light-dark(#fff, #222))
+    );
+  }
 }

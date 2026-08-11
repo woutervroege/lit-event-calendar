@@ -13,6 +13,7 @@ import type {
   TimelineEvent,
   TimelineEventCreateDetail,
   TimelineEventMoveCommitDetail,
+  TimelineEventPreviewRange,
   TimelineEventResizeCommitDetail,
   TimelineResizeEdge,
 } from "../types/TimeLine";
@@ -92,8 +93,16 @@ export class TimeLine extends LitElement {
   @property({ attribute: false })
   accessor headerTemplate: ((i: number) => TemplateResult) | undefined;
 
+  /**
+   * Renders event content. While a move/resize gesture is in progress, the dragged event is
+   * invoked with `preview` carrying the live numeric range so templates can show live labels;
+   * `ev` keeps the committed range.
+   */
   @property({ attribute: false })
-  accessor eventTemplate: (ev: TimelineEvent) => TemplateResult;
+  accessor eventTemplate: (
+    ev: TimelineEvent,
+    preview?: TimelineEventPreviewRange
+  ) => TemplateResult;
 
   @property({ attribute: false })
   accessor footerTemplate:
@@ -130,6 +139,16 @@ export class TimeLine extends LitElement {
    */
   @property({ type: Array })
   accessor markers: number[] = [];
+
+  /**
+   * Axis units between subdivision gridlines inside each cell, drawn perpendicular to the flow
+   * (horizontal lines in vertical flow, vertical lines in horizontal flow). `0` (default)
+   * disables them. Lines land on multiples of `gridInterval` on each cell's local `[0, max]`
+   * axis and respect the axis window, so they stay aligned with any composed axis labels.
+   * Themeable via `--time-line-grid-color`; they render behind events, markers and previews.
+   */
+  @property({ type: Number, attribute: "grid-interval" })
+  accessor gridInterval = 0;
 
   /**
    * Start of the visible sub-range of each cell's `[0, max]` axis. Defaults to 0.
@@ -197,6 +216,15 @@ export class TimeLine extends LitElement {
     this.#finishResizeGesture(session, e.clientX, e.clientY, e.type === "pointercancel");
   };
 
+  readonly #onResizeWindowKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    const session = this.#resizeSession;
+    if (!session) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.#finishResizeGesture(session, 0, 0, true);
+  };
+
   readonly #onMoveWindowPointerMove = (e: PointerEvent) => {
     const session = this.#moveSession;
     if (!session || e.pointerId !== session.pointerId) return;
@@ -208,6 +236,15 @@ export class TimeLine extends LitElement {
     const session = this.#moveSession;
     if (!session || e.pointerId !== session.pointerId) return;
     this.#finishMoveGesture(session, e.clientX, e.clientY, e.type === "pointercancel");
+  };
+
+  readonly #onMoveWindowKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    const session = this.#moveSession;
+    if (!session) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.#finishMoveGesture(session, 0, 0, true);
   };
 
   readonly #onCreateWindowPointerMove = (e: PointerEvent) => {
@@ -292,12 +329,14 @@ export class TimeLine extends LitElement {
     window.removeEventListener("pointermove", this.#onResizeWindowPointerMove, true);
     window.removeEventListener("pointerup", this.#onResizeWindowPointerEnd, true);
     window.removeEventListener("pointercancel", this.#onResizeWindowPointerEnd, true);
+    window.removeEventListener("keydown", this.#onResizeWindowKeyDown, true);
   }
 
   #detachMoveWindowListeners() {
     window.removeEventListener("pointermove", this.#onMoveWindowPointerMove, true);
     window.removeEventListener("pointerup", this.#onMoveWindowPointerEnd, true);
     window.removeEventListener("pointercancel", this.#onMoveWindowPointerEnd, true);
+    window.removeEventListener("keydown", this.#onMoveWindowKeyDown, true);
   }
 
   #detachCreateWindowListeners() {
@@ -329,12 +368,14 @@ export class TimeLine extends LitElement {
     window.addEventListener("pointermove", this.#onResizeWindowPointerMove, true);
     window.addEventListener("pointerup", this.#onResizeWindowPointerEnd, true);
     window.addEventListener("pointercancel", this.#onResizeWindowPointerEnd, true);
+    window.addEventListener("keydown", this.#onResizeWindowKeyDown, true);
   }
 
   #attachMoveWindowListeners() {
     window.addEventListener("pointermove", this.#onMoveWindowPointerMove, true);
     window.addEventListener("pointerup", this.#onMoveWindowPointerEnd, true);
     window.addEventListener("pointercancel", this.#onMoveWindowPointerEnd, true);
+    window.addEventListener("keydown", this.#onMoveWindowKeyDown, true);
   }
 
   #attachCreateWindowListeners() {
@@ -402,6 +443,30 @@ export class TimeLine extends LitElement {
   #axisPct(tLocal: number, w0: number, w1: number): number {
     const range = w1 - w0;
     return range > 0 ? ((tLocal - w0) / range) * 100 : 0;
+  }
+
+  /** Valid `gridInterval` (subdivision gridlines enabled), or 0 when disabled. */
+  #effectiveGridInterval(): number {
+    const interval = Number(this.gridInterval);
+    return Number.isFinite(interval) && interval > 0 ? interval : 0;
+  }
+
+  /**
+   * Inline custom properties driving the pure-CSS subdivision gridlines (see `.cell-main--grid`
+   * in TimeLine.css). The background tile is `gridInterval / windowRange` of the cell's axis;
+   * the line sits at the end of each tile, except when the window starts off-interval — then
+   * the phase shifts so lines keep landing on absolute multiples of `gridInterval`.
+   */
+  #gridLineVars(span: number): string {
+    const interval = this.#effectiveGridInterval();
+    if (!interval) return "";
+    const { w0, w1 } = this.#effectiveWindow(span);
+    const range = w1 - w0;
+    if (range <= 0) return "";
+    const sizePct = (interval / range) * 100;
+    const rem = ((w0 % interval) + interval) % interval;
+    const posPct = rem === 0 ? 100 : ((interval - rem) / interval) * 100;
+    return `;--__grid-size:${sizePct}%;--__grid-pos:${posPct}%`;
   }
 
   /**
@@ -1252,6 +1317,10 @@ export class TimeLine extends LitElement {
   ) {
     const { ev, index, segIndex, segStart, segEnd, rowSpan, showResizeStart, showResizeEnd } = seg;
     const draggingClass = this.draggingEventIndex === index ? " event--dragging" : "";
+    // Template contract: `templateEv` carries the committed range; the live gesture range (if
+    // any) travels separately so templates can render live-updating labels.
+    const preview = this.resizePreviewByIndex?.get(index);
+    const templateEv = this.events[index] ?? ev;
     const lane = laneMode ? this.#laneIndexForEvent(horiz, rl, vl, index) : 0;
     const span = this.max > 0 ? this.max : 1;
     const { w0, w1 } = this.#effectiveWindow(span);
@@ -1272,7 +1341,7 @@ export class TimeLine extends LitElement {
       "
       >
         ${showResizeStart ? this.#resizeHandleFragment("start", "Resize start") : nothing}
-        ${this.renderEventTemplate(ev)}
+        ${this.renderEventTemplate(templateEv, preview)}
         ${showResizeEnd ? this.#resizeHandleFragment("end", "Resize end") : nothing}
       </div>
     `;
@@ -1374,6 +1443,7 @@ export class TimeLine extends LitElement {
 
     const { w0, w1 } = this.#effectiveWindow(span);
     const windowed = w0 > 0 || w1 < span;
+    const gridClass = this.#effectiveGridInterval() > 0 && w1 > w0 ? " cell-main--grid" : "";
 
     return html`
       <div class="cell" data-cell=${cell} style="${laneVars}">
@@ -1383,7 +1453,7 @@ export class TimeLine extends LitElement {
             : nothing
         }
         <div
-          class="cell-main${windowed ? " cell-main--windowed" : ""}"
+          class="cell-main${windowed ? " cell-main--windowed" : ""}${gridClass}"
           @pointerdown=${this.#onCellMainPointerDown}
         >
           ${visibleCellEvents.map((seg) =>
@@ -1407,8 +1477,8 @@ export class TimeLine extends LitElement {
     return this.headerTemplate?.(i);
   }
 
-  renderEventTemplate(ev: TimelineEvent) {
-    return this.eventTemplate?.(ev);
+  renderEventTemplate(ev: TimelineEvent, preview?: TimelineEventPreviewRange) {
+    return this.eventTemplate?.(ev, preview);
   }
 
   renderFooterTemplate(
@@ -1429,24 +1499,30 @@ export class TimeLine extends LitElement {
     const cols = Math.max(1, this.columns);
     const horiz = this.flow === "horizontal";
     const layoutEvents = this.#eventsForLayout();
+    // While a move/resize gesture is active, lane packing runs on the pre-drag ranges
+    // (`this.events`), which stay unchanged until the commit on pointerup. Every event —
+    // including the dragged one — keeps its gesture-start lane; only the geometry
+    // (layoutEvents) follows the live preview. Lanes recompute normally after commit/cancel.
+    const gestureActive = this.#resizeSession !== null || this.#moveSession !== null;
+    const laneEvents = gestureActive ? this.events : layoutEvents;
     const laneMode: "timeline" | "masonry" | null =
       layoutEvents.length > 0 && (this.layout === "timeline" || this.layout === "masonry")
         ? this.layout
         : null;
     const rowLayouts =
       horiz && laneMode
-        ? this.rowLaneLayouts(layoutEvents, laneMode, cellCount, cols, span, gridMax)
+        ? this.rowLaneLayouts(laneEvents, laneMode, cellCount, cols, span, gridMax)
         : [];
     const verticalCellLayouts =
       !horiz && laneMode
-        ? this.verticalCellLaneLayouts(layoutEvents, laneMode, cellCount, span, gridMax)
+        ? this.verticalCellLaneLayouts(laneEvents, laneMode, cellCount, span, gridMax)
         : [];
     const clip = this.laneClip();
 
     return html`
       <div
         class="viewport"
-        style="--time-line-grid-rows: repeat(${this.columns}, 1fr)"
+        style="--time-line-grid-rows: repeat(${this.columns}, 1fr)${this.#gridLineVars(span)}"
       >
         <div class="cells">
           ${cellIndexes.map((cell) => {

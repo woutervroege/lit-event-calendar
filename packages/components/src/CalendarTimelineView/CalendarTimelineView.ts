@@ -24,6 +24,7 @@ import type {
   TimelineEvent,
   TimelineEventCreateDetail,
   TimelineEventMoveCommitDetail,
+  TimelineEventPreviewRange,
   TimelineEventResizeCommitDetail,
 } from "../types/TimeLine.js";
 import "../TimeLine/TimeLine.js";
@@ -719,12 +720,60 @@ export class CalendarTimelineView extends CalendarViewBase {
     }
   }
 
-  #renderTimelineEvent = (event: TimelineEvent): TemplateResult => {
+  /**
+   * Card time label; while a gesture preview is active the numeric range converts back through
+   * the timeline scale so the label tracks the drag live. All-day presentations (and all-day
+   * events) preview at day granularity — their axis values are day-snapped, so a time-of-day
+   * label would be meaningless there.
+   */
+  #timelineEventTimeLabel(
+    variant: TimelineVariant,
+    timelineEvent: CalendarTimelineEvent,
+    preview?: TimelineEventPreviewRange
+  ): string {
+    if (preview) {
+      const range = fromTimelineRange(preview.start, preview.end, this.#scale);
+      if (variant === "all-day" || timelineEvent.allDay) {
+        return this.#formatDayRangeLabel(range.start, range.end);
+      }
+      return formatShortTimeRange(this.lang, range.start, range.end);
+    }
+    if (timelineEvent.allDay) return "";
+    return formatShortTimeRange(this.lang, timelineEvent.originalStart, timelineEvent.originalEnd);
+  }
+
+  /** Day-granularity label for all-day gesture previews ("Jan 7" or "Jan 7 – Jan 9"). */
+  #formatDayRangeLabel(
+    start: Temporal.PlainDateTime,
+    endExclusive: Temporal.PlainDateTime
+  ): string {
+    const startDay = start.toPlainDate();
+    // The preview end is exclusive (midnight after the last day); step back a hair for the
+    // inclusive last day, clamped so degenerate ranges still label a single day.
+    let lastDay = endExclusive.subtract({ nanoseconds: 1 }).toPlainDate();
+    if (Temporal.PlainDate.compare(lastDay, startDay) < 0) lastDay = startDay;
+    const formatter = new Intl.DateTimeFormat(this.lang, { month: "short", day: "numeric" });
+    const format = (day: Temporal.PlainDate) =>
+      formatter.format(new Date(Date.UTC(day.year, day.month - 1, day.day)));
+    if (Temporal.PlainDate.compare(startDay, lastDay) === 0) return format(startDay);
+    return `${format(startDay)} - ${format(lastDay)}`;
+  }
+
+  /** Stable per-variant template references so <time-line> props keep their identity. */
+  #renderTimedTimelineEvent = (event: TimelineEvent, preview?: TimelineEventPreviewRange) =>
+    this.#renderTimelineEvent("timed", event, preview);
+
+  #renderAllDayTimelineEvent = (event: TimelineEvent, preview?: TimelineEventPreviewRange) =>
+    this.#renderTimelineEvent("all-day", event, preview);
+
+  #renderTimelineEvent(
+    variant: TimelineVariant,
+    event: TimelineEvent,
+    preview?: TimelineEventPreviewRange
+  ): TemplateResult {
     const timelineEvent = event as CalendarTimelineEvent;
     const selected = this.#selectedEventKey === timelineEvent.key;
-    const timeLabel = timelineEvent.allDay
-      ? ""
-      : formatShortTimeRange(this.lang, timelineEvent.originalStart, timelineEvent.originalEnd);
+    const timeLabel = this.#timelineEventTimeLabel(variant, timelineEvent, preview);
     // The card renders inside <time-line>'s shadow root, out of reach of this component's
     // stylesheet, so the selection ring is applied inline.
     const selectionStyle = selected
@@ -754,7 +803,7 @@ export class CalendarTimelineView extends CalendarViewBase {
           this.#handleEventCardKeydown(timelineEvent.key, keyEvent)}
       ></event-card>
     `;
-  };
+  }
 
   #isWeekendDay(day: Temporal.PlainDate): boolean {
     const weekend: readonly number[] = getLocaleWeekInfo(this.lang).weekend;
@@ -985,7 +1034,9 @@ export class CalendarTimelineView extends CalendarViewBase {
         .layout=${this.#resolvedLayout}
         .height=${this.#resolvedHeight}
         .markers=${variant === "timed" ? this.#currentTimeMarkers : []}
-        .eventTemplate=${this.#renderTimelineEvent}
+        .eventTemplate=${variant === "all-day"
+          ? this.#renderAllDayTimelineEvent
+          : this.#renderTimedTimelineEvent}
         .headerTemplate=${this.#dayHeaderTemplate}
         .footerTemplate=${this.#showOverflowFooter ? this.#overflowFooterTemplate : undefined}
         @timeline-event-move=${(event: Event) => this.#handleTimelineMoveCommit(event, variant)}
@@ -1034,7 +1085,7 @@ export class CalendarTimelineView extends CalendarViewBase {
             flow="horizontal"
             layout="masonry"
             height="auto"
-            .eventTemplate=${this.#renderTimelineEvent}
+            .eventTemplate=${this.#renderAllDayTimelineEvent}
             .headerTemplate=${this.#dayHeaderTemplate}
             .footerTemplate=${this.#overflowFooterTemplate}
             @timeline-event-move=${(event: Event) =>
@@ -1077,10 +1128,11 @@ export class CalendarTimelineView extends CalendarViewBase {
         .step=${this.#resolvedTimelineStep}
         .flow=${"vertical" as const}
         .layout=${this.#resolvedLayout}
+        .gridInterval=${unitsPerDay / 24}
         .windowStart=${windowStart}
         .windowEnd=${windowEnd}
         .markers=${this.#currentTimeMarkers}
-        .eventTemplate=${this.#renderTimelineEvent}
+        .eventTemplate=${this.#renderTimedTimelineEvent}
         @timeline-event-move=${(event: Event) => this.#handleTimelineMoveCommit(event, "timed")}
         @timeline-event-resize=${(event: Event) =>
           this.#handleTimelineResizeCommit(event, "timed")}

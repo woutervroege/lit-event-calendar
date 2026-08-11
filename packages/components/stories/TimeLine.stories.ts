@@ -317,6 +317,52 @@ export const AxisWindow: Story = {
   },
 };
 
+export const GridLines: Story = {
+  name: "Grid lines (gridInterval)",
+  render: () => {
+    const wrap = document.createElement("div");
+    wrap.style.cssText =
+      "box-sizing:border-box;padding:16px;height:100%;min-height:360px;display:flex;flex-direction:column;gap:8px;";
+    const title = document.createElement("h2");
+    title.style.cssText = "margin:0;font:600 1rem system-ui,sans-serif;";
+    title.textContent =
+      "Vertical · gridInterval 25 on a [0, 100] axis → subdivision line every quarter cell";
+    const el = createTimeLine();
+    el.flow = "vertical";
+    el.layout = "masonry";
+    el.step = 5;
+    el.max = 100;
+    el.cells = 7;
+    el.columns = 7;
+    el.gridInterval = 25;
+    syncTimeLineEventsFromGestures(el, verticalTimedEvents);
+    el.style.flex = "1";
+    el.style.minHeight = "280px";
+
+    const windowTitle = document.createElement("h2");
+    windowTitle.style.cssText = "margin:8px 0 0;font:600 1rem system-ui,sans-serif;";
+    windowTitle.textContent =
+      "Vertical · window 30–90, gridInterval 25 → lines stay on absolute multiples (50, 75), themed via --time-line-grid-color";
+    const windowEl = createTimeLine();
+    windowEl.flow = "vertical";
+    windowEl.layout = "masonry";
+    windowEl.step = 5;
+    windowEl.max = 100;
+    windowEl.cells = 7;
+    windowEl.columns = 7;
+    windowEl.gridInterval = 25;
+    windowEl.windowStart = 30;
+    windowEl.windowEnd = 90;
+    windowEl.style.setProperty("--time-line-grid-color", "light-dark(#c7d2fe, #4338ca)");
+    syncTimeLineEventsFromGestures(windowEl, verticalTimedEvents);
+    windowEl.style.flex = "1";
+    windowEl.style.minHeight = "280px";
+
+    wrap.append(title, el, windowTitle, windowEl);
+    return wrap;
+  },
+};
+
 export const HorizontalTimeline: Story = {
   name: "Horizontal (timeline week view)",
   render: () => {
