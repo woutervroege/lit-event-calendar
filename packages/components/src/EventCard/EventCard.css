@@ -30,8 +30,11 @@
 
 :host([layout="flow"]) {
   @apply static block w-full touch-auto;
-  /* size (not inline-size): @container (max-height: …) must resolve against this host. */
-  container-type: size;
+  /* inline-size (not size): flow cards are sized by their content (e.g. list view rows), so
+     the host cannot answer its own height queries. @container (max-height: …) breakpoints
+     resolve against the nearest outer size container instead (e.g. TimeLine's .event wrapper);
+     without one they stay off and the card shows its full content. */
+  container-type: inline-size;
   container-name: event-card;
   min-height: 0;
   --_lc-event-recurring-icon-size: 14px;
@@ -167,7 +170,9 @@
     @apply flex gap-1 whitespace-nowrap;
   }
 
-  :host .event-card-heading {
+  /* Also listed with [layout="flow"] so the tighter padding outranks the flow base rule. */
+  :host .event-card-heading,
+  :host([layout="flow"]) .event-card-heading {
     @apply items-start overflow-hidden whitespace-nowrap text-ellipsis py-2;
   }
 
@@ -186,13 +191,22 @@
   }
 }
 
+/* Cards too short for the location line: keep summary + time, drop location. The location
+   line reveals last, once three text rows fit (~72px, same threshold as the grid stack). */
+@container (max-height: 71px) {
+  :host .event-card-location {
+    @apply hidden;
+  }
+}
+
 /* Smaller compact cards: tighten spacing to avoid vertical clipping. */
 @container (max-height: 31px) {
   :host {
     --_lc-event-recurring-icon-size: 11px;
   }
 
-  :host .event-card-heading {
+  :host .event-card-heading,
+  :host([layout="flow"]) .event-card-heading {
     @apply px-2 py-1.5;
   }
 

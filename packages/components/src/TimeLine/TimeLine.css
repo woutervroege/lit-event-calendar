@@ -57,6 +57,49 @@
   overflow: hidden;
 }
 
+/* Subdivision gridlines (gridInterval): pure-CSS 1px lines perpendicular to the flow.
+   Each background tile spans gridInterval of the visible axis window (--__grid-size, set
+   inline); the line is a 1px hard stop ending at --__grid-pos (100% = tile end, i.e. on the
+   next interval boundary; earlier when the window starts off-interval). Background renders
+   behind events/markers/create-preview by nature. */
+.cell-main--grid {
+  --__grid-line-color: var(--time-line-grid-color, light-dark(rgb(0 0 0 / 8%), rgb(255 255 255 / 10%)));
+}
+
+:host([flow="vertical"]) .cell-main--grid {
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0 calc(var(--__grid-pos, 100%) - 1px),
+    var(--__grid-line-color) calc(var(--__grid-pos, 100%) - 1px) var(--__grid-pos, 100%),
+    transparent var(--__grid-pos, 100%) 100%
+  );
+  background-size: 100% var(--__grid-size, 100%);
+  background-repeat: repeat;
+}
+
+:host([flow="horizontal"]) .cell-main--grid {
+  background-image: linear-gradient(
+    to right,
+    transparent 0 calc(var(--__grid-pos, 100%) - 1px),
+    var(--__grid-line-color) calc(var(--__grid-pos, 100%) - 1px) var(--__grid-pos, 100%),
+    transparent var(--__grid-pos, 100%) 100%
+  );
+  background-size: var(--__grid-size, 100%) 100%;
+  background-repeat: repeat;
+}
+
+/* Horizontal flow is RTL-aware (time increases towards the left), so mirror the gradient and
+   anchor the tiling to the inline start (right edge). */
+:host([flow="horizontal"]) .cell-main--grid:dir(rtl) {
+  background-image: linear-gradient(
+    to left,
+    transparent 0 calc(var(--__grid-pos, 100%) - 1px),
+    var(--__grid-line-color) calc(var(--__grid-pos, 100%) - 1px) var(--__grid-pos, 100%),
+    transparent var(--__grid-pos, 100%) 100%
+  );
+  background-position: 100% 0;
+}
+
 .marker {
   position: absolute;
   z-index: 5;
@@ -95,9 +138,11 @@
   bottom: var(--__end, 0);
 }
 
+/* Horizontal events always render one lane tall (see `.event` below), so the create ghost
+   previews the event that will actually be created: first-lane position, one lane height. */
 :host([flow="horizontal"]) .create-preview {
   top: 0;
-  bottom: 0;
+  height: var(--__event-height);
   inset-inline-start: var(--__start, 0);
   inset-inline-end: var(--__end, 0);
 }
@@ -109,6 +154,11 @@
   flex: 1;
   z-index: 2;
   cursor: grab;
+  /* Size container so an event-card's height breakpoints (@container (max-height: …) in
+     EventCard.css) resolve against this wrapper's laid-out size: flow cards are inline-size
+     containers themselves, so height queries skip them and land here via the flat tree. */
+  container-type: size;
+  container-name: event-card;
 }
 
 .event.event--dragging {
