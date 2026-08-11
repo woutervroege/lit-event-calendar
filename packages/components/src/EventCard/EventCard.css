@@ -117,8 +117,15 @@
   @apply sticky m-0 flex flex-1 min-w-0 max-w-full items-start gap-1.5 overflow-hidden px-2 pt-2 pb-2 text-start text-xs font-bold leading-tight;
 }
 
-:host .event-card-heading.is-past {
-  @apply line-through decoration-[1.5px] opacity-80;
+/* Past events fade instead of strikethrough; interaction states (set via
+   --_lc-event-card-past-opacity from EventBase) restore emphasis. */
+:host([past]) .event-card-shell {
+  opacity: var(--_lc-event-card-past-opacity, 0.55);
+  transition-property: transform, opacity;
+}
+
+:host([past]:hover) .event-card-shell {
+  opacity: var(--_lc-event-card-past-opacity, 0.85);
 }
 
 :host .event-card-content {
@@ -242,7 +249,8 @@
     height: var(--_lc-event-height, 3px);
     border: 0;
     @apply rounded-full;
-    background: var(--_lc-event-card-bg);
+    /* Accent (raw) color: the softened tint would be near-invisible on a 3px pill. */
+    background: var(--_lc-event-card-accent-color);
     box-shadow: none;
   }
 

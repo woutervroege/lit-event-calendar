@@ -23,12 +23,14 @@
 /* Hover state for all segments when any segment is hovered. */
 :host .interaction-surface:has(event-card:hover):not(:focus):not(:focus-visible) event-card {
   --_lc-event-card-bg-active: var(--_lc-event-bg-hover);
+  --_lc-event-card-past-opacity: 0.85;
 }
 
 /* Pressed state between hover and focus brightness (desktop/fine pointers only). */
 @media (hover: hover) and (pointer: fine) {
   :host .interaction-surface:has(event-card:active):not(:focus):not(:focus-visible) event-card {
     --_lc-event-card-bg-active: var(--_lc-event-bg-active, var(--_lc-event-bg-hover));
+    --_lc-event-card-past-opacity: 1;
   }
 }
 
@@ -36,6 +38,7 @@
 :host .interaction-surface:focus event-card,
 :host .interaction-surface:focus-visible event-card {
   --_lc-event-card-bg-active: var(--_lc-event-bg-focus, var(--_lc-event-bg-hover));
+  --_lc-event-card-past-opacity: 1;
 }
 
 /* Keyboard-only focus ring, rendered by event-card segments. */
@@ -71,6 +74,7 @@
 
 :host(:has(.interaction-surface:focus-visible)) event-card {
   --_lc-event-card-bg-active: var(--_lc-event-bg-focus, var(--_lc-event-bg-hover));
+  --_lc-event-card-past-opacity: 1;
 }
 
 /* Show the same ring while active touch drag/resize is in progress. */

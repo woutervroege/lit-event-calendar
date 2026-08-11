@@ -5,7 +5,7 @@ import { classMap } from "lit/directives/class-map.js";
 import { BaseElement } from "../BaseElement/BaseElement";
 import { type CalendarViewContextValue, calendarViewContext } from "../context/CalendarViewContext";
 import { renderRecurringIcon } from "../icons/RecurringIcon";
-import { getEventColorStyles } from "../utils/EventColor";
+import { getEventColorStyles, surfaceTint } from "../utils/EventColor";
 import { getLocaleDirection } from "../utils/Locale";
 import componentStyle from "./EventCard.css?inline";
 
@@ -94,7 +94,7 @@ export class EventCard extends BaseElement {
       }
       return;
     }
-    this.style.setProperty("--_lc-event-bg", trimmed);
+    this.style.setProperty("--_lc-event-bg", surfaceTint(trimmed, 11));
     this.style.setProperty("--_lc-event-accent-color", trimmed);
   }
 
@@ -115,7 +115,7 @@ export class EventCard extends BaseElement {
     return html`
       <div class=${classMap({ "event-card-shell": true, "event-card-overlap": this.#isOverlappingIndentedCard })} dir=${this.dir}>
         ${this.#srPast()} ${this.#srRecurrence()}
-        <h6 class=${classMap({ "event-card-heading": true, "is-past": this.past })}>
+        <h6 class="event-card-heading">
           <span class="event-card-content">
             <span class="event-card-compact-label">
               ${hasTimeLabel ? html`<span class="event-card-compact-time">${compactTimeLabel}</span><span aria-hidden="true"> </span>` : ""}<span>${this.summary}</span>

@@ -1,18 +1,23 @@
+/**
+ * Shared tinted palette for event cards.
+ *
+ * Values are emitted as CSS `light-dark()` / `color-mix()` expressions rather
+ * than precomputed rgb values: the event color is mixed into the surface
+ * color (`--_lc-surface-bg`) so cards read as soft tints in both schemes,
+ * while the raw color is kept on the accent edge for identity.
+ */
 export function getEventColorStyles(color: string): Record<string, string> {
   if (!isHexColor(color)) return {};
 
-  const rgb = hexToRgb(color);
-  if (!rgb) return {};
-
-  // Keep state progression monotonic: base -> hover -> focus gets brighter.
-  const backgroundColor = rgbToRgba(tintColor(rgb, 0.5), 0.9);
-  const backgroundColorHover = rgbToRgba(tintColor(rgb, 0.5), 0.95);
-  const backgroundColorActive = rgbToRgba(tintColor(rgb, 0.5), 1);
-  const backgroundColorFocus = rgbToRgba(tintColor(rgb, 0.5), 1);
-  const borderColor = rgbToHex(shadeColor(rgb, 0.15));
-  const shadowColor = rgbToHex(shadeColor(rgb, 0.35));
-  const textColor = rgbToHex(shadeColor(rgb, 0.75));
-  const focusRingLightColor = rgbToHex(shadeColor(rgb, 0.2));
+  // Keep state progression monotonic: base -> hover -> focus gets stronger.
+  const backgroundColor = surfaceTint(color, 11);
+  const backgroundColorHover = surfaceTint(color, 17);
+  const backgroundColorActive = surfaceTint(color, 23);
+  const backgroundColorFocus = surfaceTint(color, 23);
+  const borderColor = surfaceTint(color, 45);
+  const textColor = `light-dark(color-mix(in srgb, ${color} 24%, rgb(15 23 42)), color-mix(in srgb, ${color} 18%, #fff))`;
+  const focusRingLightColor = `color-mix(in srgb, ${color} 80%, light-dark(#000, #fff))`;
+  const shadowColor = `color-mix(in srgb, ${color} 55%, transparent)`;
 
   return {
     "--_lc-event-bg": backgroundColor,
@@ -25,6 +30,15 @@ export function getEventColorStyles(color: string): Record<string, string> {
     "--_lc-event-accent-color": color,
     "--_lc-event-shadow": `0 1px 3px 0 ${shadowColor}`,
   };
+}
+
+/**
+ * Mixes `color` into the surface background. Dark scheme gets a slightly
+ * stronger mix so the tint stays visible against a dark surface.
+ */
+export function surfaceTint(color: string, lightPercent: number, darkPercent = lightPercent + 8): string {
+  const surface = "var(--_lc-surface-bg, light-dark(#fff, #222))";
+  return `light-dark(color-mix(in srgb, ${color} ${lightPercent}%, ${surface}), color-mix(in srgb, ${color} ${darkPercent}%, ${surface}))`;
 }
 
 export function isHexColor(color: string | undefined): boolean {
@@ -40,41 +54,5 @@ export function hexToRgb(hex: string | undefined): { r: number; g: number; b: nu
     r: parseInt(result[1], 16),
     g: parseInt(result[2], 16),
     b: parseInt(result[3], 16),
-  };
-}
-
-type Rgb = { r: number; g: number; b: number };
-
-function rgbToHex({ r, g, b }: Rgb): string {
-  const toHex = (value: number) => {
-    const clamped = Math.max(0, Math.min(255, Math.round(value)));
-    return clamped.toString(16).padStart(2, "0");
-  };
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
-
-function rgbToRgba({ r, g, b }: Rgb, alpha: number): string {
-  const clampByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
-  const clampAlpha = (value: number) => Math.max(0, Math.min(1, value));
-  const a = clampAlpha(alpha);
-  return `rgba(${clampByte(r)}, ${clampByte(g)}, ${clampByte(b)}, ${a})`;
-}
-
-function tintColor({ r, g, b }: Rgb, factor: number): Rgb {
-  const clampedFactor = Math.max(0, Math.min(1, factor));
-  return {
-    r: r + (255 - r) * clampedFactor,
-    g: g + (255 - g) * clampedFactor,
-    b: b + (255 - b) * clampedFactor,
-  };
-}
-
-function shadeColor({ r, g, b }: Rgb, factor: number): Rgb {
-  const clampedFactor = Math.max(0, Math.min(1, factor));
-  return {
-    r: r * (1 - clampedFactor),
-    g: g * (1 - clampedFactor),
-    b: b * (1 - clampedFactor),
   };
 }
