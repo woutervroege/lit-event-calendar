@@ -198,12 +198,14 @@ const COMPACT_MONTH_MAX_INLINE_SIZE = 7 * COMPACT_MONTH_CELL_MIN_WIDTH;
 
 /* Month-mode day headers render inside <time-line>'s shadow root (like the overflow footer), so
  * their chrome ships as an injected <style> with the cell-0 header. The base rules replicate the
- * inline-styled day/week header look; the @container block is the compact treatment for tiny
- * cells. The query container (`lc-timeline-month`) is the month layout wrapper in this
- * component's own shadow root — container lookup follows the flat tree, so it resolves from
- * inside <time-line>'s shadow root too. Compound selectors are used where TimeLine's own rules
- * (adopted stylesheets sort after this tree <style>) must lose the tie. */
-const MONTH_DAY_HEADER_CSS = `
+ * inline-styled day/week header look; MONTH_DAY_HEADER_COMPACT_CSS below is the compact
+ * treatment for tiny cells, applied either behind the `lc-timeline-month` container query
+ * (standalone month views that shrink) or unconditionally when the instance is composed with
+ * `forceCompact` (year mode) — see #monthDayHeaderStyles. The query container is the month
+ * layout wrapper in this component's own shadow root — container lookup follows the flat tree,
+ * so it resolves from inside <time-line>'s shadow root too. Compound selectors are used where
+ * TimeLine's own rules (adopted stylesheets sort after this tree <style>) must lose the tie. */
+const MONTH_DAY_HEADER_BASE_CSS = `
   .timeline-day-header {
     /* TimeLine's .viewport disables pointer events; re-enable for the interactive header
        (same as the overflow footer button). */
@@ -280,39 +282,39 @@ const MONTH_DAY_HEADER_CSS = `
     opacity: 0.9;
     flex: none;
   }
+`;
 
-  @container lc-timeline-month (max-width: ${COMPACT_MONTH_MAX_INLINE_SIZE}px) {
-    /* Chrome off: no outer border, no per-cell borders. */
-    div.viewport {
-      border: none;
-    }
-    .cells > .cell {
-      outline: none;
-    }
-    /* No chips, markers or drag-create surface in tiny cells; the "+N more" footer goes too. */
-    .cell > .cell-main,
-    .cell > .cell-footer {
-      display: none;
-    }
-    /* The header becomes the whole cell so the day number centers in it. */
-    .cell > .cell-header {
-      display: flex;
-      flex: 1 1 auto;
-      min-height: 0;
-    }
-    .timeline-day-header {
-      flex: 1 1 auto;
-      justify-content: center;
-      gap: 0;
-      min-height: 0;
-      padding: 0;
-    }
-    .timeline-day-month-prefix {
-      display: none;
-    }
-    .timeline-day-dots {
-      display: inline-flex;
-    }
+const MONTH_DAY_HEADER_COMPACT_CSS = `
+  /* Chrome off: no outer border, no per-cell borders. */
+  div.viewport {
+    border: none;
+  }
+  .cells > .cell {
+    outline: none;
+  }
+  /* No chips, markers or drag-create surface in tiny cells; the "+N more" footer goes too. */
+  .cell > .cell-main,
+  .cell > .cell-footer {
+    display: none;
+  }
+  /* The header becomes the whole cell so the day number centers in it. */
+  .cell > .cell-header {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .timeline-day-header {
+    flex: 1 1 auto;
+    justify-content: center;
+    gap: 0;
+    min-height: 0;
+    padding: 0;
+  }
+  .timeline-day-month-prefix {
+    display: none;
+  }
+  .timeline-day-dots {
+    display: inline-flex;
   }
 `;
 
@@ -330,6 +332,15 @@ export class CalendarTimelineView extends CalendarViewBase {
    * day/week then show only timed events (a header-only strip keeps the day labels).
    */
   allDayRow = false;
+  /**
+   * Keeps a month-mode instance in the compact (year-style) treatment regardless of measured
+   * width. Year mode sets this on the twelve months it composes: relying only on the size-based
+   * container query would leave gaps — the year grid's 1-column breakpoint (512px) exceeds the
+   * 504px compact threshold, and 4-column cards outgrow it again on very wide screens
+   * ((w − 3·gap) / 4 > 504px once the grid passes ~2208px) — so composed months force it
+   * instead. The container query remains for standalone month views that shrink.
+   */
+  forceCompact = false;
   startDate = Temporal.Now.plainDateISO().toString();
   numDays?: number;
   daysPerWeek?: number;
@@ -376,6 +387,7 @@ export class CalendarTimelineView extends CalendarViewBase {
       mode: { type: String, reflect: true },
       variant: { type: String, reflect: true },
       allDayRow: { type: Boolean, attribute: "all-day-row", reflect: true },
+      forceCompact: { type: Boolean, attribute: "force-compact", reflect: true },
       startDate: { type: String, attribute: "start-date" },
       numDays: { type: Number, attribute: "num-days" },
       daysPerWeek: { type: Number, attribute: "days-per-week" },
@@ -985,10 +997,26 @@ export class CalendarTimelineView extends CalendarViewBase {
    * (same computed-style pattern as the grid's `--_lc-compact-month-view`).
    */
   #isCompactMonthPresentation(element: Element): boolean {
+    if (this.forceCompact) return true;
     if (typeof getComputedStyle === "undefined") return false;
     const raw = getComputedStyle(element).getPropertyValue("--_lc-timeline-compact-month");
     const state = Number.parseFloat(raw.trim());
     return Number.isFinite(state) && state >= 0.5;
+  }
+
+  /**
+   * Injected month day-header sheet: base chrome plus the compact treatment — unconditional
+   * when this instance is forced compact (year mode), otherwise behind the size container query
+   * so standalone month views degrade only when genuinely small.
+   */
+  get #monthDayHeaderStyles(): string {
+    if (this.forceCompact) {
+      return `${MONTH_DAY_HEADER_BASE_CSS}${MONTH_DAY_HEADER_COMPACT_CSS}`;
+    }
+    return `${MONTH_DAY_HEADER_BASE_CSS}
+      @container lc-timeline-month (max-width: ${COMPACT_MONTH_MAX_INLINE_SIZE}px) {
+        ${MONTH_DAY_HEADER_COMPACT_CSS}
+      }`;
   }
 
   /**
@@ -1127,8 +1155,9 @@ export class CalendarTimelineView extends CalendarViewBase {
   /**
    * Month-mode day header: an interactive day-number button (grid-view parity: click/Enter/Space
    * emit `day-selection`; in the compact treatment event days open their events popover instead).
-   * Styled by the injected MONTH_DAY_HEADER_CSS sheet, which also carries the container-query
-   * compact treatment; the sheet ships once with cell 0.
+   * Styled by the injected #monthDayHeaderStyles sheet, which also carries the compact
+   * treatment (container-query-driven, or unconditional under forceCompact); the sheet ships
+   * once with cell 0.
    */
   #monthDayHeaderTemplate = (cellIndex: number): TemplateResult => {
     const day = this.#gridStartDate.add({ days: cellIndex });
@@ -1178,7 +1207,7 @@ export class CalendarTimelineView extends CalendarViewBase {
       .filter(Boolean)
       .join(" ");
     return html`
-      ${cellIndex === 0 ? html`<style>${MONTH_DAY_HEADER_CSS}</style>` : nothing}
+      ${cellIndex === 0 ? html`<style>${this.#monthDayHeaderStyles}</style>` : nothing}
       <button
         type="button"
         class=${headerClasses}
@@ -1545,6 +1574,7 @@ export class CalendarTimelineView extends CalendarViewBase {
               </h3>
               <calendar-timeline-view
                 mode="month"
+                force-compact
                 .startDate=${firstOfMonth.toString()}
                 .events=${this.events}
                 .lang=${this.lang}

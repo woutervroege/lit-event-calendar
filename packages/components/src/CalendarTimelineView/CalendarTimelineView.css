@@ -18,10 +18,12 @@ time-line {
   --_lc-timeline-compact-month: 0;
 }
 
-/* Month mode: the layout wrapper is the query container driving the compact treatment. Cells
-   are 1/7th of it, so 504px = 7 x 72px cells; keep in sync with COMPACT_MONTH_MAX_INLINE_SIZE
-   and the injected MONTH_DAY_HEADER_CSS in CalendarTimelineView.ts. Any month-mode instance
-   (composed by year mode or manually shrunk) degrades automatically. */
+/* Month mode: the layout wrapper is the query container driving the compact treatment for
+   standalone month views that shrink. Cells are 1/7th of it, so 504px = 7 x 72px cells; keep in
+   sync with COMPACT_MONTH_MAX_INLINE_SIZE in CalendarTimelineView.ts. Months composed by year
+   mode do NOT rely on this query — year-grid column breakpoints leave card-width windows above
+   504px (1-column cards up to 512px; 4-column cards past ~2208px grids), so those instances are
+   forced compact via `forceCompact` instead. */
 .timeline-layout--month {
   container: lc-timeline-month / inline-size;
 }
