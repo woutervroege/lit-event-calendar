@@ -43,11 +43,63 @@
 }
 
 /* Events anchor to this region (absolute; vertical uses top/bottom % of height). */
+/* pointer-events auto so the drag-to-create gesture can start on the empty cell background. */
 .cell-main {
   flex: 1;
   min-height: 0;
   position: relative;
   display: flex;
+  pointer-events: auto;
+}
+
+/* Axis window active: clip content outside the visible sub-range. */
+.cell-main--windowed {
+  overflow: hidden;
+}
+
+.marker {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+}
+
+:host([flow="vertical"]) .marker {
+  inset-inline: 0;
+  height: 0;
+  top: var(--__marker-pos, 0);
+  border-top: 2px solid var(--time-line-marker-color, light-dark(#e0342f, #ff6b64));
+}
+
+/* Horizontal flow uses logical insets so the time axis follows the inline direction (RTL-aware). */
+:host([flow="horizontal"]) .marker {
+  top: 0;
+  bottom: 0;
+  width: 0;
+  inset-inline-start: var(--__marker-pos, 0);
+  border-inline-start: 2px solid var(--time-line-marker-color, light-dark(#e0342f, #ff6b64));
+}
+
+/* Drag-to-create preview (placeholder look; positioned like an event segment). */
+.create-preview {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: 4px;
+  background: var(--time-line-create-preview-background, light-dark(rgb(59 130 246 / 0.18), rgb(96 165 250 / 0.25)));
+  border: var(--time-line-create-preview-border, 1.5px dashed light-dark(#3b82f6, #60a5fa));
+}
+
+:host([flow="vertical"]) .create-preview {
+  inset-inline: 0;
+  top: var(--__start, 0);
+  bottom: var(--__end, 0);
+}
+
+:host([flow="horizontal"]) .create-preview {
+  top: 0;
+  bottom: 0;
+  inset-inline-start: var(--__start, 0);
+  inset-inline-end: var(--__end, 0);
 }
 
 .event {
@@ -66,8 +118,7 @@
 
 /* Time axis in vertical flow: % on top/bottom resolve against .cell-main height (not margin-% which uses width). */
 :host([flow="vertical"]) .event {
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   top: var(--__start, 0);
   bottom: var(--__end, 0);
   height: auto;
@@ -77,8 +128,8 @@
 /* Vertical: split cell width across overlap lanes (see `masonryLanes` / timeline in TimeLine.ts). */
 :host([flow="vertical"][layout="timeline"]) .event,
 :host([flow="vertical"][layout="masonry"]) .event {
-  left: calc(var(--__lane, 0) * 100% / var(--__lane-count, 1));
-  right: calc((var(--__lane-count, 1) - var(--__lane, 0) - 1) * 100% / var(--__lane-count, 1));
+  inset-inline-start: calc(var(--__lane, 0) * 100% / var(--__lane-count, 1));
+  inset-inline-end: calc((var(--__lane-count, 1) - var(--__lane, 0) - 1) * 100% / var(--__lane-count, 1));
 }
 
 :host([flow="horizontal"]) .event {
@@ -86,17 +137,25 @@
   min-height: var(--__event-height);
   max-height: var(--__event-height);
   height: var(--__event-height);
-  left: var(--__start);
-  right: var(--__end);
-}
-
-:host([flow="horizontal"][height="auto"]) {
-  --cell-height: none;
+  inset-inline-start: var(--__start);
+  inset-inline-end: var(--__end);
 }
 
 :host([flow="horizontal"][layout="timeline"]) .cell-main,
 :host([flow="horizontal"][layout="masonry"]) .cell-main {
   min-height: var(--cell-height, var(--__lane-stack));
+}
+
+/* height="auto": cell height is container-driven by default — no min-height (`auto` via the
+   invalid-at-computed-value-time var() below), so cells shrink and overflowing lanes are
+   clipped behind the "+N more" footer. Consumers can set --cell-min-height (a length) to opt
+   a row back into growth: the cell then keeps at least that floor and still grows with the
+   per-cell lane stack. The floor must be combined with --__lane-stack here at the cell level;
+   substituting it on the host would resolve --__lane-stack to its fallback before the per-cell
+   value exists. */
+:host([flow="horizontal"][height="auto"][layout="timeline"]) .cell-main,
+:host([flow="horizontal"][height="auto"][layout="masonry"]) .cell-main {
+  min-height: max(var(--cell-min-height), var(--__lane-stack, 0px));
 }
 
 :host([flow="horizontal"][layout="timeline"]) .event,

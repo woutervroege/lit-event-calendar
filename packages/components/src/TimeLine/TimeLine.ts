@@ -11,6 +11,7 @@ import componentStyle from "./TimeLine.css?inline";
 import "../ResizeHandle/ResizeHandle";
 import type {
   TimelineEvent,
+  TimelineEventCreateDetail,
   TimelineEventMoveCommitDetail,
   TimelineEventResizeCommitDetail,
   TimelineResizeEdge,
@@ -40,6 +41,23 @@ type TimelineMoveSession = {
   horiz: boolean;
   gridMax: number;
 };
+
+type TimelineCreateSession = {
+  pointerId: number;
+  /** Host element so capture survives re-renders while the preview updates. */
+  captureTarget: HTMLElement;
+  originClientX: number;
+  originClientY: number;
+  /** Absolute grid time under the pointer at pointerdown (unsnapped). */
+  originT: number;
+  horiz: boolean;
+  gridMax: number;
+  /** Becomes true once the pointer travels past the drag threshold; plain clicks never commit. */
+  dragging: boolean;
+};
+
+/** Pointer travel (px) required before a create gesture starts producing a preview. */
+const CREATE_DRAG_THRESHOLD_PX = 4;
 
 type TimelineCellEventSegment = {
   ev: TimelineEvent;
@@ -105,6 +123,28 @@ export class TimeLine extends LitElement {
   @property({ type: Array })
   accessor events: TimelineEvent[] = [];
 
+  /**
+   * Marker values on the absolute axis (same coordinate space as event `start`/`end`; cell `i`
+   * spans `[i * max, (i + 1) * max)`). Each renders a thin line inside its cell, themeable via
+   * `--time-line-marker-color`. Values outside `[0, cells * max)` are ignored.
+   */
+  @property({ type: Array })
+  accessor markers: number[] = [];
+
+  /**
+   * Start of the visible sub-range of each cell's `[0, max]` axis. Defaults to 0.
+   * Only applied in vertical flow (v1); horizontal flow always shows the full range.
+   */
+  @property({ type: Number, attribute: "window-start" })
+  accessor windowStart = 0;
+
+  /**
+   * End of the visible sub-range of each cell's `[0, max]` axis. `null` means `max`.
+   * Only applied in vertical flow (v1); horizontal flow always shows the full range.
+   */
+  @property({ type: Number, attribute: "window-end" })
+  accessor windowEnd: number | null = null;
+
   /** Optional hook; the same data is also dispatched as `timeline-event-resize`. */
   @property({ attribute: false })
   accessor onTimelineEventResize: ((detail: TimelineEventResizeCommitDetail) => void) | undefined;
@@ -112,6 +152,10 @@ export class TimeLine extends LitElement {
   /** Optional hook; the same data is also dispatched as `timeline-event-move`. */
   @property({ attribute: false })
   accessor onTimelineEventMove: ((detail: TimelineEventMoveCommitDetail) => void) | undefined;
+
+  /** Optional hook; the same data is also dispatched as `timeline-event-create`. */
+  @property({ attribute: false })
+  accessor onTimelineEventCreate: ((detail: TimelineEventCreateDetail) => void) | undefined;
 
   @state()
   private accessor resizePreviewByIndex: ReadonlyMap<
@@ -123,6 +167,10 @@ export class TimeLine extends LitElement {
   @state()
   private accessor draggingEventIndex: number | null = null;
 
+  /** Snapped range shown while a drag-to-create gesture is in progress. */
+  @state()
+  private accessor createPreview: { start: number; end: number } | null = null;
+
   @state()
   private accessor cellVisibleLanes: number[] = [];
 
@@ -131,6 +179,8 @@ export class TimeLine extends LitElement {
   #resizeSession: TimelineResizeSession | null = null;
 
   #moveSession: TimelineMoveSession | null = null;
+
+  #createSession: TimelineCreateSession | null = null;
 
   static styles = unsafeCSS(componentStyle);
 
@@ -158,6 +208,28 @@ export class TimeLine extends LitElement {
     const session = this.#moveSession;
     if (!session || e.pointerId !== session.pointerId) return;
     this.#finishMoveGesture(session, e.clientX, e.clientY, e.type === "pointercancel");
+  };
+
+  readonly #onCreateWindowPointerMove = (e: PointerEvent) => {
+    const session = this.#createSession;
+    if (!session || e.pointerId !== session.pointerId) return;
+    if (e.cancelable) e.preventDefault();
+    this.#applyCreatePointer(e.clientX, e.clientY, session);
+  };
+
+  readonly #onCreateWindowPointerEnd = (e: PointerEvent) => {
+    const session = this.#createSession;
+    if (!session || e.pointerId !== session.pointerId) return;
+    this.#finishCreateGesture(session, e.clientX, e.clientY, e.type === "pointercancel");
+  };
+
+  readonly #onCreateWindowKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    const session = this.#createSession;
+    if (!session) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.#cancelCreateGesture(session);
   };
 
   private laneClip() {
@@ -198,12 +270,19 @@ export class TimeLine extends LitElement {
     if (move) {
       this.#releasePointerCaptureSafe(move.captureTarget, move.pointerId);
     }
+    const create = this.#createSession;
+    if (create) {
+      this.#releasePointerCaptureSafe(create.captureTarget, create.pointerId);
+    }
     this.#detachResizeWindowListeners();
     this.#detachMoveWindowListeners();
+    this.#detachCreateWindowListeners();
     this.#resizeSession = null;
     this.#moveSession = null;
+    this.#createSession = null;
     this.resizePreviewByIndex = null;
     this.draggingEventIndex = null;
+    this.createPreview = null;
     this.cellsResizeObserver?.disconnect();
     this.cellsResizeObserver = null;
     super.disconnectedCallback();
@@ -219,6 +298,13 @@ export class TimeLine extends LitElement {
     window.removeEventListener("pointermove", this.#onMoveWindowPointerMove, true);
     window.removeEventListener("pointerup", this.#onMoveWindowPointerEnd, true);
     window.removeEventListener("pointercancel", this.#onMoveWindowPointerEnd, true);
+  }
+
+  #detachCreateWindowListeners() {
+    window.removeEventListener("pointermove", this.#onCreateWindowPointerMove, true);
+    window.removeEventListener("pointerup", this.#onCreateWindowPointerEnd, true);
+    window.removeEventListener("pointercancel", this.#onCreateWindowPointerEnd, true);
+    window.removeEventListener("keydown", this.#onCreateWindowKeyDown, true);
   }
 
   #minGridStep(): number {
@@ -249,6 +335,13 @@ export class TimeLine extends LitElement {
     window.addEventListener("pointermove", this.#onMoveWindowPointerMove, true);
     window.addEventListener("pointerup", this.#onMoveWindowPointerEnd, true);
     window.addEventListener("pointercancel", this.#onMoveWindowPointerEnd, true);
+  }
+
+  #attachCreateWindowListeners() {
+    window.addEventListener("pointermove", this.#onCreateWindowPointerMove, true);
+    window.addEventListener("pointerup", this.#onCreateWindowPointerEnd, true);
+    window.addEventListener("pointercancel", this.#onCreateWindowPointerEnd, true);
+    window.addEventListener("keydown", this.#onCreateWindowKeyDown, true);
   }
 
   #readGridLayout(): TimeLineGridLayout {
@@ -294,8 +387,28 @@ export class TimeLine extends LitElement {
   }
 
   /**
+   * Effective visible sub-range of each cell's `[0, span]` axis. Returns the full range when no
+   * (valid) window is set or in horizontal flow, where the window is not supported yet (v1).
+   */
+  #effectiveWindow(span: number): { w0: number; w1: number } {
+    if (this.flow === "horizontal") return { w0: 0, w1: span };
+    const w0 = Math.max(0, Math.min(this.windowStart, span));
+    const w1 = Math.max(0, Math.min(this.windowEnd ?? span, span));
+    if (!(Number.isFinite(w0) && Number.isFinite(w1)) || w1 <= w0) return { w0: 0, w1: span };
+    return { w0, w1 };
+  }
+
+  /** Percent position of a cell-local time within the visible window (may fall outside 0–100). */
+  #axisPct(tLocal: number, w0: number, w1: number): number {
+    const range = w1 - w0;
+    return range > 0 ? ((tLocal - w0) / range) * 100 : 0;
+  }
+
+  /**
    * Maps a screen point to absolute time on the grid [0, gridMax], using each cell’s `.cell-main`
-   * as that cell’s span so resizing stays correct when the pointer moves across cells.
+   * as that cell’s span so resizing stays correct when the pointer moves across cells. When an
+   * axis window is active, the cell geometry represents `[w0, w1]` instead of `[0, span]`.
+   * In horizontal flow with RTL direction, time increases towards the left (logical insets).
    */
   #gridSampleFromCellMain(
     clientX: number,
@@ -303,7 +416,8 @@ export class TimeLine extends LitElement {
     main: HTMLElement,
     cellIndex: number,
     span: number,
-    horiz: boolean
+    horiz: boolean,
+    rtl: boolean
   ): { distSq: number; t: number } | null {
     const r = main.getBoundingClientRect();
     if (r.width <= 0 || r.height <= 0) return null;
@@ -312,9 +426,12 @@ export class TimeLine extends LitElement {
     const dx = clientX - cx;
     const dy = clientY - cy;
     const distSq = dx * dx + dy * dy;
-    const along = horiz ? (cx - r.left) / r.width : (cy - r.top) / r.height;
+    const along = horiz
+      ? (rtl ? r.right - cx : cx - r.left) / r.width
+      : (cy - r.top) / r.height;
     const frac = Math.min(1, Math.max(0, Number.isFinite(along) ? along : 0));
-    const t = cellIndex * span + frac * span;
+    const { w0, w1 } = this.#effectiveWindow(span);
+    const t = cellIndex * span + w0 + frac * (w1 - w0);
     return { distSq, t };
   }
 
@@ -329,6 +446,7 @@ export class TimeLine extends LitElement {
     const root = this.renderRoot as ShadowRoot | undefined;
     if (!root) return 0;
 
+    const rtl = horiz && getComputedStyle(this).direction === "rtl";
     let bestT = 0;
     let bestDistSq = Infinity;
 
@@ -338,7 +456,15 @@ export class TimeLine extends LitElement {
       if (!Number.isFinite(cellIndex) || cellIndex < 0 || cellIndex >= cellCount) continue;
       const main = cellEl.querySelector(".cell-main");
       if (!(main instanceof HTMLElement)) continue;
-      const sample = this.#gridSampleFromCellMain(clientX, clientY, main, cellIndex, span, horiz);
+      const sample = this.#gridSampleFromCellMain(
+        clientX,
+        clientY,
+        main,
+        cellIndex,
+        span,
+        horiz,
+        rtl
+      );
       if (!sample) continue;
       if (sample.distSq < bestDistSq) {
         bestDistSq = sample.distSq;
@@ -555,6 +681,85 @@ export class TimeLine extends LitElement {
     });
   }
 
+  /**
+   * Range between the gesture origin and the pointer, snapped outward to `step` with a minimum
+   * duration of one `step`, clamped to the grid.
+   */
+  #createRangeForPointer(
+    session: TimelineCreateSession,
+    pointerT: number
+  ): { start: number; end: number } {
+    const step = this.#minGridStep();
+    const lo = Math.min(session.originT, pointerT);
+    const hi = Math.max(session.originT, pointerT);
+    let start = Math.floor(lo / step) * step;
+    let end = Math.ceil(hi / step) * step;
+    if (end - start < step) end = start + step;
+    start = Math.max(0, start);
+    end = Math.min(session.gridMax, end);
+    if (end - start < step) start = Math.max(0, end - step);
+    return { start, end };
+  }
+
+  #applyCreatePointer(clientX: number, clientY: number, session: TimelineCreateSession) {
+    if (!session.dragging) {
+      const dx = clientX - session.originClientX;
+      const dy = clientY - session.originClientY;
+      if (dx * dx + dy * dy < CREATE_DRAG_THRESHOLD_PX * CREATE_DRAG_THRESHOLD_PX) return;
+      session.dragging = true;
+    }
+    const span = this.max > 0 ? this.max : 1;
+    const cellCount = Math.max(1, this.cells);
+    const pointerT = this.#gridTimeFromClient(
+      clientX,
+      clientY,
+      span,
+      cellCount,
+      session.horiz,
+      session.gridMax
+    );
+    this.createPreview = this.#createRangeForPointer(session, pointerT);
+  }
+
+  #emitTimelineCreateCommit(detail: TimelineEventCreateDetail) {
+    this.dispatchEvent(
+      new CustomEvent<TimelineEventCreateDetail>("timeline-event-create", {
+        bubbles: true,
+        composed: true,
+        detail,
+      })
+    );
+    this.onTimelineEventCreate?.(detail);
+  }
+
+  #finishCreateGesture(
+    session: TimelineCreateSession,
+    clientX: number,
+    clientY: number,
+    cancelled: boolean
+  ) {
+    this.#detachCreateWindowListeners();
+    this.#createSession = null;
+    this.#releasePointerCaptureSafe(session.captureTarget, session.pointerId);
+
+    if (!cancelled) {
+      this.#applyCreatePointer(clientX, clientY, session);
+    }
+
+    const range = cancelled || !session.dragging ? null : this.createPreview;
+    this.createPreview = null;
+    if (!range) return;
+
+    this.#emitTimelineCreateCommit({ start: range.start, end: range.end });
+  }
+
+  #cancelCreateGesture(session: TimelineCreateSession) {
+    this.#detachCreateWindowListeners();
+    this.#createSession = null;
+    this.#releasePointerCaptureSafe(session.captureTarget, session.pointerId);
+    this.createPreview = null;
+  }
+
   #interactiveControlUnderPointer(target: EventTarget | null): boolean {
     if (!(target instanceof Element)) return false;
     return Boolean(
@@ -667,6 +872,40 @@ export class TimeLine extends LitElement {
     this.#attachResizeWindowListeners();
   };
 
+  /**
+   * Drag on empty cell background creates a snapped range preview and commits it as
+   * `timeline-event-create` on pointerup. Events and resize handles stop propagation of their own
+   * pointerdown, so this only fires for the cell background; the composed-path checks are a
+   * safety net.
+   */
+  #onCellMainPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    if (this.#resizeSession || this.#moveSession || this.#createSession) return;
+    if (this.#interactiveControlUnderPointer(e.target)) return;
+    const path = e.composedPath();
+    if (this.#composedPathContainsResizeHandle(path)) return;
+    if (path.some((n) => n instanceof Element && n.classList.contains("event"))) return;
+
+    if (e.cancelable) e.preventDefault();
+    this.#trySetPointerCapture(this, e.pointerId);
+
+    const layout = this.#readGridLayout();
+    const originT = this.#pointerGridTime(e.clientX, e.clientY, layout);
+
+    this.#createSession = {
+      pointerId: e.pointerId,
+      captureTarget: this,
+      originClientX: e.clientX,
+      originClientY: e.clientY,
+      originT,
+      horiz: layout.horiz,
+      gridMax: layout.gridMax,
+      dragging: false,
+    };
+
+    this.#attachCreateWindowListeners();
+  };
+
   protected updated(changed: PropertyValues) {
     super.updated(changed);
     if (!this.laneClip()) {
@@ -689,10 +928,6 @@ export class TimeLine extends LitElement {
       this.cellsResizeObserver.observe(cellsEl);
     }
     queueMicrotask(() => this.measureLaneCaps());
-  }
-
-  private tToPct(t: number) {
-    return this.max > 0 ? (t / this.max) * 100 : 0;
   }
 
   /** Resize UI belongs only on the event’s first and last grid segments (not row/cell continuations). */
@@ -1018,10 +1253,11 @@ export class TimeLine extends LitElement {
     const { ev, index, segIndex, segStart, segEnd, rowSpan, showResizeStart, showResizeEnd } = seg;
     const draggingClass = this.draggingEventIndex === index ? " event--dragging" : "";
     const lane = laneMode ? this.#laneIndexForEvent(horiz, rl, vl, index) : 0;
+    const span = this.max > 0 ? this.max : 1;
+    const { w0, w1 } = this.#effectiveWindow(span);
+    const endPct = this.#axisPct(segEnd, w0, w1);
     const endInset =
-      rowSpan > 0
-        ? `calc(-${rowSpan * 100}% + ${100 - this.tToPct(segEnd)}%)`
-        : `${100 - this.tToPct(segEnd)}%`;
+      rowSpan > 0 ? `calc(-${rowSpan * 100}% + ${100 - endPct}%)` : `${100 - endPct}%`;
 
     return html`
       <div
@@ -1031,7 +1267,7 @@ export class TimeLine extends LitElement {
         @pointerdown=${this.#onEventBodyPointerDown}
         style="
         --__lane:${lane};
-        --__start:${this.tToPct(segStart)}%;
+        --__start:${this.#axisPct(segStart, w0, w1)}%;
         --__end:${endInset};
       "
       >
@@ -1040,6 +1276,53 @@ export class TimeLine extends LitElement {
         ${showResizeEnd ? this.#resizeHandleFragment("end", "Resize end") : nothing}
       </div>
     `;
+  }
+
+  /** Marker lines for values falling inside this cell's absolute range. */
+  #markerFragments(cell: number, span: number, gridMax: number, w0: number, w1: number) {
+    const markers = this.markers;
+    if (!markers?.length) return nothing;
+    const frags: TemplateResult[] = [];
+    for (const m of markers) {
+      if (!Number.isFinite(m) || m < 0 || m >= gridMax) continue;
+      if (Math.floor(m / span) !== cell) continue;
+      const pct = this.#axisPct(m - cell * span, w0, w1);
+      if (pct < 0 || pct > 100) continue;
+      frags.push(html`<div class="marker" style="--__marker-pos:${pct}%"></div>`);
+    }
+    return frags;
+  }
+
+  /** Drag-to-create preview segments for this cell (same segment math as events). */
+  #createPreviewFragments(
+    cell: number,
+    horiz: boolean,
+    cols: number,
+    span: number,
+    gridMax: number,
+    w0: number,
+    w1: number
+  ) {
+    const preview = this.createPreview;
+    if (!preview) return nothing;
+    const segs = this.#collectSegmentsForEventInCell(
+      { start: preview.start, end: preview.end },
+      -1,
+      cell,
+      horiz,
+      cols,
+      span,
+      gridMax
+    );
+    return segs.map((seg) => {
+      const endPct = this.#axisPct(seg.segEnd, w0, w1);
+      const endInset =
+        seg.rowSpan > 0 ? `calc(-${seg.rowSpan * 100}% + ${100 - endPct}%)` : `${100 - endPct}%`;
+      return html`<div
+        class="create-preview"
+        style="--__start:${this.#axisPct(seg.segStart, w0, w1)}%;--__end:${endInset};"
+      ></div>`;
+    });
   }
 
   #renderCell(
@@ -1089,6 +1372,9 @@ export class TimeLine extends LitElement {
       ? `--__lane-count: ${laneCount};${laneStack}`
       : `--__lane-count: ${laneCount}`;
 
+    const { w0, w1 } = this.#effectiveWindow(span);
+    const windowed = w0 > 0 || w1 < span;
+
     return html`
       <div class="cell" data-cell=${cell} style="${laneVars}">
         ${
@@ -1096,10 +1382,15 @@ export class TimeLine extends LitElement {
             ? html`<div class="cell-header">${this.renderHeaderTemplate(cell)}</div>`
             : nothing
         }
-        <div class="cell-main">
+        <div
+          class="cell-main${windowed ? " cell-main--windowed" : ""}"
+          @pointerdown=${this.#onCellMainPointerDown}
+        >
           ${visibleCellEvents.map((seg) =>
             this.#eventSegmentFragment(seg, laneMode, horiz, rl, vl)
           )}
+          ${this.#markerFragments(cell, span, gridMax, w0, w1)}
+          ${this.#createPreviewFragments(cell, horiz, cols, span, gridMax, w0, w1)}
         </div>
         ${
           this.footerTemplate

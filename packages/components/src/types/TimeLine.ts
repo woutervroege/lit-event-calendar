@@ -22,3 +22,9 @@ export interface TimelineEventMoveCommitDetail {
   previousStart: number;
   previousEnd: number;
 }
+
+/** Numeric range (absolute axis units) committed by the drag-to-create gesture. */
+export interface TimelineEventCreateDetail {
+  start: number;
+  end: number;
+}

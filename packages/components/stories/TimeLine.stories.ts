@@ -5,6 +5,7 @@ import "../src/TimeLine/TimeLine.js";
 import type { TimeLine } from "../src/TimeLine/TimeLine.js";
 import type {
   TimelineEvent,
+  TimelineEventCreateDetail,
   TimelineEventMoveCommitDetail,
   TimelineEventResizeCommitDetail,
 } from "../src/types/TimeLine.js";
@@ -75,9 +76,10 @@ function createTimeLine(): TimeLine {
 }
 
 /**
- * Keeps `el.events` in sync when the user finishes a resize or move. `TimeLine` dispatches
- * `timeline-event-resize` / `timeline-event-move` on commit; without updating `events`, the UI
- * would snap back after the gesture.
+ * Keeps `el.events` in sync when the user finishes a resize, move, or drag-to-create. `TimeLine`
+ * dispatches `timeline-event-resize` / `timeline-event-move` / `timeline-event-create` on commit;
+ * without updating `events`, the UI would snap back (or the created range would vanish) after the
+ * gesture.
  */
 function syncTimeLineEventsFromGestures(el: TimeLine, seed: TimelineEvent[]): void {
   const events = seed.map((e) => ({ ...e }));
@@ -97,6 +99,14 @@ function syncTimeLineEventsFromGestures(el: TimeLine, seed: TimelineEvent[]): vo
   el.addEventListener("timeline-event-move", (e) => {
     const { index, start, end } = (e as CustomEvent<TimelineEventMoveCommitDetail>).detail;
     applyCommit(index, start, end);
+  });
+
+  let created = 0;
+  el.addEventListener("timeline-event-create", (e) => {
+    const { start, end } = (e as CustomEvent<TimelineEventCreateDetail>).detail;
+    created++;
+    events.push({ start, end, label: `New event ${created}`, color: "#9b5de5" });
+    el.events = [...events];
   });
 }
 
@@ -201,6 +211,107 @@ export const HorizontalMasonrySingleRow: Story = {
     el.columns = 7;
     syncTimeLineEventsFromGestures(el, masonryDemoEvents);
     el.style.width = "100%";
+    wrap.append(title, el);
+    return wrap;
+  },
+};
+
+export const VerticalWithMarkers: Story = {
+  name: "Markers (current-time indicator)",
+  render: () => {
+    const wrap = document.createElement("div");
+    wrap.style.cssText =
+      "box-sizing:border-box;padding:16px;height:100%;min-height:360px;display:flex;flex-direction:column;gap:8px;";
+    const title = document.createElement("h2");
+    title.style.cssText = "margin:0;font:600 1rem system-ui,sans-serif;";
+    title.textContent = "Vertical · markers at 30, 145, 372.5 and one per horizontal cell";
+    const el = createTimeLine();
+    el.flow = "vertical";
+    el.layout = "masonry";
+    el.step = 5;
+    el.max = 100;
+    el.cells = 7;
+    el.columns = 7;
+    // Absolute axis values: cell i spans [i * max, (i + 1) * max).
+    el.markers = [30, 145, 372.5, 610];
+    syncTimeLineEventsFromGestures(el, verticalTimedEvents);
+    el.style.flex = "1";
+    el.style.minHeight = "280px";
+
+    const horizTitle = document.createElement("h2");
+    horizTitle.style.cssText = "margin:8px 0 0;font:600 1rem system-ui,sans-serif;";
+    horizTitle.textContent = "Horizontal · same markers, themed via --time-line-marker-color";
+    const horizEl = createTimeLine();
+    horizEl.flow = "horizontal";
+    horizEl.layout = "masonry";
+    horizEl.step = 5;
+    horizEl.max = 100;
+    horizEl.cells = 7;
+    horizEl.columns = 7;
+    horizEl.markers = [30, 145, 372.5, 610];
+    horizEl.style.setProperty("--time-line-marker-color", "#7c3aed");
+    syncTimeLineEventsFromGestures(horizEl, masonryDemoEvents);
+    horizEl.style.width = "100%";
+
+    wrap.append(title, el, horizTitle, horizEl);
+    return wrap;
+  },
+};
+
+export const DragToCreate: Story = {
+  name: "Drag to create",
+  render: () => {
+    const wrap = document.createElement("div");
+    wrap.style.cssText =
+      "box-sizing:border-box;padding:16px;height:100%;min-height:360px;display:flex;flex-direction:column;gap:8px;";
+    const title = document.createElement("h2");
+    title.style.cssText = "margin:0;font:600 1rem system-ui,sans-serif;";
+    title.textContent = "Drag on empty cell area to create (snaps to step 5, Escape cancels)";
+    const el = createTimeLine();
+    el.flow = "vertical";
+    el.layout = "masonry";
+    el.step = 5;
+    el.max = 100;
+    el.cells = 7;
+    el.columns = 7;
+    // The sync helper also appends events committed via `timeline-event-create`.
+    syncTimeLineEventsFromGestures(el, verticalTimedEvents.slice(0, 3));
+    el.style.flex = "1";
+    el.style.minHeight = "280px";
+    wrap.append(title, el);
+    return wrap;
+  },
+};
+
+export const AxisWindow: Story = {
+  name: "Axis window (zoomed sub-range)",
+  render: () => {
+    const dayEvents: TimelineEvent[] = [
+      { start: 420, end: 540, label: "Crosses window start", color: "#ff6347" },
+      { start: 600, end: 690, label: "Fully inside", color: "#6495ed" },
+      { start: 1140, end: 1290, label: "Crosses window end", color: "#3cb371" },
+      { start: 60, end: 300, label: "Outside (hidden)", color: "#999999" },
+      { start: 1980, end: 2100, label: "Day 2, inside", color: "#9b5de5" },
+    ];
+    const wrap = document.createElement("div");
+    wrap.style.cssText =
+      "box-sizing:border-box;padding:16px;height:100%;min-height:360px;display:flex;flex-direction:column;gap:8px;";
+    const title = document.createElement("h2");
+    title.style.cssText = "margin:0;font:600 1rem system-ui,sans-serif;";
+    title.textContent =
+      "Vertical · max 1440/cell, window 480–1200 (\u2248 08:00–20:00); gestures stay window-accurate";
+    const el = createTimeLine();
+    el.flow = "vertical";
+    el.step = 30;
+    el.max = 1440;
+    el.cells = 3;
+    el.columns = 3;
+    el.windowStart = 480;
+    el.windowEnd = 1200;
+    el.markers = [630, 1980 + 30];
+    syncTimeLineEventsFromGestures(el, dayEvents);
+    el.style.flex = "1";
+    el.style.minHeight = "320px";
     wrap.append(title, el);
     return wrap;
   },
