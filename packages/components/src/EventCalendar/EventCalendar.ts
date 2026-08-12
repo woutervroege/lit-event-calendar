@@ -808,6 +808,7 @@ export class EventCalendar extends BaseElement {
             @view-changed=${this.#syncFromViewGroup}
             @start-date-changed=${this.#syncFromViewGroup}
             @day-selection=${this.#syncFromViewGroup}
+            @event-create-requested=${this.#reemit}
             @event-created=${this.#reemit}
             @event-selected=${this.#reemit}
             @event-updated=${this.#reemit}

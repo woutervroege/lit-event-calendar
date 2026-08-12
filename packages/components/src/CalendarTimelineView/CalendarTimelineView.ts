@@ -1588,6 +1588,7 @@ export class CalendarTimelineView extends CalendarViewBase {
                 .selectedCalendarId=${this.selectedCalendarId}
                 ?rtl=${this.rtl}
                 @day-selection=${this.forwardCalendarEvent}
+                @event-create-requested=${this.forwardCalendarEvent}
                 @event-created=${this.forwardCalendarEvent}
                 @event-selected=${this.forwardCalendarEvent}
                 @event-updated=${this.forwardCalendarEvent}

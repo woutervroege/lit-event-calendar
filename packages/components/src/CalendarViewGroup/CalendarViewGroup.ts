@@ -261,6 +261,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           .selectedCalendarId=${this.selectedCalendarId}
           @active-date-changed=${this.#handleWeekActiveDateChanged}
           @day-selection=${this.#handleDaySelectionRequested}
+          @event-create-requested=${this.forwardComposedCalendarEvent}
           @event-created=${this.forwardComposedCalendarEvent}
           @event-selected=${this.forwardComposedCalendarEvent}
           @event-updated=${this.forwardComposedCalendarEvent}
@@ -283,6 +284,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           .defaultEventSummary=${this.defaultEventSummary}
           .selectedCalendarId=${this.selectedCalendarId}
           @day-selection=${this.#handleDaySelectionRequested}
+          @event-create-requested=${this.forwardComposedCalendarEvent}
           @event-created=${this.forwardComposedCalendarEvent}
           @event-selected=${this.forwardComposedCalendarEvent}
           @event-updated=${this.forwardComposedCalendarEvent}
@@ -313,6 +315,7 @@ export class CalendarViewGroup extends CalendarViewBase {
           .defaultEventSummary=${this.defaultEventSummary}
           .selectedCalendarId=${this.selectedCalendarId}
           @day-selection=${this.#handleDaySelectionRequested}
+          @event-create-requested=${this.forwardComposedCalendarEvent}
           @event-created=${this.forwardComposedCalendarEvent}
           @event-selected=${this.forwardComposedCalendarEvent}
           @event-updated=${this.forwardComposedCalendarEvent}

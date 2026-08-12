@@ -13,7 +13,11 @@ export type EventKeyDetail = {
   key: string;
 };
 
-/** Internal: maps UI create gesture to `EventsAPI` create input (not used as DOM `CustomEvent` detail). */
+/**
+ * Detail for cancelable `event-create-requested` (drag-to-create / click-create intent).
+ * Listeners may `preventDefault()` to cancel, or mutate `content` (e.g. summary) before apply.
+ * On accept, the view applies create and emits non-cancelable `event-created` with `{ key }`.
+ */
 export type EventCreateRequestDetail = {
   envelope: Pick<CalendarEventEnvelope, "calendarId" | "accountId">;
   content: CalendarEventUIData;

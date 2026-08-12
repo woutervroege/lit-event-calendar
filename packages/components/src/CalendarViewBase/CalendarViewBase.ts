@@ -174,6 +174,17 @@ export abstract class CalendarViewBase extends BaseElement {
 
   protected applyCreateRequestToEventsAPI(detail: EventCreateRequestDetail): boolean {
     if (!this.#eventsAPI) return false;
+    // Cancelable intent: consumers (e.g. Storybook) may prompt/confirm and call preventDefault,
+    // or mutate `detail.content` (summary, etc.) before the create is applied.
+    const accepted = this.dispatchEvent(
+      new CustomEvent("event-create-requested", {
+        detail,
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+      })
+    );
+    if (!accepted) return false;
     const result = this.#applyEventsAPIOperation({ type: "create", input: fromCreateRequest(detail) });
     if (!result) return true;
     const key = this.#notifyKeyFromApply(result, "");
