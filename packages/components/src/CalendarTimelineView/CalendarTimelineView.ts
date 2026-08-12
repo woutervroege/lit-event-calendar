@@ -1108,7 +1108,7 @@ export class CalendarTimelineView extends CalendarViewBase {
     `;
   };
 
-  /** "+N more" affordance for clipped cells (height="auto" horizontal layouts, e.g. month mode). */
+  /** "+N" affordance for clipped cells (height="auto" horizontal layouts, e.g. month mode). */
   #overflowFooterTemplate = (
     cellIndex: number,
     visibleEvents: TimelineEvent[],
@@ -1148,7 +1148,7 @@ export class CalendarTimelineView extends CalendarViewBase {
         @click=${() => this.#prepareOverflowPopover(cellIndex)}
       >
         ${this.#renderOverflowDots(hiddenEvents, hiddenCount)}
-        <span>+${new Intl.NumberFormat(this.#locale).format(hiddenCount)} more</span>
+        <span>+${new Intl.NumberFormat(this.#locale).format(hiddenCount)}</span>
       </button>
       <day-overflow-popover
         id=${popoverId}

@@ -495,7 +495,7 @@ time-line::part(day-dot) {
   flex: none;
 }
 
-/* "+N more" overflow affordance, ported from the grid month view (CalendarGridView.css:
+/* "+N" overflow affordance, ported from the grid month view (CalendarGridView.css:
    `.day-overflow-button` / `.day-overflow-dots` / `.day-overflow-dot`): colored per-event dots
    next to the count, ghost hover background and a focus ring. */
 time-line::part(overflow-button) {
@@ -579,7 +579,7 @@ time-line::part(overflow-dot) {
     outline: none;
   }
 
-  /* No chips, markers or drag-create surface in tiny cells; the "+N more" footer goes too. */
+  /* No chips, markers or drag-create surface in tiny cells; the "+N" footer goes too. */
   time-line.timeline-main::part(cell-main),
   time-line.timeline-main::part(cell-footer) {
     display: none;

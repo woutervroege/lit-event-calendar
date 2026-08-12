@@ -279,7 +279,7 @@
 
 /* height="auto": cell height is container-driven by default — no min-height (`auto` via the
    invalid-at-computed-value-time var() below), so cells shrink and overflowing lanes are
-   clipped behind the "+N more" footer. Consumers can set --cell-min-height (a length) to opt
+   clipped behind the "+N" footer. Consumers can set --cell-min-height (a length) to opt
    a row back into growth: the cell then keeps at least that floor and still grows with the
    per-cell lane stack. The floor must be combined with --__lane-stack here at the cell level;
    substituting it on the host would resolve --__lane-stack to its fallback before the per-cell
