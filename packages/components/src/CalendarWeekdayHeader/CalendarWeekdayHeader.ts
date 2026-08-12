@@ -14,12 +14,27 @@ function isWeekdayNumber(value: number | undefined): value is WeekdayNumber {
 export class CalendarWeekdayHeader extends BaseElement {
   lang = "";
   weekStart?: number;
+  /**
+   * Forces the one-letter (narrow) weekday variant regardless of measured cell width.
+   * Compact compositions whose cells can outgrow the 64px narrow breakpoint (e.g. the
+   * timeline year grid's forced-compact month cards) opt in via this instead of relying on
+   * the width-based container query alone.
+   */
+  narrow = false;
+  /**
+   * Forces right-to-left column order (same prop the calendar views take), so a composing
+   * view's forced-RTL day grid and this header flip together even under an LTR locale.
+   * Off (default) keeps the locale-derived direction.
+   */
+  rtl = false;
   #daysPerWeekStored = 7;
 
   static get properties() {
     return {
       weekStart: { type: Number, attribute: "week-start", reflect: true },
       lang: { type: String },
+      narrow: { type: Boolean, reflect: true },
+      rtl: { type: Boolean, reflect: true },
     } as const;
   }
 
@@ -76,7 +91,7 @@ export class CalendarWeekdayHeader extends BaseElement {
 
   render() {
     const weekendDays = this.#weekendDays;
-    const direction = getLocaleDirection(this.#resolvedLocale);
+    const direction = this.rtl ? "rtl" : getLocaleDirection(this.#resolvedLocale);
     return html`
       <div
         class="weekday-header"

@@ -7,6 +7,7 @@ import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
 import { resolvedDataEnd } from "../domain/events-api/eventMapBridge.js";
 import "../EventCard/EventCard.js";
 import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
+import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../DayOverflowPopover/DayOverflowPopover.js";
 import "../SwipeContainer/SwipeContainer.js";
 import type { CalendarEvent as ApiCalendarEvent } from "@lit-calendar/events-api";
@@ -33,6 +34,7 @@ import type {
 import "../TimeLine/TimeLine.js";
 import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import { formatShortTimeRange } from "../utils/TimeFormatting.js";
+import { weekNumberForDate } from "../utils/WeekNumber.js";
 import {
   alignedMonthGridStart,
   alignedWeekStart,
@@ -115,7 +117,7 @@ export class CalendarTimelineView extends CalendarViewBase {
   /**
    * Opt-in for the composed all-day row above the timed timeline in day/week (vertical timed)
    * modes, with round-trip gestures and drag-create of whole-day events. Off by default:
-   * day/week then show only timed events (a header-only strip keeps the day labels).
+   * day/week then show only timed events (the dedicated day-header row always remains).
    */
   allDayRow = false;
   /**
@@ -1312,17 +1314,20 @@ export class CalendarTimelineView extends CalendarViewBase {
   }
 
   /**
-   * Day/week composition: time sidebar + timed timeline, with the all-day row above it when
-   * `allDayRow` is opted in (grid-week parity). Without the row, all-day events are hidden and
-   * a header-only strip keeps the day labels aligned with the timed columns.
+   * Day/week composition: time sidebar + timed timeline, with a dedicated day-header row
+   * (weekday name + number buttons) as the first row of the sticky shell, the all-day row
+   * below it when `allDayRow` is opted in (grid-week parity). The all-day row carries only
+   * event lanes — its day labels live in the header row above.
    *
    * The layout wrapper (`.timeline-layout--composed`) is the scroll container: the timed
    * timeline renders the full 24h at `--_lc-timeline-hour-height` per hour (derived from the
    * viewport height and `visibleHours`, see the styleMap in `render()`), the all-day shell
-   * (day headers + all-day row) sticks to the top while the timed area scrolls, and the time
-   * sidebar scrolls with the timed grid. A swipe-container wraps the day columns for the
-   * narrow-week pager (responsive visible-column count + swipe to change the active date),
-   * suspended while a TimeLine gesture is live (grid-week parity).
+   * (day-header row + all-day row) sticks to the top while the timed area scrolls, and the
+   * time sidebar scrolls with the timed grid. A `.timeline-week-number` corner cell overlaps
+   * the sidebar column, sticky above the shell, showing the visible week's number. A
+   * swipe-container wraps the day columns for the narrow-week pager (responsive
+   * visible-column count + swipe to change the active date), suspended while a TimeLine
+   * gesture is live (grid-week parity).
    */
   #renderComposedVertical(direction: "ltr" | "rtl"): TemplateResult {
     const showAllDayRow = this.allDayRow === true;
@@ -1339,6 +1344,24 @@ export class CalendarTimelineView extends CalendarViewBase {
     const numDays = this.#resolvedNumDays;
     const unitsPerDay = this.#resolvedTimelineMax;
 
+    // Header-only strip (zero events, collapsed lanes): same cells/columns config as the
+    // all-day row and the timed grid below, so the day columns stay aligned — including with
+    // the swipe pager's responsive visible-column count, which scales the shared stack width.
+    const dayHeaderRowTemplate = html`
+      <time-line
+        class="timeline-day-header-row"
+        .events=${[]}
+        .cells=${numDays}
+        .columns=${numDays}
+        .max=${unitsPerDay}
+        .step=${unitsPerDay}
+        flow="horizontal"
+        layout="masonry"
+        height="auto"
+        .headerTemplate=${this.#dayHeaderTemplate}
+      ></time-line>
+    `;
+
     const allDayRowTemplate = showAllDayRow
       ? html`
           <time-line
@@ -1352,7 +1375,6 @@ export class CalendarTimelineView extends CalendarViewBase {
             layout="masonry"
             height="auto"
             .eventTemplate=${this.#renderAllDayTimelineEvent}
-            .headerTemplate=${this.#dayHeaderTemplate}
             .footerTemplate=${this.#overflowFooterTemplate}
             @timeline-event-move=${(event: Event) =>
               this.#handleTimelineMoveCommit(event, "all-day")}
@@ -1362,22 +1384,10 @@ export class CalendarTimelineView extends CalendarViewBase {
               this.#handleTimelineCreate(event, "all-day")}
           ></time-line>
         `
-      : html`
-          <time-line
-            class="timeline-all-day timeline-all-day--header-only"
-            .events=${[]}
-            .cells=${numDays}
-            .columns=${numDays}
-            .max=${unitsPerDay}
-            .step=${unitsPerDay}
-            flow="horizontal"
-            layout="masonry"
-            height="auto"
-            .headerTemplate=${this.#dayHeaderTemplate}
-          ></time-line>
-        `;
+      : nothing;
 
     return html`
+      ${this.#renderWeekNumberCorner()}
       <calendar-time-sidebar
         class="timeline-sidebar"
         .lang=${this.lang}
@@ -1397,7 +1407,7 @@ export class CalendarTimelineView extends CalendarViewBase {
           @timeline-gesture-start=${this.#handleTimelineGestureStart}
           @timeline-gesture-end=${this.#handleTimelineGestureEnd}
         >
-          <div class="timeline-all-day-shell">${allDayRowTemplate}</div>
+          <div class="timeline-all-day-shell">${dayHeaderRowTemplate}${allDayRowTemplate}</div>
           <time-line
             class="timeline-timed"
             .events=${timedEvents}
@@ -1418,6 +1428,25 @@ export class CalendarTimelineView extends CalendarViewBase {
           ></time-line>
         </div>
       </swipe-container>
+    `;
+  }
+
+  /**
+   * Top-start corner cell where the time-sidebar column meets the day-header row: the visible
+   * week's number (day mode: the week containing that day). Same computation as
+   * CalendarViewGroup's toolbar `weekNumber` (shared via utils/WeekNumber). Overlaps the
+   * sidebar's grid cell and sticks above the shell; all static styling (including the logical
+   * start-corner placement that flips under RTL) lives in CalendarTimelineView.css.
+   */
+  #renderWeekNumberCorner(): TemplateResult {
+    const weekNumber = weekNumberForDate(
+      this.#gridStartDate,
+      this.resolveWeekStart(this.weekStart, this.lang)
+    );
+    return html`
+      <div class="timeline-week-number" .ariaLabel=${`Week ${weekNumber}`}>
+        W${new Intl.NumberFormat(this.#locale).format(weekNumber)}
+      </div>
     `;
   }
 
@@ -1496,11 +1525,13 @@ export class CalendarTimelineView extends CalendarViewBase {
     const shell = this.renderRoot.querySelector<HTMLElement>(".timeline-all-day-shell");
     const timed = this.renderRoot.querySelector<HTMLElement>("time-line.timeline-timed");
     if (!layout || !shell || !timed) return;
-    // The all-day strip renders asynchronously; until it has, the shell measurement (and with
-    // it the derived hour height) is stale — keep the scroll pending, the ResizeObserver
-    // re-triggers this when the shell settles.
-    const allDayStrip = shell.querySelector("time-line") as { hasUpdated?: boolean } | null;
-    if (allDayStrip && allDayStrip.hasUpdated === false) return;
+    // The shell strips (day-header row + optional all-day row) render asynchronously; until
+    // they all have, the shell measurement (and with it the derived hour height) is stale —
+    // keep the scroll pending, the ResizeObserver re-triggers this when the shell settles.
+    const shellStrips = Array.from(shell.querySelectorAll("time-line")) as {
+      hasUpdated?: boolean;
+    }[];
+    if (shellStrips.some((strip) => strip.hasUpdated === false)) return;
     // Re-measure synchronously so the scroll target never uses a stale shell height.
     const shellHeightPx = shell.getBoundingClientRect().height;
     layout.style.setProperty("--_lc-timeline-all-day-height", `${shellHeightPx}px`);
@@ -1516,7 +1547,10 @@ export class CalendarTimelineView extends CalendarViewBase {
    * into the grid year view's responsive layout. Each instance brings the full month machinery
    * (42-cell window, day chips, overflow popovers) and degrades to the compact treatment on its
    * own via the container query, so this stays chrome-free: no sidebar, no all-day row, and the
-   * compact cells expose no drag surface.
+   * compact cells expose no drag surface. Each card composes the shared
+   * <calendar-weekday-header> above its day grid (same chrome the view group composes above
+   * the regular timeline month), forced narrow so the one-letter variant shows at any card
+   * width; both align on the same 7-column geometry.
    */
   #renderYearGrid(direction: "ltr" | "rtl"): TemplateResult {
     const monthFormatter = new Intl.DateTimeFormat(this.#locale, { month: "long" });
@@ -1530,6 +1564,13 @@ export class CalendarTimelineView extends CalendarViewBase {
                   new Date(Date.UTC(firstOfMonth.year, firstOfMonth.month - 1, 1))
                 )}
               </h3>
+              <calendar-weekday-header
+                narrow
+                .lang=${this.lang}
+                .weekStart=${this.weekStart}
+                .daysPerWeek=${7}
+                ?rtl=${this.rtl}
+              ></calendar-weekday-header>
               <calendar-timeline-view
                 mode="month"
                 force-compact

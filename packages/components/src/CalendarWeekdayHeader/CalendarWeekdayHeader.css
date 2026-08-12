@@ -63,3 +63,18 @@
     @apply hidden;
   }
 }
+
+/* Forced narrow variant (see the `narrow` property): mirrors the max-width: 64px container
+   block above and outranks both width queries via the :host compound selector. */
+:host([narrow]) .weekday-label {
+  @apply inline-flex w-full justify-center text-center;
+}
+
+:host([narrow]) .weekday-long,
+:host([narrow]) .weekday-short {
+  @apply hidden;
+}
+
+:host([narrow]) .weekday-narrow {
+  @apply inline;
+}

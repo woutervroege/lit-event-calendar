@@ -10,6 +10,7 @@ import type { CalendarPresentationMode, CalendarViewMode } from "../types/Calend
 import type { WeekdayNumber } from "../types/Weekday.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { resolveLocale } from "../utils/Locale.js";
+import { startOfWeekFor, weekNumberForDate } from "../utils/WeekNumber.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
 import { monthAnchorDate, yearAnchorDate } from "./timelineAnchorDates.js";
 
@@ -404,8 +405,7 @@ export class CalendarViewGroup extends CalendarViewBase {
   }
 
   #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {
-    const weekdayOffset = (date.dayOfWeek - weekStart + 7) % 7;
-    return date.subtract({ days: weekdayOffset });
+    return startOfWeekFor(date, weekStart);
   }
 
   #weekRangeLabelParts(
@@ -454,11 +454,7 @@ export class CalendarViewGroup extends CalendarViewBase {
   }
 
   #weekNumberFromStartDate(date: Temporal.PlainDate): number {
-    const firstOfYear = Temporal.PlainDate.from({ year: date.year, month: 1, day: 1 });
-    const firstWeekStart = this.#startOfWeekFor(firstOfYear, this.#resolvedWeekStart);
-    const startOfSelectedWeek = this.#startOfWeekFor(date, this.#resolvedWeekStart);
-    const diffDays = firstWeekStart.until(startOfSelectedWeek, { largestUnit: "day" }).days;
-    return Math.max(1, Math.floor(diffDays / 7) + 1);
+    return weekNumberForDate(date, this.#resolvedWeekStart);
   }
 
   get #now(): Temporal.PlainDateTime {
