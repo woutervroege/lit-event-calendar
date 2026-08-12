@@ -291,6 +291,12 @@ time-line.timeline-timed {
   /* Hour gridlines: same look as the grid stack's timed horizontal lines
      (CalendarGridView.css `--_lc-grid-line-color-horizontal`, timed variant). */
   --time-line-grid-color: light-dark(rgb(231 235 241), rgb(84 90 101));
+  /* Separation for staggered overlaps: a thin surface-colored "cutout" ring around each timed
+     card (see --_lc-event-card-cutout-ring in EventCard.css). Same-color cards stacked by the
+     stagger layout get a crisp gap; against the plain surface background the ring is invisible,
+     so non-overlapping cards are unchanged. Inherits through <time-line>'s shadow tree into
+     each event-card. */
+  --_lc-event-card-cutout-ring: 0 0 0 1.5px var(--_lc-surface-bg, light-dark(#fff, #222));
 }
 
 @supports (color: color-mix(in srgb, black, white)) {

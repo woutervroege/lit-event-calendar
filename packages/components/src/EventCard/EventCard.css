@@ -88,12 +88,19 @@
   border-radius: var(--_lc-event-card-segment-radius);
   outline: var(--_lc-event-focus-ring-width) solid var(--_lc-event-focus-ring-color);
   outline-offset: var(--_lc-event-focus-ring-gap);
-  box-shadow: inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
+  /* --_lc-event-card-cutout-ring: consumer-set surface-colored "cutout" ring (e.g. the timed
+     timeline, where staggered same-color overlaps need separation). A spread-only box-shadow
+     follows the card radius and paints outside the border box, so the accent edge stays
+     visible and layout is untouched; default off. */
+  box-shadow:
+    var(--_lc-event-card-cutout-ring, 0 0 0 transparent),
+    inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
   height: calc(100% - 2px);
 }
 
 :host .event-card-shell.event-card-overlap::before {
   box-shadow:
+    var(--_lc-event-card-cutout-ring, 0 0 0 transparent),
     var(--_lc-event-card-overlap-shadow),
     inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
 }
