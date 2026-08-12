@@ -5,6 +5,7 @@ export type {
   CalendarAccountId,
   CalendarAccounts,
   CalendarExclusionDates,
+  CalendarRights,
   CalendarRecurrenceFrequency,
   CalendarRecurrenceRule,
   CalendarRecurrenceTermination,
