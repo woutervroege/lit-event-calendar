@@ -6,8 +6,8 @@ export type {
   CalendarEventData,
   CalendarEventEnvelope,
   CalendarEventPendingOperation,
-  CalendarEventTimeSpan,
   CalendarEventsMap,
+  CalendarEventTimeSpan,
   CalendarExclusionDates,
   CalendarId,
   CalendarRecurrenceFrequency,
@@ -15,22 +15,14 @@ export type {
   CalendarRecurrenceTermination,
   CalendarRecurrenceWeekday,
   CalendarRecurrenceWeekdayRule,
-  CalendarUrl,
   CalendarsMap,
+  CalendarUrl,
 } from "@lit-calendar/events-api";
 
-export type { CalendarEventView, CalendarEventViewMap } from "../domain/events-api/eventMapBridge.js";
-
 export type {
-  CalendarEventPendingByCalendarId,
-  CalendarEventPendingByEventId,
-  CalendarEventPendingByOperation,
-  CalendarEventPendingGroupBy,
-  CalendarEventPendingGroupKey,
-  CalendarEventPendingGroups,
-  CalendarEventPendingOptions,
-  CalendarEventPendingResult,
-} from "./calendarEventPending.js";
+  CalendarEventView,
+  CalendarEventViewMap,
+} from "../domain/events-api/eventMapBridge.js";
 
 export type {
   CalendarEventRequestTrigger,
@@ -50,19 +42,29 @@ export type {
   CalendarPresentationMode,
   CalendarViewMode,
 } from "./CalendarViewGroup.js";
-
-export type { DayOverflowPopoverEvent } from "./DayOverflowPopover.js";
-
-export type { DropdownOption } from "./Dropdown.js";
-
-export type { TabSwitchOption } from "./TabSwitch.js";
-
-export type { AllDayLayout, AllDayLayoutItem } from "./AllDayLayout.js";
-
-export type { WeekdayNumber } from "./Weekday.js";
-
+export type {
+  CalendarEventPendingByCalendarId,
+  CalendarEventPendingByEventId,
+  CalendarEventPendingByOperation,
+  CalendarEventPendingGroupBy,
+  CalendarEventPendingGroupKey,
+  CalendarEventPendingGroups,
+  CalendarEventPendingOptions,
+  CalendarEventPendingResult,
+} from "./calendarEventPending.js";
 export {
   isCalendarEventException,
   isCalendarEventExcluded,
   isCalendarEventRecurring,
 } from "./calendarEventSemantics.js";
+export type { DayOverflowPopoverEvent } from "./DayOverflowPopover.js";
+export type { DropdownOption } from "./Dropdown.js";
+export type { TabSwitchOption } from "./TabSwitch.js";
+
+export type {
+  TimelineEvent,
+  TimelineEventMoveCommitDetail,
+  TimelineEventResizeCommitDetail,
+  TimelineResizeEdge,
+} from "./TimeLine.js";
+export type { WeekdayNumber } from "./Weekday.js";

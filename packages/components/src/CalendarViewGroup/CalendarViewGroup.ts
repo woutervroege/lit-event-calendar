@@ -3,22 +3,23 @@ import { html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 import { cache } from "lit/directives/cache.js";
 import { CalendarViewBase } from "../CalendarViewBase/CalendarViewBase.js";
-import "../CalendarMonthView/CalendarMonthView.js";
-import "../CalendarWeekView/CalendarWeekView.js";
-import "../CalendarYearView/CalendarYearView.js";
+import "../CalendarTimelineView/CalendarTimelineView.js";
+import "../CalendarWeekdayHeader/CalendarWeekdayHeader.js";
 import "../CalendarListView/CalendarListView.js";
 import type { CalendarPresentationMode, CalendarViewMode } from "../types/CalendarViewGroup.js";
 import type { WeekdayNumber } from "../types/Weekday.js";
 import { clampDaysPerWeek, daysPerWeekFromInput } from "../utils/DaysPerWeek.js";
 import { resolveLocale } from "../utils/Locale.js";
+import { startOfWeekFor, weekNumberForDate } from "../utils/WeekNumber.js";
 import componentStyle from "./CalendarViewGroup.css?inline";
+import { monthAnchorDate, yearAnchorDate } from "./timelineAnchorDates.js";
 
 type RangeLabelPart = {
   text: string;
   isYear: boolean;
 };
 
-@customElement("calendar-grid-view-group")
+@customElement("calendar-view-group")
 export class CalendarViewGroup extends CalendarViewBase {
   #view: CalendarViewMode = "month";
   #presentation: CalendarPresentationMode = "grid";
@@ -76,7 +77,7 @@ export class CalendarViewGroup extends CalendarViewBase {
 
   render() {
     return html`
-      <div class="calendar-grid-view-group">
+      <div class="calendar-view-group">
         <section class="content" role="tabpanel">
           ${cache(this.#renderViewFor(this.view))}
         </section>
@@ -237,11 +238,16 @@ export class CalendarViewGroup extends CalendarViewBase {
     }
 
     if (view === "day" || view === "week") {
+      // The timeline week mode week-aligns a full-week window itself (weekStart/locale);
+      // partial weeks (daysPerWeek < 7) keep the raw sliding anchor — same contract the
+      // grid week view had, so the raw resolved start date is passed either way.
       const startDate = this.#resolvedStartDate;
       const daysPerWeek = view === "day" ? 1 : this.daysPerWeek;
       return html`
-        <calendar-week-view
-          .startDate=${startDate}
+        <calendar-timeline-view
+          mode=${view}
+          all-day-row
+          .startDate=${startDate.toString()}
           .weekStart=${this.weekStart}
           .daysPerWeek=${daysPerWeek}
           .events=${this.events}
@@ -251,55 +257,68 @@ export class CalendarViewGroup extends CalendarViewBase {
           .currentTime=${this.currentTime}
           .snapInterval=${this.snapInterval}
           .visibleHours=${this.visibleHours}
-          .defaultEventSummary=${this.defaultEventSummary}
           .selectedCalendarId=${this.selectedCalendarId}
           @active-date-changed=${this.#handleWeekActiveDateChanged}
           @day-selection=${this.#handleDaySelectionRequested}
+          @event-create-requested=${this.forwardComposedCalendarEvent}
           @event-created=${this.forwardComposedCalendarEvent}
           @event-selected=${this.forwardComposedCalendarEvent}
           @event-updated=${this.forwardComposedCalendarEvent}
           @event-deleted=${this.forwardComposedCalendarEvent}
-        ></calendar-week-view>
+        ></calendar-timeline-view>
       `;
     }
 
     if (view === "year") {
       return html`
-        <calendar-year-view
-          .year=${this.year}
+        <calendar-timeline-view
+          mode="year"
+          .startDate=${yearAnchorDate(this.year).toString()}
           .weekStart=${this.weekStart}
           .events=${this.events}
+          .rtl=${this.rtl}
           .lang=${this.lang}
           .timezone=${this.timezone}
           .currentTime=${this.#resolvedCurrentTime}
-          .defaultEventSummary=${this.defaultEventSummary}
           .selectedCalendarId=${this.selectedCalendarId}
           @day-selection=${this.#handleDaySelectionRequested}
+          @event-create-requested=${this.forwardComposedCalendarEvent}
           @event-created=${this.forwardComposedCalendarEvent}
           @event-selected=${this.forwardComposedCalendarEvent}
           @event-updated=${this.forwardComposedCalendarEvent}
           @event-deleted=${this.forwardComposedCalendarEvent}
-        ></calendar-year-view>
+        ></calendar-timeline-view>
       `;
     }
 
+    // The timeline month intentionally renders no weekday row; the group composes the shared
+    // weekday header above it (same chrome the grid month view carried internally).
     return html`
-      <calendar-month-view
-        .month=${this.month}
-        .year=${this.year}
-        .weekStart=${this.weekStart}
-        .events=${this.events}
-        .lang=${this.lang}
-        .timezone=${this.timezone}
-        .currentTime=${this.#resolvedCurrentTime}
-        .defaultEventSummary=${this.defaultEventSummary}
-        .selectedCalendarId=${this.selectedCalendarId}
-        @day-selection=${this.#handleDaySelectionRequested}
-        @event-created=${this.forwardComposedCalendarEvent}
-        @event-selected=${this.forwardComposedCalendarEvent}
-        @event-updated=${this.forwardComposedCalendarEvent}
-        @event-deleted=${this.forwardComposedCalendarEvent}
-      ></calendar-month-view>
+      <div class="timeline-month-layout">
+        <calendar-weekday-header
+          .lang=${this.lang}
+          .weekStart=${this.weekStart}
+          .daysPerWeek=${7}
+        ></calendar-weekday-header>
+        <calendar-timeline-view
+          class="timeline-month-view"
+          mode="month"
+          .startDate=${monthAnchorDate(this.year, this.month).toString()}
+          .weekStart=${this.weekStart}
+          .events=${this.events}
+          .rtl=${this.rtl}
+          .lang=${this.lang}
+          .timezone=${this.timezone}
+          .currentTime=${this.#resolvedCurrentTime}
+          .selectedCalendarId=${this.selectedCalendarId}
+          @day-selection=${this.#handleDaySelectionRequested}
+          @event-create-requested=${this.forwardComposedCalendarEvent}
+          @event-created=${this.forwardComposedCalendarEvent}
+          @event-selected=${this.forwardComposedCalendarEvent}
+          @event-updated=${this.forwardComposedCalendarEvent}
+          @event-deleted=${this.forwardComposedCalendarEvent}
+        ></calendar-timeline-view>
+      </div>
     `;
   }
 
@@ -386,8 +405,7 @@ export class CalendarViewGroup extends CalendarViewBase {
   }
 
   #startOfWeekFor(date: Temporal.PlainDate, weekStart: WeekdayNumber): Temporal.PlainDate {
-    const weekdayOffset = (date.dayOfWeek - weekStart + 7) % 7;
-    return date.subtract({ days: weekdayOffset });
+    return startOfWeekFor(date, weekStart);
   }
 
   #weekRangeLabelParts(
@@ -436,11 +454,7 @@ export class CalendarViewGroup extends CalendarViewBase {
   }
 
   #weekNumberFromStartDate(date: Temporal.PlainDate): number {
-    const firstOfYear = Temporal.PlainDate.from({ year: date.year, month: 1, day: 1 });
-    const firstWeekStart = this.#startOfWeekFor(firstOfYear, this.#resolvedWeekStart);
-    const startOfSelectedWeek = this.#startOfWeekFor(date, this.#resolvedWeekStart);
-    const diffDays = firstWeekStart.until(startOfSelectedWeek, { largestUnit: "day" }).days;
-    return Math.max(1, Math.floor(diffDays / 7) + 1);
+    return weekNumberForDate(date, this.#resolvedWeekStart);
   }
 
   get #now(): Temporal.PlainDateTime {

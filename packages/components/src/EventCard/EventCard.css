@@ -30,6 +30,10 @@
 
 :host([layout="flow"]) {
   @apply static block w-full touch-auto;
+  /* inline-size (not size): flow cards are sized by their content (e.g. list view rows), so
+     the host cannot answer its own height queries. @container (max-height: …) breakpoints
+     resolve against the nearest outer size container instead (e.g. TimeLine's .event wrapper);
+     without one they stay off and the card shows its full content. */
   container-type: inline-size;
   container-name: event-card;
   min-height: 0;
@@ -66,12 +70,6 @@
   @apply relative h-full pointer-events-auto transition-transform duration-100;
 }
 
-@container (max-height: 47px) {
-  :host .event-card-shell {
-    @apply flex gap-1 whitespace-nowrap;
-  }
-}
-
 :host([layout="flow"]) > div {
   width: 100%;
   margin-inline-start: 0;
@@ -80,70 +78,46 @@
 }
 
 :host .event-card-shell::before {
-  @apply absolute inset-px z-[-1];
+  /* z-0 (not -1): negative z-index paints behind transformed ancestors (e.g. TimeLine drag ghost). */
+  @apply absolute inset-px z-0;
   @apply bg-[var(--_lc-event-card-bg)];
   @apply text-[var(--_lc-event-card-accent-color)];
-  @apply transition-[color,background-color,border-color] duration-100;
+  @apply transition-[color,background-color] duration-100;
   content: "";
+  border-radius: var(--_lc-event-card-segment-radius);
   outline: var(--_lc-event-focus-ring-width) solid var(--_lc-event-focus-ring-color);
   outline-offset: var(--_lc-event-focus-ring-gap);
-  box-shadow: inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
-}
-
-:host .event-card-shell[data-first-segment]::before {
-  border-inline-start: 3px solid var(--_lc-event-card-accent-color);
+  /* --_lc-event-card-cutout-ring: consumer-set surface-colored "cutout" ring (e.g. the timed
+     timeline, where staggered same-color overlaps need separation). A spread-only box-shadow
+     follows the card radius and paints outside the border box, so the accent edge stays
+     visible and layout is untouched; default off. */
+  box-shadow:
+    var(--_lc-event-card-cutout-ring, 0 0 0 transparent),
+    inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
+  height: calc(100% - 2px);
 }
 
 :host .event-card-shell.event-card-overlap::before {
   box-shadow:
+    var(--_lc-event-card-cutout-ring, 0 0 0 transparent),
     var(--_lc-event-card-overlap-shadow),
     inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
 }
 
-:host .event-card-shell[data-segment-direction="vertical"]:not([data-first-segment])::before {
-  top: 0;
-}
-
-:host .event-card-shell[data-segment-direction="vertical"]:not([data-last-segment])::before {
-  bottom: 0;
-}
-
-:host .event-card-shell[data-segment-direction="vertical"][data-first-segment]::before {
-  border-top-left-radius: var(--_lc-event-card-segment-radius);
-  border-top-right-radius: var(--_lc-event-card-segment-radius);
-}
-
-:host .event-card-shell[data-segment-direction="vertical"][data-last-segment]::before {
-  border-bottom-left-radius: var(--_lc-event-card-segment-radius);
-  border-bottom-right-radius: var(--_lc-event-card-segment-radius);
-}
-
-:host .event-card-shell[data-segment-direction="horizontal"][data-first-segment][dir="ltr"]::before,
-:host .event-card-shell[data-segment-direction="horizontal"][data-last-segment][dir="rtl"]::before {
-  border-top-left-radius: var(--_lc-event-card-segment-radius);
-  border-bottom-left-radius: var(--_lc-event-card-segment-radius);
-}
-
-:host .event-card-shell[data-segment-direction="horizontal"][data-last-segment][dir="ltr"]::before,
-:host
-  .event-card-shell[data-segment-direction="horizontal"][data-first-segment][dir="rtl"]::before {
-  border-top-right-radius: var(--_lc-event-card-segment-radius);
-  border-bottom-right-radius: var(--_lc-event-card-segment-radius);
-}
-
-:host([segment-direction="horizontal"]) h6.sticky {
-  left: 0;
-  right: auto;
-}
-
-:host([segment-direction="horizontal"]) > div[dir="rtl"] h6.sticky {
-  left: auto;
-  right: 0;
-}
-
-/* Taller cards: stack summary over time for readability. */
-:host .event-card-time {
-  @apply mt-0.5;
+/* Accent bar: an inset rounded pill at the inline-start edge (calendar convention) instead of
+   a border hugging the card's outer radius. 3px wide, 5px in from the card background's edges
+   (the ::before above is inset 1px from the shell, so 6px shell-relative). Raw accent color;
+   paints above the ::before card background (later pseudo, same stacking level) and fades with
+   the shell's past-event opacity. Content clearance: see the heading padding override below. */
+:host .event-card-shell::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 6px;
+  inset-block: 6px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--_lc-event-card-accent-color);
+  pointer-events: none;
 }
 
 :host([layout="flow"]) .event-card-heading {
@@ -154,20 +128,6 @@
   :host([layout="flow"]) .event-card-summary-main {
     @apply text-sm leading-[1.35];
   }
-
-  :host([layout="flow"]) .event-card-location {
-    @apply block;
-  }
-}
-
-@container (min-height: 72px) {
-  :host .event-card-location {
-    @apply block;
-  }
-}
-
-:host .event-card-compact-label {
-  @apply hidden;
 }
 
 :host .event-card-compact-time {
@@ -175,17 +135,19 @@
   font-variant-numeric: tabular-nums;
 }
 
-:host .event-card-location {
-  @apply mt-0.5;
-  opacity: 0.84;
-}
-
 :host .event-card-heading {
   @apply sticky m-0 flex flex-1 min-w-0 max-w-full items-start gap-1.5 overflow-hidden px-2 pt-2 pb-2 text-start text-xs font-bold leading-tight;
 }
 
-:host .event-card-heading.is-past {
-  @apply line-through decoration-[1.5px] opacity-80;
+/* Past events fade instead of strikethrough; interaction states (set via
+   --_lc-event-card-past-opacity from EventBase) restore emphasis. */
+:host([past]) .event-card-shell {
+  opacity: var(--_lc-event-card-past-opacity, 0.55);
+  transition-property: transform, opacity;
+}
+
+:host([past]:hover) .event-card-shell {
+  opacity: var(--_lc-event-card-past-opacity, 0.85);
 }
 
 :host .event-card-content {
@@ -201,7 +163,7 @@
 }
 
 :host .event-card-time {
-  @apply block min-w-0 max-w-full overflow-hidden text-start text-xs font-light leading-tight tabular-nums;
+  @apply mt-0.5 block min-w-0 max-w-full overflow-hidden text-start text-xs font-light leading-tight tabular-nums;
 }
 
 :host .event-card-time-main,
@@ -210,7 +172,8 @@
 }
 
 :host .event-card-location {
-  @apply block min-w-0 max-w-full overflow-hidden truncate text-xs font-light leading-tight;
+  @apply mt-0.5 block min-w-0 max-w-full overflow-hidden truncate text-xs font-light leading-tight;
+  opacity: 0.84;
 }
 
 :host .event-card-recurring-icon-wrap {
@@ -226,18 +189,24 @@
   @apply h-full w-full;
 }
 
-/* Compact cards: keep summary + time on a single row. */
+/* Short cards: single-line heading + compact label; hide expanded title/time stack. */
 @container (max-height: 47px) {
   :host {
     --_lc-event-recurring-icon-size: 12px;
   }
 
-  :host .event-card-heading {
+  :host .event-card-shell {
+    @apply flex gap-1 whitespace-nowrap;
+  }
+
+  /* Also listed with [layout="flow"] so the tighter padding outranks the flow base rule. */
+  :host .event-card-heading,
+  :host([layout="flow"]) .event-card-heading {
     @apply items-start overflow-hidden whitespace-nowrap text-ellipsis py-2;
   }
 
   :host .event-card-compact-label {
-    @apply block min-w-0 max-w-full;
+    @apply block min-w-0 max-w-full truncate;
     display: var(--_lc-event-card-compact-label-display, block);
   }
 
@@ -251,13 +220,22 @@
   }
 }
 
+/* Cards too short for the location line: keep summary + time, drop location. The location
+   line reveals last, once three text rows fit (~72px, same threshold as the grid stack). */
+@container (max-height: 71px) {
+  :host .event-card-location {
+    @apply hidden;
+  }
+}
+
 /* Smaller compact cards: tighten spacing to avoid vertical clipping. */
 @container (max-height: 31px) {
   :host {
     --_lc-event-recurring-icon-size: 11px;
   }
 
-  :host .event-card-heading {
+  :host .event-card-heading,
+  :host([layout="flow"]) .event-card-heading {
     @apply px-2 py-1.5;
   }
 
@@ -265,6 +243,14 @@
   :host .event-card-location {
     @apply mt-0;
   }
+}
+
+/* Content clears the inset accent bar: 6px inset + 3px bar + 4px gap. Placed after the base,
+   flow and compact heading rules above so this start padding wins over their symmetric px-*
+   values in every tier (equal-or-higher specificity, later in the file). */
+:host .event-card-heading,
+:host([layout="flow"]) .event-card-heading {
+  padding-inline-start: 13px;
 }
 
 /* Very small cards: hide compact time, keep summary visible. */
@@ -284,7 +270,15 @@
     @apply min-h-0 p-0;
   }
 
-  :host > div::before {
+  /* The collapsed tier turns ::before itself into an accent pill; the inset bar goes away. */
+  :host .event-card-shell::after {
+    display: none;
+  }
+
+  /* Class-qualified (not the old `:host > div::before` / `:host h6`) so these tier rules
+     actually outrank the base shell/heading rules above — element-typed selectors lose that
+     cascade fight and left the tier half-applied (text visible over a full-height strip). */
+  :host .event-card-shell::before {
     top: 0;
     bottom: auto;
     left: 2px;
@@ -293,12 +287,13 @@
     height: var(--_lc-event-height, 3px);
     border: 0;
     @apply rounded-full;
-    background: var(--_lc-event-card-bg);
+    /* Accent (raw) color: the softened tint would be near-invisible on a 3px pill. */
+    background: var(--_lc-event-card-accent-color);
     box-shadow: none;
   }
 
-  :host h6,
-  :host time,
+  :host .event-card-heading,
+  :host .event-card-time,
   :host .event-card-recurring-icon-wrap {
     @apply hidden;
   }

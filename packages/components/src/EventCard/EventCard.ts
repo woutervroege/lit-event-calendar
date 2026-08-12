@@ -1,12 +1,25 @@
 import { ContextConsumer } from "@lit/context";
-import { html, unsafeCSS } from "lit";
+import { html, nothing, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { BaseElement } from "../BaseElement/BaseElement";
 import { type CalendarViewContextValue, calendarViewContext } from "../context/CalendarViewContext";
 import { renderRecurringIcon } from "../icons/RecurringIcon";
+import { getEventColorStyles, surfaceTint } from "../utils/EventColor";
 import { getLocaleDirection } from "../utils/Locale";
 import componentStyle from "./EventCard.css?inline";
+
+const EVENT_COLOR_HOST_KEYS = [
+  "--_lc-event-bg",
+  "--_lc-event-border-color",
+  "--_lc-event-bg-hover",
+  "--_lc-event-bg-active",
+  "--_lc-event-bg-focus",
+  "--_lc-event-text-color",
+  "--_lc-event-focus-ring-light",
+  "--_lc-event-accent-color",
+  "--_lc-event-shadow",
+] as const;
 
 @customElement("event-card")
 export class EventCard extends BaseElement {
@@ -35,14 +48,9 @@ export class EventCard extends BaseElement {
   @property({ type: String })
   location = "";
 
-  @property({ type: Boolean, attribute: "first-segment" })
-  firstSegment = false;
-
-  @property({ type: Boolean, attribute: "last-segment" })
-  lastSegment = false;
-
-  @property({ type: String, attribute: "segment-direction" })
-  segmentDirection: "horizontal" | "vertical" = "horizontal";
+  /** Hex (`#rrggbb`) or other CSS color; hex applies the shared tinted palette on this host. */
+  @property({ type: String })
+  color = "";
 
   @property({ type: String, reflect: true })
   layout: "absolute" | "flow" = "absolute";
@@ -63,6 +71,42 @@ export class EventCard extends BaseElement {
   connectedCallback() {
     super.connectedCallback();
     void this.#calendarViewConsumer;
+    this.#syncColorFromProp();
+  }
+
+  override updated(changedProperties: Map<string | number | symbol, unknown>) {
+    super.updated(changedProperties);
+    if (changedProperties.has("color")) {
+      this.#syncColorFromProp();
+    }
+  }
+
+  /** Whether the host color custom properties were set by this component (vs. by a consumer). */
+  #appliedColorHostKeys = false;
+
+  #syncColorFromProp() {
+    // Only clear keys this component set itself: consumers without a `color`
+    // prop (e.g. the list view) apply the same custom properties externally
+    // via inline styles, and those must survive connect/first-update.
+    if (this.#appliedColorHostKeys) {
+      for (const key of EVENT_COLOR_HOST_KEYS) {
+        this.style.removeProperty(key);
+      }
+      this.#appliedColorHostKeys = false;
+    }
+    const trimmed = this.color?.trim() ?? "";
+    if (!trimmed) return;
+    const fromHex = getEventColorStyles(trimmed);
+    if (Object.keys(fromHex).length > 0) {
+      for (const [key, value] of Object.entries(fromHex)) {
+        this.style.setProperty(key, value);
+      }
+      this.#appliedColorHostKeys = true;
+      return;
+    }
+    this.style.setProperty("--_lc-event-bg", surfaceTint(trimmed, 11));
+    this.style.setProperty("--_lc-event-accent-color", trimmed);
+    this.#appliedColorHostKeys = true;
   }
 
   get dir() {
@@ -70,133 +114,60 @@ export class EventCard extends BaseElement {
   }
 
   render() {
-    const hasTimeLabel = Boolean(this.time?.trim() || this.timeDetail?.trim());
-    const time = this.time?.trim();
-    const timeDetail = this.timeDetail?.trim();
-    const location = this.location?.trim();
+    const time = this.time?.trim() ?? "";
+    const timeDetail = this.timeDetail?.trim() ?? "";
+    const hasTimeLabel = Boolean(time || timeDetail);
+    const location = this.location?.trim() ?? "";
     const hasLocation = Boolean(location);
-    const hasMetaLabel = hasTimeLabel || hasLocation;
-    const compactTime = time?.split(" - ")[0]?.trim() ?? "";
-    const compactTimeLabel = [compactTime, timeDetail ? `(${timeDetail})` : ""]
-      .filter(Boolean)
-      .join(" ");
+    const hasMeta = hasTimeLabel || hasLocation;
+    const compactTime = time.split(" - ")[0]?.trim() ?? "";
+    const compactTimeLabel = [compactTime, timeDetail ? `(${timeDetail})` : ""].filter(Boolean).join(" ");
+
     return html`
-          <div
-            class=${classMap(this.#cardClasses)}
-            dir="${this.dir}"
-            data-segment-direction=${this.segmentDirection}
-            ?data-first-segment=${this.firstSegment}
-            ?data-last-segment=${this.lastSegment}
-          >
-              ${this.past ? html`<span class="sr-only">Past event.</span>` : ""}
-              ${this.#recurrenceStatusSrLabel ? html`<span class="sr-only">${this.#recurrenceStatusSrLabel}</span>` : ""}
-              <h6 class=${classMap(this.#summaryClasses)}>
-                <span class="event-card-content">
-                  <span class=${classMap(this.#compactLabelClasses)}>
-                    ${
-                      hasTimeLabel
-                        ? html`
-                            <span class="event-card-compact-time">${compactTimeLabel}</span>
-                            <span aria-hidden="true"> </span>
-                          `
-                        : ""
-                    }
-                    <span>${this.summary}</span>
-                  </span>
-                  <span class=${classMap(this.#summaryMainClasses)}>${this.summary}</span>
-                  ${
-                    hasMetaLabel
-                      ? html`
-                        <time class=${classMap(this.#summaryTimeClasses)}>
-                          ${
-                            hasTimeLabel
-                              ? html`
-                                <span class=${classMap(this.#summaryTimeMainClasses)}>${this.time}</span>
-                                ${
-                                  this.timeDetail
-                                    ? html`<span class=${classMap(this.#summaryTimeDetailClasses)}
-                                      >(${this.timeDetail})</span
-                                    >`
-                                    : ""
-                                }
-                          `
-                              : ""
-                          }
-                        </time>
-                        ${
-                          hasLocation
-                            ? html`<span class=${classMap(this.#summaryLocationClasses)}>${location}</span>`
-                            : ""
-                        }
-                      `
-                      : ""
-                  }
-                </span>
-                ${
-                  this.recurring && !this.exception
-                    ? html`
-                        <span class="event-card-recurring-icon-wrap" aria-hidden="true">
-                          ${renderRecurringIcon({ className: "event-card-recurring-icon" })}
-                        </span>
-                      `
-                    : ""
-                }
-              </h6>
-              <slot></slot>
-          </div>
-        `;
+      <div class=${classMap({ "event-card-shell": true, "event-card-overlap": this.#isOverlappingIndentedCard })} dir=${this.dir}>
+        ${this.#srPast()} ${this.#srRecurrence()}
+        <h6 class="event-card-heading">
+          <span class="event-card-content">
+            <span class="event-card-compact-label">
+              ${hasTimeLabel ? html`<span class="event-card-compact-time">${compactTimeLabel}</span><span aria-hidden="true"> </span>` : ""}<span>${this.summary}</span>
+            </span>
+            <span class="event-card-summary-main">${this.summary}</span>
+            ${hasMeta ? this.#renderMetaBlock(hasTimeLabel, hasLocation, location) : nothing}
+          </span>
+          ${this.recurring && !this.exception ? this.#renderRecurringIcon() : nothing}
+        </h6>
+        <slot></slot>
+      </div>
+    `;
   }
 
-  get #compactLabelClasses() {
-    return {
-      "event-card-compact-label": true,
-    };
+  #srPast() {
+    return this.past ? html`<span class="sr-only">Past event.</span>` : nothing;
   }
 
-  get #summaryClasses() {
-    return {
-      "event-card-heading": true,
-      "is-past": this.past,
-    };
+  #srRecurrence() {
+    const label = this.#recurrenceStatusSrLabel;
+    return label ? html`<span class="sr-only">${label}</span>` : nothing;
   }
 
-  get #summaryMainClasses() {
-    return {
-      "event-card-summary-main": true,
-    };
+  #renderMetaBlock(hasTimeLabel: boolean, hasLocation: boolean, location: string) {
+    const timeRow = hasTimeLabel
+      ? html`<span class="event-card-time-main">${this.time}</span>${this.timeDetail
+          ? html`<span class="event-card-time-detail">(${this.timeDetail})</span>`
+          : nothing}`
+      : nothing;
+    return html`
+      <time class="event-card-time">${timeRow}</time>
+      ${hasLocation ? html`<span class="event-card-location">${location}</span>` : nothing}
+    `;
   }
 
-  get #summaryTimeClasses() {
-    return {
-      "event-card-time": true,
-    };
-  }
-
-  get #summaryTimeMainClasses() {
-    return {
-      "event-card-time-main": true,
-    };
-  }
-
-  get #summaryTimeDetailClasses() {
-    return {
-      "event-card-time-detail": true,
-    };
-  }
-
-  get #summaryLocationClasses() {
-    return {
-      "event-card-location": true,
-    };
-  }
-
-  get #cardClasses() {
-    const isOverlapping = this.#isOverlappingIndentedCard;
-
-    return {
-      "event-card-overlap": isOverlapping,
-      "event-card-shell": true,
-    };
+  #renderRecurringIcon() {
+    return html`
+      <span class="event-card-recurring-icon-wrap" aria-hidden="true">
+        ${renderRecurringIcon({ className: "event-card-recurring-icon" })}
+      </span>
+    `;
   }
 
   get #recurrenceStatusSrLabel(): string {

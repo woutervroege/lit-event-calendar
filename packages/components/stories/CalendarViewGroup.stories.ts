@@ -54,7 +54,7 @@ function renderViewGroup(args: Record<string, unknown>) {
     host.removeAttribute("selected-calendar-id");
   }
 
-  const el = document.createElement("calendar-grid-view-group") as StoryCalendarViewGroupElement;
+  const el = document.createElement("calendar-view-group") as StoryCalendarViewGroupElement;
   el.style.display = "block";
   el.style.width = "100%";
   el.style.height = "100%";
@@ -101,7 +101,7 @@ function renderViewGroup(args: Record<string, unknown>) {
 
 const meta: Meta = {
   title: "Calendar/CalendarViewGroup",
-  component: "calendar-grid-view-group",
+  component: "calendar-view-group",
   tags: ["autodocs"],
   parameters: {
     cssprops: calendarCssProps,

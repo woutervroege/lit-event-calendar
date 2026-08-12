@@ -99,9 +99,6 @@ function renderCalendar(
   } else {
     el.setAttribute("visible-hours", String(args.visibleHours));
   }
-  if (args.defaultEventSummary) {
-    el.setAttribute("default-event-summary", String(args.defaultEventSummary));
-  }
   if (args.selectedCalendarId) {
     el.setAttribute("selected-calendar-id", String(args.selectedCalendarId));
   } else {
@@ -165,7 +162,6 @@ const meta: Meta = {
       control: { type: "select" },
       options: VISIBLE_HOUR_OPTIONS,
     },
-    defaultEventSummary: { control: "text", description: "Default created event summary" },
     selectedCalendarId: { control: "text", description: "Selected calendar for new events" },
     calendars: {
       control: false,
@@ -184,7 +180,6 @@ const meta: Meta = {
     currentTime: "2025-01-15T14:30:00",
     snapInterval: 15,
     visibleHours: 12,
-    defaultEventSummary: "New event",
     selectedCalendarId: "",
     events: sampleEvents,
   },

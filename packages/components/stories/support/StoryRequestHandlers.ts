@@ -1,5 +1,6 @@
 import { action } from "storybook/actions";
 import type {
+  EventCreateRequestDetail,
   EventKeyDetail,
   EventSelectionRequestDetail,
 } from "../../src/types/CalendarEventRequests.js";
@@ -11,7 +12,9 @@ type AttachRequestHandlersOptions = {
   onPendingChanged?: () => void;
 };
 
-const logCreateRequested = action("event-created");
+const logCreateRequested = action("event-create-requested");
+const logCreateCancelled = action("event-create-requested (cancelled)");
+const logCreateApplied = action("event-created");
 const logUpdateRequested = action("event-updated");
 const logDeleteRequested = action("event-deleted");
 const logSelectionRequested = action("event-selected");
@@ -22,6 +25,15 @@ function readKeyDetail(event: CustomEvent<unknown>): EventKeyDetail | null {
   if (!("key" in detail) || typeof (detail as { key: unknown }).key !== "string") return null;
   if ("envelope" in detail || "content" in detail) return null;
   return detail as EventKeyDetail;
+}
+
+function isCreateRequestDetail(detail: unknown): detail is EventCreateRequestDetail {
+  if (typeof detail !== "object" || detail === null) return false;
+  if (!("content" in detail) || typeof (detail as { content: unknown }).content !== "object") {
+    return false;
+  }
+  const content = (detail as EventCreateRequestDetail).content;
+  return Boolean(content?.start && content?.end);
 }
 
 export function attachRequestEventHandlers(
@@ -37,11 +49,34 @@ export function attachRequestEventHandlers(
     logSelectionRequested(detail);
   });
 
+  el.addEventListener("event-create-requested", (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    if (!event.cancelable) return;
+    const detail = event.detail;
+    if (!isCreateRequestDetail(detail)) return;
+    logCreateRequested(detail);
+
+    const nextSummary = globalThis.prompt(
+      "Event title",
+      detail.content.summary || "New event"
+    );
+    if (nextSummary === null) {
+      event.preventDefault();
+      logCreateCancelled(detail);
+      return;
+    }
+
+    const trimmed = nextSummary.trim();
+    if (trimmed) {
+      detail.content.summary = trimmed;
+    }
+  });
+
   el.addEventListener("event-created", (event: Event) => {
     if (!(event instanceof CustomEvent)) return;
     const detail = readKeyDetail(event);
     if (!detail?.key) return;
-    logCreateRequested(detail);
+    logCreateApplied(detail);
     notify?.();
   });
 

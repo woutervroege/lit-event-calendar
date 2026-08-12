@@ -3,7 +3,6 @@ import type { PropertyValues } from "lit";
 import { html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
-import { getEventColorStyles } from "../utils/EventColor";
 import { formatShortTime } from "../utils/TimeFormatting";
 import "../EventCard/EventCard";
 import "../ResizeHandle/ResizeHandle";
@@ -427,7 +426,6 @@ export class AllDayEvent extends EventBase {
     const visibleDayInsets = dayInsets;
     const isFocusable = visibleDayInsets.length > 0;
     const canResizeStart = this.renderedDays.length > 1 && !this.interactionDisabled;
-    const colorStyles = getEventColorStyles(this.color);
     const isDragging = this.interactionController.isDragging;
     const hasOffset = this.dragOffsetX !== 0 || this.dragOffsetY !== 0;
     const dragTransform =
@@ -448,7 +446,6 @@ export class AllDayEvent extends EventBase {
             : "Delete Backspace Control+Meta+ArrowUp Control+Meta+ArrowDown Control+Meta+ArrowLeft Control+Meta+ArrowRight Control+Shift+ArrowUp Control+Shift+ArrowDown"
         }
         style=${styleMap({
-          ...colorStyles,
           transform: dragTransform,
           // Disable transform animation entirely to avoid snap/flash at drag end.
           transition: "none",
@@ -484,18 +481,8 @@ export class AllDayEvent extends EventBase {
   ) {
     if (!visibleDayInsets.length) return "";
 
-    const startsBeforeVisibleRange = this.#startsBeforeVisibleRange();
-    const endsAfterVisibleRange = this.#endsAfterVisibleRange();
-
     return visibleDayInsets.map((inset, index) =>
-      this.#renderEventCard(
-        inset,
-        index,
-        visibleDayInsets.length,
-        canResizeStart,
-        startsBeforeVisibleRange,
-        endsAfterVisibleRange
-      )
+      this.#renderEventCard(inset, index, visibleDayInsets.length, canResizeStart)
     );
   }
 
@@ -511,26 +498,20 @@ export class AllDayEvent extends EventBase {
     inset: { style: Record<string, string | number>; rowIndex: number; stackIndex: number },
     index: number,
     total: number,
-    canResizeStart: boolean,
-    startsBeforeVisibleRange: boolean,
-    endsAfterVisibleRange: boolean
+    canResizeStart: boolean
   ) {
     const isFirst = index === 0;
     const isLast = index === total - 1;
-    const hasRoundedStart = isFirst && !startsBeforeVisibleRange;
-    const hasRoundedEnd = isLast && !endsAfterVisibleRange;
 
     return html`
       <event-card
+        .color=${this.color}
         .summary=${isFirst ? this.summary : ""}
         .time=${isFirst ? this.displayTime : ""}
-        .segmentDirection=${"horizontal"}
         .recurring=${this.isRecurring}
         .exception=${this.isException}
         ?past=${this.isPast}
         style=${styleMap(inset.style)}
-        ?first-segment=${hasRoundedStart}
-        ?last-segment=${hasRoundedEnd}
       >
         ${
           !this.interactionDisabled && isFirst && canResizeStart
@@ -575,22 +556,6 @@ export class AllDayEvent extends EventBase {
       })
     );
   };
-
-  #startsBeforeVisibleRange(): boolean {
-    const startDate = this.startDate;
-    const dayBounds = this.renderedDayBounds;
-    if (!startDate || !dayBounds) return false;
-
-    return Temporal.PlainDate.compare(startDate, dayBounds.firstDay) < 0;
-  }
-
-  #endsAfterVisibleRange(): boolean {
-    const endDate = this.endDate;
-    const dayBounds = this.renderedDayBounds;
-    if (!endDate || !dayBounds) return false;
-
-    return Temporal.PlainDate.compare(endDate, dayBounds.lastDay) > 0;
-  }
 
   protected override onDragStart() {
     const viewDayStrings = this.viewDays.map((day) => day.toString());

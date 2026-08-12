@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../styles/z-index.css";
 
 :host {
   @apply block w-full h-full min-h-0 [container-type:inline-size];
@@ -18,8 +19,11 @@
 }
 
 .agenda-day-heading {
-  @apply box-border m-0 flex items-baseline gap-2.5 w-full px-1.5 pt-1 pb-2.5 text-sm font-normal;
+  @apply box-border m-0 flex items-baseline gap-2.5 w-full px-1.5 pt-1 pb-2.5 text-sm font-normal sticky top-0;
   color: light-dark(rgb(15 23 42 / 96%), rgb(255 255 255 / 95%));
+  z-index: var(--_lc-z-sticky);
+  /* Opaque surface so event cards scrolling underneath don't show through. */
+  background-color: var(--lg-background-color, var(--_lc-surface-bg, light-dark(#fff, #222)));
 }
 
 .agenda-day-weekday {
@@ -42,6 +46,13 @@
 
 .agenda-event-list {
   @apply m-0 p-0 list-none grid gap-2;
+  /* Skip layout/paint for off-screen days. On the list (not .agenda-day) so the sticky
+     heading stays outside the contained subtree — sticky inside a skipped container can
+     misbehave. The 130px fallback ≈ a median day (2 flow cards: 2×62px + 8px gap);
+     `auto` keeps the browser's last-rendered size once a day has been shown, so the
+     estimate only matters before first render. */
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 130px;
 }
 
 .agenda-event-item {

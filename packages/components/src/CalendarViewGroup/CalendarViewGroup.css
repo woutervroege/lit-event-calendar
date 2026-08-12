@@ -4,7 +4,7 @@
   @apply block w-full h-full min-h-0;
 }
 
-.calendar-grid-view-group {
+.calendar-view-group {
   @apply block w-full h-full min-h-0;
 }
 
@@ -15,6 +15,18 @@
 
 .content > * {
   @apply w-full h-full;
+}
+
+/* Month composition: shared weekday header above the timeline month (which intentionally has
+   no weekday row of its own — grid month view parity, where the header lived inside
+   CalendarMonthView). */
+.timeline-month-layout {
+  @apply grid min-h-0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.timeline-month-layout > .timeline-month-view {
+  @apply min-h-0;
 }
 
 :host::view-transition-group(lc-event-calendar-content) {

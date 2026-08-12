@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { type CalendarEvent, type CalendarEventsMap, EventsAPI } from "@lit-calendar/events-api";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { attachRequestEventHandlers } from "./StoryRequestHandlers.js";
 
 class MockHostElement extends EventTarget {
@@ -32,6 +32,10 @@ function createSeriesEventMap(): CalendarEventsMap {
 }
 
 describe("attachRequestEventHandlers", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("accepts key-only calendar events without throwing", () => {
     const el = new MockHostElement() as unknown as HTMLElement & {
       events: Map<string, CalendarEvent>;
@@ -41,6 +45,58 @@ describe("attachRequestEventHandlers", () => {
     el.dispatchEvent(new CustomEvent("event-updated", { detail: { key: "daily" } }));
     el.dispatchEvent(new CustomEvent("event-deleted", { detail: { key: "daily" } }));
     el.dispatchEvent(new CustomEvent("event-selected", { detail: { key: "daily" } }));
+  });
+
+  it("applies prompted summary when create proceeds", () => {
+    const el = new MockHostElement() as unknown as HTMLElement & {
+      events: Map<string, CalendarEvent>;
+    };
+    attachRequestEventHandlers(el);
+    vi.stubGlobal("prompt", vi.fn(() => " Team sync "));
+
+    const detail = {
+      envelope: { calendarId: "cal-john-work", accountId: "account-john" },
+      content: {
+        start: Temporal.PlainDateTime.from("2025-01-13T10:00:00"),
+        end: Temporal.PlainDateTime.from("2025-01-13T11:00:00"),
+        summary: "New event",
+      },
+    };
+    const accepted = el.dispatchEvent(
+      new CustomEvent("event-create-requested", {
+        detail,
+        cancelable: true,
+      })
+    );
+
+    expect(accepted).toBe(true);
+    expect(detail.content.summary).toBe("Team sync");
+  });
+
+  it("cancels create when prompt is dismissed", () => {
+    const el = new MockHostElement() as unknown as HTMLElement & {
+      events: Map<string, CalendarEvent>;
+    };
+    attachRequestEventHandlers(el);
+    vi.stubGlobal("prompt", vi.fn(() => null));
+
+    const detail = {
+      envelope: { calendarId: "cal-john-work", accountId: "account-john" },
+      content: {
+        start: Temporal.PlainDateTime.from("2025-01-13T10:00:00"),
+        end: Temporal.PlainDateTime.from("2025-01-13T11:00:00"),
+        summary: "New event",
+      },
+    };
+    const accepted = el.dispatchEvent(
+      new CustomEvent("event-create-requested", {
+        detail,
+        cancelable: true,
+      })
+    );
+
+    expect(accepted).toBe(false);
+    expect(detail.content.summary).toBe("New event");
   });
 });
 

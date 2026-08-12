@@ -21,7 +21,7 @@ import {
 } from "../../src/context/EventsAPIContext.js";
 
 /**
- * Story-only host: provides {@link eventsAPIContext} to descendants (e.g. `calendar-grid-view-group`)
+ * Story-only host: provides {@link eventsAPIContext} to descendants (e.g. `calendar-view-group`)
  * without rendering calendar chrome. Holds `events` and `calendars` like `event-calendar`.
  */
 @customElement("story-events-api-host")

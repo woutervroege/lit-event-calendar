@@ -11,9 +11,6 @@ type StoryEventCardElement = HTMLElement & {
   exception: boolean;
   past: boolean;
   layout: "absolute" | "flow";
-  segmentDirection: "horizontal" | "vertical";
-  firstSegment: boolean;
-  lastSegment: boolean;
 };
 
 const meta: Meta = {
@@ -29,9 +26,6 @@ const meta: Meta = {
     exception: { control: "boolean" },
     past: { control: "boolean" },
     layout: { control: "select", options: ["flow", "absolute"] },
-    segmentDirection: { control: "select", options: ["horizontal", "vertical"] },
-    firstSegment: { control: "boolean" },
-    lastSegment: { control: "boolean" },
     lang: { control: "text" },
   },
   args: {
@@ -43,9 +37,6 @@ const meta: Meta = {
     exception: false,
     past: false,
     layout: "flow",
-    segmentDirection: "horizontal",
-    firstSegment: true,
-    lastSegment: true,
     lang: "en",
   },
   render: (args) => {
@@ -67,9 +58,6 @@ const meta: Meta = {
     card.exception = Boolean(args.exception);
     card.past = Boolean(args.past);
     card.layout = (args.layout as "absolute" | "flow") ?? "flow";
-    card.segmentDirection = (args.segmentDirection as "horizontal" | "vertical") ?? "horizontal";
-    card.firstSegment = Boolean(args.firstSegment);
-    card.lastSegment = Boolean(args.lastSegment);
 
     card.style.setProperty("--_lc-event-bg", "rgba(14, 165, 233, 0.15)");
     card.style.setProperty("--_lc-event-bg-hover", "rgba(14, 165, 233, 0.22)");
@@ -129,8 +117,5 @@ export const AbsoluteRecurringSegment: Story = {
   args: {
     recurring: true,
     layout: "absolute",
-    segmentDirection: "vertical",
-    firstSegment: true,
-    lastSegment: false,
   },
 };

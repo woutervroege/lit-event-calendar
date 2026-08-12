@@ -5,7 +5,7 @@ import componentStyle from "./ResizeHandle.css?inline";
 
 @customElement("resize-handle")
 export class ResizeHandle extends BaseElement {
-  @property({ type: String })
+  @property({ type: String, reflect: true })
   position = "";
 
   @property({ type: String, reflect: true })
