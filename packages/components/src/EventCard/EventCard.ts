@@ -81,9 +81,18 @@ export class EventCard extends BaseElement {
     }
   }
 
+  /** Whether the host color custom properties were set by this component (vs. by a consumer). */
+  #appliedColorHostKeys = false;
+
   #syncColorFromProp() {
-    for (const key of EVENT_COLOR_HOST_KEYS) {
-      this.style.removeProperty(key);
+    // Only clear keys this component set itself: consumers without a `color`
+    // prop (e.g. the list view) apply the same custom properties externally
+    // via inline styles, and those must survive connect/first-update.
+    if (this.#appliedColorHostKeys) {
+      for (const key of EVENT_COLOR_HOST_KEYS) {
+        this.style.removeProperty(key);
+      }
+      this.#appliedColorHostKeys = false;
     }
     const trimmed = this.color?.trim() ?? "";
     if (!trimmed) return;
@@ -92,10 +101,12 @@ export class EventCard extends BaseElement {
       for (const [key, value] of Object.entries(fromHex)) {
         this.style.setProperty(key, value);
       }
+      this.#appliedColorHostKeys = true;
       return;
     }
     this.style.setProperty("--_lc-event-bg", surfaceTint(trimmed, 11));
     this.style.setProperty("--_lc-event-accent-color", trimmed);
+    this.#appliedColorHostKeys = true;
   }
 
   get dir() {
