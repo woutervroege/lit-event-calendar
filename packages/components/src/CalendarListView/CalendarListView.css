@@ -46,6 +46,13 @@
 
 .agenda-event-list {
   @apply m-0 p-0 list-none grid gap-2;
+  /* Skip layout/paint for off-screen days. On the list (not .agenda-day) so the sticky
+     heading stays outside the contained subtree — sticky inside a skipped container can
+     misbehave. The 130px fallback ≈ a median day (2 flow cards: 2×62px + 8px gap);
+     `auto` keeps the browser's last-rendered size once a day has been shown, so the
+     estimate only matters before first render. */
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 130px;
 }
 
 .agenda-event-item {
