@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   type CalendarTimelineScale,
   alignedMonthGridStart,
+  alignedWeekStart,
+  compareDaySnappedRenderOrder,
   fromTimelineRange,
   fromTimelineValue,
   resolveTimelineEventFilter,
+  resolveVisibleHoursZoom,
   timelineGridMax,
   timelineRangeOverlapsCell,
   toTimelineAllDayRange,
@@ -151,6 +154,86 @@ describe("timelineGridMax", () => {
   });
 });
 
+describe("alignedWeekStart (week-mode window alignment, grid-week parity)", () => {
+  it("aligns a mid-week anchor back to a Monday week start", () => {
+    // 2025-01-08 is a Wednesday; the Monday on/before is 2025-01-06.
+    const start = alignedWeekStart(Temporal.PlainDate.from("2025-01-08"), 1);
+    expect(start.toString()).toBe("2025-01-06");
+    expect(start.dayOfWeek).toBe(1);
+  });
+
+  it("aligns to a Sunday week start", () => {
+    // Sunday on/before 2025-01-08 (Wednesday) is 2025-01-05.
+    const start = alignedWeekStart(Temporal.PlainDate.from("2025-01-08"), 7);
+    expect(start.toString()).toBe("2025-01-05");
+    expect(start.dayOfWeek).toBe(7);
+  });
+
+  it("keeps an anchor already on the week start", () => {
+    // 2025-01-06 is a Monday.
+    const start = alignedWeekStart(Temporal.PlainDate.from("2025-01-06"), 1);
+    expect(start.toString()).toBe("2025-01-06");
+  });
+
+  it("crosses month/year boundaries backwards when needed", () => {
+    // 2025-01-01 is a Wednesday; Monday-aligned window starts 2024-12-30.
+    const start = alignedWeekStart(Temporal.PlainDate.from("2025-01-01"), 1);
+    expect(start.toString()).toBe("2024-12-30");
+  });
+
+  it("never lands after the anchor and always on the requested weekday", () => {
+    for (let weekStart = 1; weekStart <= 7; weekStart++) {
+      for (let day = 1; day <= 14; day++) {
+        const anchor = Temporal.PlainDate.from({ year: 2025, month: 6, day });
+        const start = alignedWeekStart(anchor, weekStart);
+        expect(start.dayOfWeek).toBe(weekStart);
+        expect(Temporal.PlainDate.compare(start, anchor)).toBeLessThanOrEqual(0);
+        expect(anchor.since(start).days).toBeLessThan(7);
+      }
+    }
+  });
+});
+
+describe("resolveVisibleHoursZoom (grid visibleHours -> hour-height zoom)", () => {
+  it("passes through an in-range window", () => {
+    expect(resolveVisibleHoursZoom(8, 8)).toEqual({ hours: 8, startHour: 8 });
+  });
+
+  it("defaults the start hour to 0", () => {
+    expect(resolveVisibleHoursZoom(12)).toEqual({ hours: 12, startHour: 0 });
+  });
+
+  it("clamps the start hour so the window stays within the day", () => {
+    expect(resolveVisibleHoursZoom(8, 22)).toEqual({ hours: 8, startHour: 16 });
+    expect(resolveVisibleHoursZoom(8, -3)).toEqual({ hours: 8, startHour: 0 });
+  });
+
+  it("clamps the hour count to 1–24 (24 stays explicit: no min-height floor)", () => {
+    expect(resolveVisibleHoursZoom(0.5)).toEqual({ hours: 1, startHour: 0 });
+    expect(resolveVisibleHoursZoom(48, 6)).toEqual({ hours: 24, startHour: 0 });
+    expect(resolveVisibleHoursZoom(24)).toEqual({ hours: 24, startHour: 0 });
+  });
+
+  it("returns null for unset or invalid values (default hour sizing applies)", () => {
+    expect(resolveVisibleHoursZoom(undefined)).toBeNull();
+    expect(resolveVisibleHoursZoom(0)).toBeNull();
+    expect(resolveVisibleHoursZoom(-4)).toBeNull();
+    expect(resolveVisibleHoursZoom(Number.NaN)).toBeNull();
+  });
+
+  it("yields the grid-parity sizing math (hour height x 24 = scrollable day height)", () => {
+    // 8 visible hours in a 640px timed viewport: 80px per hour, 1920px full day, initial
+    // scroll of startHour x hour height.
+    const zoom = resolveVisibleHoursZoom(8, 8);
+    expect(zoom).not.toBeNull();
+    const viewportPx = 640;
+    const hourHeightPx = viewportPx / (zoom?.hours ?? 24);
+    expect(hourHeightPx).toBe(80);
+    expect(24 * hourHeightPx).toBe(1920);
+    expect((zoom?.startHour ?? 0) * hourHeightPx).toBe(640);
+  });
+});
+
 describe("alignedMonthGridStart (month-mode 42-cell window)", () => {
   it("aligns the 1st of the month back to a Monday week start", () => {
     // 2025-01-01 is a Wednesday; Monday-aligned window starts 2024-12-30.
@@ -190,12 +273,47 @@ describe("resolveTimelineEventFilter (per-presentation all-day filtering)", () =
     expect(resolveTimelineEventFilter("timed", "timed")).toBe("all");
   });
 
-  it("keeps only timed events for a preset all-day mapping (month day cells)", () => {
-    expect(resolveTimelineEventFilter(undefined, "all-day")).toBe("timed-only");
+  it("shows everything, day-snapped, for a preset all-day mapping (month day cells)", () => {
+    expect(resolveTimelineEventFilter(undefined, "all-day")).toBe("all");
   });
 
   it("keeps only all-day events for the explicit standalone all-day variant", () => {
     expect(resolveTimelineEventFilter("all-day", "all-day")).toBe("all-day-only");
+  });
+});
+
+describe("compareDaySnappedRenderOrder (grid-parity cell stacking)", () => {
+  const entry = (start: string, end: string, summary: string) => ({
+    start: Temporal.PlainDateTime.from(start),
+    end: Temporal.PlainDateTime.from(end),
+    summary,
+  });
+
+  it("orders by start date first", () => {
+    const early = entry("2025-01-14T15:00", "2025-01-14T16:00", "B");
+    const late = entry("2025-01-15T09:00", "2025-01-15T09:30", "A");
+    expect(compareDaySnappedRenderOrder(early, late)).toBeLessThan(0);
+    expect(compareDaySnappedRenderOrder(late, early)).toBeGreaterThan(0);
+  });
+
+  it("puts longer spans before shorter ones on the same start date", () => {
+    const multiDay = entry("2025-01-15T00:00", "2025-01-18T00:00", "Zebra Offsite");
+    const timed = entry("2025-01-15T09:00", "2025-01-15T09:30", "Alpha Standup");
+    expect(compareDaySnappedRenderOrder(multiDay, timed)).toBeLessThan(0);
+  });
+
+  it("falls back to summary for same-day, same-span events (time of day is ignored)", () => {
+    const afternoon = entry("2025-01-15T16:30", "2025-01-15T17:30", "Drinks");
+    const morning = entry("2025-01-15T09:00", "2025-01-15T09:30", "Daily Standup");
+    expect(compareDaySnappedRenderOrder(morning, afternoon)).toBeLessThan(0);
+    expect(compareDaySnappedRenderOrder(afternoon, morning)).toBeGreaterThan(0);
+  });
+
+  it("treats an all-day event ending at next midnight as ending on its own day", () => {
+    const allDay = entry("2025-01-15T00:00", "2025-01-16T00:00", "Team Offsite");
+    const timed = entry("2025-01-15T09:00", "2025-01-15T09:30", "Daily Standup");
+    // Same effective span → summary decides.
+    expect(compareDaySnappedRenderOrder(allDay, timed)).toBeGreaterThan(0);
   });
 });
 

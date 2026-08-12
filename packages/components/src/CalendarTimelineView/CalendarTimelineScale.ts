@@ -84,21 +84,41 @@ export function toTimelineAllDayRange(
   return toTimelineRange(dayStart, dayEndExclusive, scale);
 }
 
-export type TimelineEventFilter = "all" | "timed-only" | "all-day-only";
+/**
+ * Render order for day-snapped presentations (month cells, all-day rows), matching the grid
+ * views' all-day comparator: start date first, then longer spans win lower stack rows, then
+ * summary as a stable tie-breaker.
+ */
+export function compareDaySnappedRenderOrder(
+  a: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime; summary: string },
+  b: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime; summary: string }
+): number {
+  const startDateDiff = Temporal.PlainDate.compare(a.start.toPlainDate(), b.start.toPlainDate());
+  if (startDateDiff !== 0) return startDateDiff;
+
+  const aEndDate = a.end.subtract({ nanoseconds: 1 }).toPlainDate();
+  const bEndDate = b.end.subtract({ nanoseconds: 1 }).toPlainDate();
+  const endDateDiff = Temporal.PlainDate.compare(aEndDate, bEndDate);
+  if (endDateDiff !== 0) return -endDateDiff;
+
+  return a.summary.localeCompare(b.summary);
+}
+
+export type TimelineEventFilter = "all" | "all-day-only";
 
 /**
  * Which events a single-timeline presentation should include:
  * - explicit `variant="all-day"` is the standalone all-day presentation → all-day events only
- * - a preset all-day mapping (month mode's day cells) → timed events only
+ * - a preset all-day mapping (month mode's day cells) → everything, day-snapped
+ *   (grid-month parity: timed events keep their time label, all-day events render as bars)
  * - timed variants (gantt, horizontal timed) → everything, plotted with real ranges
  */
 export function resolveTimelineEventFilter(
   explicitVariant: string | undefined,
   resolvedVariant: "timed" | "all-day"
 ): TimelineEventFilter {
-  if (resolvedVariant !== "all-day") return "all";
-  if (explicitVariant === "all-day") return "all-day-only";
-  return "timed-only";
+  if (resolvedVariant === "all-day" && explicitVariant === "all-day") return "all-day-only";
+  return "all";
 }
 
 export function fromTimelineRange(
@@ -118,6 +138,18 @@ export function timelineGridMax(scale: CalendarTimelineScale): number {
 }
 
 /**
+ * Week-start-aligned day on or before `anchor` — the first cell of a full-week window
+ * (same alignment as `CalendarWeekView#gridStartDate`).
+ */
+export function alignedWeekStart(
+  anchor: Temporal.PlainDate,
+  weekStart: number
+): Temporal.PlainDate {
+  const weekdayOffset = (anchor.dayOfWeek - weekStart + 7) % 7;
+  return anchor.subtract({ days: weekdayOffset });
+}
+
+/**
  * First cell of a month grid window: the week-start-aligned day on or before the 1st of
  * `monthAnchor`'s month (same alignment as `CalendarMonthView.startDate`).
  */
@@ -125,9 +157,7 @@ export function alignedMonthGridStart(
   monthAnchor: Temporal.PlainDate,
   weekStart: number
 ): Temporal.PlainDate {
-  const firstOfMonth = monthAnchor.with({ day: 1 });
-  const weekdayOffset = (firstOfMonth.dayOfWeek - weekStart + 7) % 7;
-  return firstOfMonth.subtract({ days: weekdayOffset });
+  return alignedWeekStart(monthAnchor.with({ day: 1 }), weekStart);
 }
 
 /**
@@ -155,10 +185,32 @@ export function timelineRangeOverlapsCell(
 }
 
 /**
+ * Grid-parity `visibleHours` zoom: clamped visible hour count (1–24) and first visible hour
+ * (clamped so the window stays inside the day). Returns `null` when `visibleHours` is unset or
+ * invalid — the consumer then falls back to its default hour sizing. The day/week composition
+ * derives its hour height from this (viewport height / hours) and scrolls the remaining hours
+ * into view, exactly like the grid week view; `startHour` drives the initial scroll offset.
+ */
+export function resolveVisibleHoursZoom(
+  visibleHours: number | undefined,
+  visibleHoursStart?: number
+): { hours: number; startHour: number } | null {
+  const hours = Number(visibleHours);
+  if (!Number.isFinite(hours) || hours <= 0) return null;
+  const clampedHours = Math.max(1, Math.min(24, Math.floor(hours)));
+  const startRaw = Number(visibleHoursStart);
+  const startHour = Number.isFinite(startRaw)
+    ? Math.max(0, Math.min(24 - clampedHours, Math.floor(startRaw)))
+    : 0;
+  return { hours: clampedHours, startHour };
+}
+
+/**
  * Maps the grid views' `visibleHours` concept (+ optional start hour) onto TimeLine's per-cell
  * axis window. Returns the full range (`start: 0, end: null`) when `visibleHours` is unset or
- * covers the whole day. Note the semantic difference: the grid scrolls the remaining hours into
- * view, while the timeline axis window clips them (v1 limitation).
+ * covers the whole day. The day/week calendar composition no longer uses this (it zooms via
+ * `resolveVisibleHoursZoom` and scrolls); the axis window remains a generic TimeLine feature
+ * for other consumers.
  */
 export function visibleHoursWindow(
   unitsPerDay: number,

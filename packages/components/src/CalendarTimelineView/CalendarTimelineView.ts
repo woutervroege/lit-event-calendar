@@ -8,6 +8,7 @@ import { resolvedDataEnd } from "../domain/events-api/eventMapBridge.js";
 import "../EventCard/EventCard.js";
 import "../CalendarTimeSidebar/CalendarTimeSidebar.js";
 import "../DayOverflowPopover/DayOverflowPopover.js";
+import "../SwipeContainer/SwipeContainer.js";
 import type { CalendarEvent as ApiCalendarEvent } from "@lit-calendar/events-api";
 import type {
   EventCreateRequestDetail,
@@ -27,20 +28,23 @@ import type {
   TimelineEventMoveCommitDetail,
   TimelineEventPreviewRange,
   TimelineEventResizeCommitDetail,
+  TimelineGestureSignalDetail,
 } from "../types/TimeLine.js";
 import "../TimeLine/TimeLine.js";
-import { getLocaleWeekInfo } from "../utils/Locale.js";
+import { getLocaleWeekInfo, resolveLocale } from "../utils/Locale.js";
 import { formatShortTimeRange } from "../utils/TimeFormatting.js";
 import {
   alignedMonthGridStart,
+  alignedWeekStart,
+  compareDaySnappedRenderOrder,
   fromTimelineRange,
   fromTimelineValue,
   resolveTimelineEventFilter,
+  resolveVisibleHoursZoom,
   timelineRangeOverlapsCell,
   toTimelineAllDayRange,
   toTimelineRange,
   toTimelineValue,
-  visibleHoursWindow,
   yearMonthStarts,
 } from "./CalendarTimelineScale.js";
 import componentStyle from "./CalendarTimelineView.css?inline";
@@ -141,12 +145,14 @@ export class CalendarTimelineView extends CalendarViewBase {
   timelineLayout?: TimelineLayout;
   timelineHeight?: "auto" | "";
   /**
-   * Grid-parity `visibleHours`: shows only this many hours per day in vertical modes, mapped
-   * through the time-line axis window. Unlike the grid (which scrolls the remaining hours into
-   * view), hours outside the window are clipped (v1 axis-window limitation).
+   * Grid-parity `visibleHours`: zoom for the day/week (vertical timed) composition. The hour
+   * height derives from the available viewport height divided by this count, the timed
+   * timeline always renders the full 24h (taller than the viewport when `visibleHours` < 24),
+   * and the remaining hours scroll into view — same behavior as the grid week view. When
+   * unset, hours shrink to fit down to a 72px-per-hour floor before scrolling kicks in.
    */
   visibleHours?: number;
-  /** First visible hour when `visibleHours` is active (default 0). */
+  /** First visible hour when `visibleHours` is active: the initial scroll offset (default 0). */
   visibleHoursStart?: number;
   rtl = false;
 
@@ -162,6 +168,19 @@ export class CalendarTimelineView extends CalendarViewBase {
   #activeOverflowCellIndex: number | null = null;
   /** Cell whose compact-month day-header popover is (being) opened (month/year compact mode). */
   #activeHeaderPopoverCellIndex: number | null = null;
+  /**
+   * Live TimeLine gestures (`kind:gestureId` keys from `timeline-gesture-start/-end`); while
+   * non-empty, swipe navigation is suppressed so drags never fight the pager (grid-week
+   * `interaction-lock-change` parity).
+   */
+  #activeGestureLocks = new Set<string>();
+  /** Active day column for the narrow-week swipe pager (grid-week `currentDayIndex` parity). */
+  #currentDayIndex = 0;
+  /** Apply the `visibleHoursStart` scroll offset on the next layout pass of the composed view. */
+  #pendingInitialScroll = true;
+  /** Watches the composed layout + all-day shell to derive the timed viewport height. */
+  #composedResizeObserver: ResizeObserver | null = null;
+  #observedComposedElements = new Set<Element>();
 
   static get properties() {
     return {
@@ -196,6 +215,12 @@ export class CalendarTimelineView extends CalendarViewBase {
       clearTimeout(this.#suppressNextCardSelectTimeout);
       this.#suppressNextCardSelectTimeout = null;
     }
+    this.#composedResizeObserver?.disconnect();
+    this.#composedResizeObserver = null;
+    this.#observedComposedElements.clear();
+    // Gestures can leave transient locks active if the view unmounts mid-drag; reset so swipe
+    // is re-enabled when returning to this view (grid-week parity).
+    this.#activeGestureLocks.clear();
     super.disconnectedCallback();
   }
 
@@ -207,6 +232,44 @@ export class CalendarTimelineView extends CalendarViewBase {
         this.numDays = Math.floor(next);
       }
     }
+    if (
+      changedProperties.has("mode") ||
+      changedProperties.has("visibleHours") ||
+      changedProperties.has("visibleHoursStart")
+    ) {
+      this.#pendingInitialScroll = true;
+    }
+    // Keep the swipe pager's active column on the anchor date whenever the window moves
+    // (grid-week parity: CalendarWeekView#willUpdate).
+    if (
+      this.#composedVertical &&
+      this.#resolvedNumDays > 1 &&
+      (changedProperties.has("startDate") ||
+        changedProperties.has("weekStart") ||
+        changedProperties.has("numDays") ||
+        changedProperties.has("daysPerWeek") ||
+        changedProperties.has("mode"))
+    ) {
+      const dayOffset = this.#gridStartDate.until(this.#parsedStartDate, {
+        largestUnit: "day",
+      }).days;
+      const maxIndex = Math.max(0, this.#resolvedNumDays - 1);
+      this.#currentDayIndex = Math.max(0, Math.min(maxIndex, Math.floor(dayOffset)));
+    }
+  }
+
+  override updated(changedProperties: Map<string | number | symbol, unknown>): void {
+    super.updated(changedProperties);
+    this.#syncComposedLayout();
+  }
+
+  /**
+   * Locale for direct `Intl` formatting. Hosts may pass a raw (possibly empty) `lang` — Lit's
+   * generated accessor for the re-declared property shadows CalendarViewBase's resolving
+   * getter, so `this.lang` is not guaranteed to be a valid language tag here.
+   */
+  get #locale(): string {
+    return resolveLocale(this.lang);
   }
 
   get #modePreset(): ModePreset | undefined {
@@ -233,10 +296,20 @@ export class CalendarTimelineView extends CalendarViewBase {
     }
   }
 
-  /** First rendered day; month mode aligns the 42-cell window to the locale week start. */
+  /**
+   * First rendered day; month mode aligns the 42-cell window to the locale week start, and
+   * week mode rendering a full week aligns the same way (`CalendarWeekView#gridStartDate`
+   * parity). Day mode and custom day counts keep the raw start date.
+   */
   get #gridStartDate(): Temporal.PlainDate {
     if (this.mode === "month") {
       return alignedMonthGridStart(
+        this.#parsedStartDate,
+        this.resolveWeekStart(this.weekStart, this.lang)
+      );
+    }
+    if (this.mode === "week" && this.#resolvedNumDays === 7) {
+      return alignedWeekStart(
         this.#parsedStartDate,
         this.resolveWeekStart(this.weekStart, this.lang)
       );
@@ -319,17 +392,9 @@ export class CalendarTimelineView extends CalendarViewBase {
     return this.#resolvedFlow === "vertical" && this.#resolvedVariant === "timed";
   }
 
-  /** Clamped `visibleHours` sub-range, or `null` when the full day is visible. */
+  /** Clamped `visibleHours` zoom (hour count + first hour), or `null` when unset. */
   get #resolvedVisibleHours(): { hours: number; startHour: number } | null {
-    const hours = Number(this.visibleHours);
-    if (!Number.isFinite(hours) || hours <= 0) return null;
-    const clampedHours = Math.max(1, Math.min(24, Math.floor(hours)));
-    if (clampedHours >= 24) return null;
-    const startRaw = Number(this.visibleHoursStart);
-    const startHour = Number.isFinite(startRaw)
-      ? Math.max(0, Math.min(24 - clampedHours, Math.floor(startRaw)))
-      : 0;
-    return { hours: clampedHours, startHour };
+    return resolveVisibleHoursZoom(this.visibleHours, this.visibleHoursStart);
   }
 
   get #currentDateTime(): Temporal.PlainDateTime {
@@ -718,44 +783,61 @@ export class CalendarTimelineView extends CalendarViewBase {
   }
 
   /**
-   * Per-cell day header (today highlight, month-outside dimming). Day/week/gantt show a
-   * locale-aware weekday name + day number; month mode shows only the day number, with the
-   * short month name on each month's 1st.
+   * Grid-view-parity `day-selection` (click/Enter/Space on a day header). Buttons synthesize
+   * click for Enter/Space with `event.detail === 0`, covering keyboard too.
+   */
+  #emitDaySelection(day: Temporal.PlainDate, dayIndex: number, event: MouseEvent) {
+    const keyboard = event.detail === 0;
+    this.dispatchEvent(
+      new CustomEvent("day-selection", {
+        bubbles: true,
+        composed: true,
+        detail: {
+          date: day.toString(),
+          dayIndex,
+          trigger: keyboard ? "keyboard" : "click",
+          pointerType: keyboard ? "keyboard" : "mouse",
+          sourceEvent: event,
+        },
+      })
+    );
+  }
+
+  /**
+   * Per-cell day header for day/week/gantt (today highlight, weekend tint): an interactive
+   * button showing a locale-aware weekday name + day number, emitting `day-selection` on
+   * click/Enter/Space like the month header buttons (grid-view parity).
    */
   #dayHeaderTemplate = (cellIndex: number): TemplateResult => {
     const day = this.#gridStartDate.add({ days: cellIndex });
-    const isMonthMode = this.mode === "month";
-    const anchor = this.#parsedStartDate;
-    const outsideMonth = isMonthMode && (day.month !== anchor.month || day.year !== anchor.year);
     const isToday = Temporal.PlainDate.compare(day, this.#currentDateTime.toPlainDate()) === 0;
     const isWeekend = this.#isWeekendDay(day);
-    // Month mode renders no weekday names (a weekday header row composes outside the view);
-    // instead, the 1st of each month labels the month boundary ("Aug 1", locale-ordered).
-    const weekdayLabel = isMonthMode
-      ? ""
-      : new Intl.DateTimeFormat(this.lang, { weekday: "short" }).format(
-          new Date(Date.UTC(day.year, day.month - 1, day.day))
-        );
-    const dayNumber =
-      isMonthMode && day.day === 1
-        ? new Intl.DateTimeFormat(this.lang, { month: "short", day: "numeric" }).format(
-            new Date(Date.UTC(day.year, day.month - 1, day.day))
-          )
-        : new Intl.NumberFormat(this.lang).format(day.day);
-    // State variants travel as extra part names; the weekend part is only set inside the
-    // anchor month (outside-month dimming wins), mirroring the CSS the parts map to.
+    const dayDate = new Date(Date.UTC(day.year, day.month - 1, day.day));
+    const weekdayLabel = new Intl.DateTimeFormat(this.#locale, { weekday: "short" }).format(dayDate);
+    const dayNumber = new Intl.NumberFormat(this.#locale).format(day.day);
+    const fullDateLabel = new Intl.DateTimeFormat(this.#locale, { dateStyle: "full" }).format(
+      dayDate
+    );
+    // State variants travel as extra part names, mirroring the CSS the parts map to.
     const headerParts = [
       "day-header",
-      outsideMonth ? "day-header-outside-month" : "",
-      isWeekend && !outsideMonth ? "day-header-weekend" : "",
+      "day-header-button",
+      isWeekend ? "day-header-weekend" : "",
     ]
       .filter(Boolean)
       .join(" ");
     return html`
-      <div part=${headerParts} aria-hidden="true">
-        ${weekdayLabel ? html`<span>${weekdayLabel}</span>` : nothing}
+      <button
+        type="button"
+        class="timeline-day-header"
+        part=${headerParts}
+        .ariaLabel=${fullDateLabel}
+        .ariaCurrent=${isToday ? "date" : null}
+        @click=${(clickEvent: MouseEvent) => this.#emitDaySelection(day, cellIndex, clickEvent)}
+      >
+        <span>${weekdayLabel}</span>
         <span part="day-number${isToday ? " day-number-today" : ""}">${dayNumber}</span>
-      </div>
+      </button>
     `;
   };
 
@@ -795,19 +877,7 @@ export class CalendarTimelineView extends CalendarViewBase {
       this.#openHeaderPopover(cellIndex, button);
       return;
     }
-    // Buttons synthesize click for Enter/Space (event.detail === 0), covering keyboard too.
-    const keyboard = event.detail === 0;
-    this.dispatchEvent(
-      new CustomEvent("day-selection", {
-        detail: {
-          date: day.toString(),
-          dayIndex: cellIndex,
-          trigger: keyboard ? "keyboard" : "click",
-          pointerType: keyboard ? "keyboard" : "mouse",
-          sourceEvent: event,
-        },
-      })
-    );
+    this.#emitDaySelection(day, cellIndex, event);
   }
 
   #openHeaderPopover(cellIndex: number, button: HTMLElement) {
@@ -931,8 +1001,8 @@ export class CalendarTimelineView extends CalendarViewBase {
     // parts collapse into prefix/suffix spans (white-space: pre keeps their spacing inside the
     // inline-flex pill) so the compact treatment can hide them.
     const dayNumberContent = (() => {
-      if (day.day !== 1) return html`${new Intl.NumberFormat(this.lang).format(day.day)}`;
-      const parts = new Intl.DateTimeFormat(this.lang, {
+      if (day.day !== 1) return html`${new Intl.NumberFormat(this.#locale).format(day.day)}`;
+      const parts = new Intl.DateTimeFormat(this.#locale, {
         month: "short",
         day: "numeric",
       }).formatToParts(dayDate);
@@ -958,7 +1028,7 @@ export class CalendarTimelineView extends CalendarViewBase {
     })();
     const dayEvents = this.#monthEventsForCell(cellIndex);
     const dotColors = this.#dayDotColors(dayEvents);
-    const fullDateLabel = new Intl.DateTimeFormat(this.lang, { dateStyle: "full" }).format(
+    const fullDateLabel = new Intl.DateTimeFormat(this.#locale, { dateStyle: "full" }).format(
       dayDate
     );
     const popoverId = `timeline-day-header-popover-${cellIndex}`;
@@ -1017,7 +1087,7 @@ export class CalendarTimelineView extends CalendarViewBase {
                   "--_lc-all-day-day-number-space": "36px",
                 })}
                 .dayIso=${day.toString()}
-                .dayLabel=${new Intl.NumberFormat(this.lang).format(day.day)}
+                .dayLabel=${new Intl.NumberFormat(this.#locale).format(day.day)}
                 ?is-current-day=${isToday}
                 ?outside-visible-month=${outsideMonth}
                 ?is-weekend=${isWeekend}
@@ -1053,7 +1123,7 @@ export class CalendarTimelineView extends CalendarViewBase {
     const popoverEvents: DayOverflowPopoverEvent[] = active
       ? this.#popoverEventsFor(allCellEvents as CalendarTimelineEvent[])
       : [];
-    const fullDateLabel = new Intl.DateTimeFormat(this.lang, { dateStyle: "full" }).format(
+    const fullDateLabel = new Intl.DateTimeFormat(this.#locale, { dateStyle: "full" }).format(
       new Date(Date.UTC(day.year, day.month - 1, day.day))
     );
     const isMonthMode = this.mode === "month";
@@ -1072,7 +1142,7 @@ export class CalendarTimelineView extends CalendarViewBase {
         @click=${() => this.#prepareOverflowPopover(cellIndex)}
       >
         ${this.#renderOverflowDots(hiddenEvents, hiddenCount)}
-        <span>+${new Intl.NumberFormat(this.lang).format(hiddenCount)} more</span>
+        <span>+${new Intl.NumberFormat(this.#locale).format(hiddenCount)} more</span>
       </button>
       <day-overflow-popover
         id=${popoverId}
@@ -1085,7 +1155,7 @@ export class CalendarTimelineView extends CalendarViewBase {
           "--_lc-all-day-day-number-space": "36px",
         })}
         .dayIso=${day.toString()}
-        .dayLabel=${new Intl.NumberFormat(this.lang).format(day.day)}
+        .dayLabel=${new Intl.NumberFormat(this.#locale).format(day.day)}
         ?is-current-day=${Temporal.PlainDate.compare(day, this.#currentDateTime.toPlainDate()) ===
         0}
         ?outside-visible-month=${isMonthMode &&
@@ -1183,12 +1253,24 @@ export class CalendarTimelineView extends CalendarViewBase {
     const entries = this.#renderedEntries;
     const filter = resolveTimelineEventFilter(this.variant, this.#resolvedVariant);
     if (filter === "all-day-only") {
-      return entries.filter(([, event]) => event.data.allDay === true);
+      return this.#sortDaySnappedEntries(
+        entries.filter(([, event]) => event.data.allDay === true)
+      );
     }
-    if (filter === "timed-only") {
-      return entries.filter(([, event]) => event.data.allDay !== true);
+    if (this.#resolvedVariant === "all-day") {
+      return this.#sortDaySnappedEntries(entries);
     }
     return entries;
+  }
+
+  /** Grid-parity stacking order inside day-snapped cells (month, all-day rows). */
+  #sortDaySnappedEntries(entries: [string, ApiCalendarEvent][]): [string, ApiCalendarEvent][] {
+    return entries.sort(([, a], [, b]) =>
+      compareDaySnappedRenderOrder(
+        { start: a.data.start, end: resolvedDataEnd(a.data), summary: a.data.summary },
+        { start: b.data.start, end: resolvedDataEnd(b.data), summary: b.data.summary }
+      )
+    );
   }
 
   #renderSingleTimeline(variant: TimelineVariant): TemplateResult {
@@ -1233,13 +1315,21 @@ export class CalendarTimelineView extends CalendarViewBase {
    * Day/week composition: time sidebar + timed timeline, with the all-day row above it when
    * `allDayRow` is opted in (grid-week parity). Without the row, all-day events are hidden and
    * a header-only strip keeps the day labels aligned with the timed columns.
+   *
+   * The layout wrapper (`.timeline-layout--composed`) is the scroll container: the timed
+   * timeline renders the full 24h at `--_lc-timeline-hour-height` per hour (derived from the
+   * viewport height and `visibleHours`, see the styleMap in `render()`), the all-day shell
+   * (day headers + all-day row) sticks to the top while the timed area scrolls, and the time
+   * sidebar scrolls with the timed grid. A swipe-container wraps the day columns for the
+   * narrow-week pager (responsive visible-column count + swipe to change the active date),
+   * suspended while a TimeLine gesture is live (grid-week parity).
    */
-  #renderComposedVertical(): TemplateResult {
+  #renderComposedVertical(direction: "ltr" | "rtl"): TemplateResult {
     const showAllDayRow = this.allDayRow === true;
     const entries = this.#renderedEntries;
     const timedEntries = entries.filter(([, event]) => event.data.allDay !== true);
     const allDayEntries = showAllDayRow
-      ? entries.filter(([, event]) => event.data.allDay === true)
+      ? this.#sortDaySnappedEntries(entries.filter(([, event]) => event.data.allDay === true))
       : [];
     const allDayEvents = this.#mapTimelineEvents(allDayEntries, "all-day");
     const timedEvents = this.#mapTimelineEvents(timedEntries, "timed");
@@ -1248,12 +1338,6 @@ export class CalendarTimelineView extends CalendarViewBase {
 
     const numDays = this.#resolvedNumDays;
     const unitsPerDay = this.#resolvedTimelineMax;
-    const visible = this.#resolvedVisibleHours;
-    const { windowStart, windowEnd } = visibleHoursWindow(
-      unitsPerDay,
-      visible?.hours,
-      visible?.startHour
-    );
 
     const allDayRowTemplate = showAllDayRow
       ? html`
@@ -1297,30 +1381,134 @@ export class CalendarTimelineView extends CalendarViewBase {
       <calendar-time-sidebar
         class="timeline-sidebar"
         .lang=${this.lang}
-        .hours=${visible?.hours ?? 24}
-        .startHour=${visible?.startHour ?? 0}
+        .hours=${24}
+        .startHour=${0}
       ></calendar-time-sidebar>
-      <div class="timeline-all-day-shell">${allDayRowTemplate}</div>
-      <time-line
-        class="timeline-timed"
-        .events=${timedEvents}
-        .cells=${numDays}
-        .columns=${numDays}
-        .max=${unitsPerDay}
-        .step=${this.#resolvedTimelineStep}
-        .flow=${"vertical" as const}
-        .layout=${this.#resolvedLayout}
-        .gridInterval=${unitsPerDay / 24}
-        .windowStart=${windowStart}
-        .windowEnd=${windowEnd}
-        .markers=${this.#currentTimeMarkers}
-        .eventTemplate=${this.#renderTimedTimelineEvent}
-        @timeline-event-move=${(event: Event) => this.#handleTimelineMoveCommit(event, "timed")}
-        @timeline-event-resize=${(event: Event) =>
-          this.#handleTimelineResizeCommit(event, "timed")}
-        @timeline-event-create=${(event: Event) => this.#handleTimelineCreate(event, "timed")}
-      ></time-line>
+      <swipe-container
+        class="timeline-swipe"
+        .currentIndex=${this.#currentDayIndex}
+        scroll-snap-stop="normal"
+        .disabled=${this.#activeGestureLocks.size > 0 || numDays === 1}
+        @change=${this.#handleSwipeIndexChange}
+        dir=${direction}
+      >
+        <div
+          class="timeline-stack"
+          @timeline-gesture-start=${this.#handleTimelineGestureStart}
+          @timeline-gesture-end=${this.#handleTimelineGestureEnd}
+        >
+          <div class="timeline-all-day-shell">${allDayRowTemplate}</div>
+          <time-line
+            class="timeline-timed"
+            .events=${timedEvents}
+            .cells=${numDays}
+            .columns=${numDays}
+            .max=${unitsPerDay}
+            .step=${this.#resolvedTimelineStep}
+            .flow=${"vertical" as const}
+            .layout=${this.#resolvedLayout}
+            .gridInterval=${unitsPerDay / 24}
+            .markers=${this.#currentTimeMarkers}
+            .eventTemplate=${this.#renderTimedTimelineEvent}
+            @timeline-event-move=${(event: Event) =>
+              this.#handleTimelineMoveCommit(event, "timed")}
+            @timeline-event-resize=${(event: Event) =>
+              this.#handleTimelineResizeCommit(event, "timed")}
+            @timeline-event-create=${(event: Event) => this.#handleTimelineCreate(event, "timed")}
+          ></time-line>
+        </div>
+      </swipe-container>
     `;
+  }
+
+  /** TimeLine gesture lock (grid-week `interaction-lock-change` parity): suspends swipe. */
+  #handleTimelineGestureStart = (event: Event) => {
+    const detail = (event as CustomEvent<TimelineGestureSignalDetail>).detail;
+    if (!detail?.kind) return;
+    this.#activeGestureLocks.add(`${detail.kind}:${detail.gestureId}`);
+    this.requestUpdate();
+  };
+
+  #handleTimelineGestureEnd = (event: Event) => {
+    const detail = (event as CustomEvent<TimelineGestureSignalDetail>).detail;
+    if (!detail?.kind) return;
+    this.#activeGestureLocks.delete(`${detail.kind}:${detail.gestureId}`);
+    this.requestUpdate();
+  };
+
+  /** Swipe pager committed a new day column (grid-week `active-date-changed` parity). */
+  #handleSwipeIndexChange = (event: Event) => {
+    if (this.#resolvedNumDays === 1) return;
+    const target = event.currentTarget as { currentIndex?: number } | null;
+    const nextIndex = Math.max(0, target?.currentIndex ?? 0);
+    this.#currentDayIndex = nextIndex;
+    const activeDate = this.#gridStartDate.add({ days: nextIndex }).toString();
+    this.dispatchEvent(
+      new CustomEvent("active-date-changed", {
+        detail: { date: activeDate, dayIndex: nextIndex },
+      })
+    );
+  };
+
+  /**
+   * Observes the composed scroll layout and its all-day shell: the shell's measured height
+   * feeds `--_lc-timeline-all-day-height` (the timed viewport is the remaining `100cqb`), and
+   * layout size changes re-derive the hour height. Dynamic measurements only — all static
+   * sizing rules live in CalendarTimelineView.css.
+   */
+  #syncComposedLayout() {
+    if (!this.#composedVertical) {
+      this.#composedResizeObserver?.disconnect();
+      this.#observedComposedElements.clear();
+      return;
+    }
+    const layout = this.renderRoot.querySelector<HTMLElement>(".timeline-layout--composed");
+    const shell = this.renderRoot.querySelector<HTMLElement>(".timeline-all-day-shell");
+    if (!layout || !shell) return;
+    if (!this.#composedResizeObserver && typeof ResizeObserver !== "undefined") {
+      this.#composedResizeObserver = new ResizeObserver(() => this.#syncComposedMetrics());
+    }
+    for (const element of [layout, shell]) {
+      if (this.#observedComposedElements.has(element)) continue;
+      this.#composedResizeObserver?.observe(element);
+      this.#observedComposedElements.add(element);
+    }
+    this.#syncComposedMetrics();
+  }
+
+  #syncComposedMetrics() {
+    const layout = this.renderRoot.querySelector<HTMLElement>(".timeline-layout--composed");
+    const shell = this.renderRoot.querySelector<HTMLElement>(".timeline-all-day-shell");
+    if (!layout || !shell) return;
+    const shellHeightPx = shell.getBoundingClientRect().height;
+    if (Number.isFinite(shellHeightPx) && shellHeightPx >= 0) {
+      layout.style.setProperty("--_lc-timeline-all-day-height", `${shellHeightPx}px`);
+    }
+    if (this.#pendingInitialScroll) {
+      requestAnimationFrame(() => this.#applyInitialScrollPosition());
+    }
+  }
+
+  /** Scrolls the timed area so `visibleHoursStart` is the first visible hour (initial view). */
+  #applyInitialScrollPosition() {
+    if (!this.#composedVertical || !this.#pendingInitialScroll) return;
+    const layout = this.renderRoot.querySelector<HTMLElement>(".timeline-layout--composed");
+    const shell = this.renderRoot.querySelector<HTMLElement>(".timeline-all-day-shell");
+    const timed = this.renderRoot.querySelector<HTMLElement>("time-line.timeline-timed");
+    if (!layout || !shell || !timed) return;
+    // The all-day strip renders asynchronously; until it has, the shell measurement (and with
+    // it the derived hour height) is stale — keep the scroll pending, the ResizeObserver
+    // re-triggers this when the shell settles.
+    const allDayStrip = shell.querySelector("time-line") as { hasUpdated?: boolean } | null;
+    if (allDayStrip && allDayStrip.hasUpdated === false) return;
+    // Re-measure synchronously so the scroll target never uses a stale shell height.
+    const shellHeightPx = shell.getBoundingClientRect().height;
+    layout.style.setProperty("--_lc-timeline-all-day-height", `${shellHeightPx}px`);
+    const timedHeightPx = timed.getBoundingClientRect().height;
+    if (!(timedHeightPx > 0)) return;
+    const startHour = this.#resolvedVisibleHours?.startHour ?? 0;
+    layout.scrollTop = (timedHeightPx * startHour) / 24;
+    this.#pendingInitialScroll = false;
   }
 
   /**
@@ -1331,7 +1519,7 @@ export class CalendarTimelineView extends CalendarViewBase {
    * compact cells expose no drag surface.
    */
   #renderYearGrid(direction: "ltr" | "rtl"): TemplateResult {
-    const monthFormatter = new Intl.DateTimeFormat(this.lang, { month: "long" });
+    const monthFormatter = new Intl.DateTimeFormat(this.#locale, { month: "long" });
     return html`
       <div class="year-grid" dir=${direction}>
         ${yearMonthStarts(this.#parsedStartDate).map(
@@ -1373,9 +1561,24 @@ export class CalendarTimelineView extends CalendarViewBase {
       return this.#renderYearGrid(direction);
     }
     if (this.#composedVertical) {
+      // Hour height (grid-week parity): with visibleHours the viewport divides evenly into
+      // that many hours; otherwise hours shrink to fit down to a 72px floor. The timed
+      // viewport (100cqb minus the measured all-day shell) resolves in
+      // CalendarTimelineView.css; only the visibleHours-dependent division is dynamic here.
+      const visible = this.#resolvedVisibleHours;
+      const hourHeight = visible
+        ? `calc(var(--_lc-timeline-timed-viewport) / ${visible.hours})`
+        : `max(var(--_lc-timeline-min-hour-height, 72px), calc(var(--_lc-timeline-timed-viewport) / 24))`;
       return html`
-        <div class="timeline-layout timeline-layout--composed" dir=${direction}>
-          ${this.#renderComposedVertical()}
+        <div
+          class="timeline-layout timeline-layout--composed"
+          dir=${direction}
+          style=${styleMap({
+            "--_lc-timeline-hour-height": hourHeight,
+            "--_lc-timeline-days": String(this.#resolvedNumDays),
+          })}
+        >
+          ${this.#renderComposedVertical(direction)}
         </div>
       `;
     }

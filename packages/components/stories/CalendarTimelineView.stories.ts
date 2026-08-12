@@ -103,11 +103,12 @@ const meta: Meta = {
     visibleHours: {
       control: { type: "number", min: 1, max: 24 },
       description:
-        "Grid-parity visibleHours: visible hour count per day in vertical modes (axis window; clips instead of scrolling).",
+        "Grid-parity visibleHours zoom for day/week: hour height = viewport height / visibleHours; " +
+        "the full 24h render and the rest scrolls into view (like the grid week view).",
     },
     visibleHoursStart: {
       control: { type: "number", min: 0, max: 23 },
-      description: "First visible hour when visibleHours is active.",
+      description: "First visible hour when visibleHours is active (initial scroll position).",
     },
     rtl: { control: "boolean" },
     events: { control: "object" },

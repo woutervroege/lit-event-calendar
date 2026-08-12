@@ -62,3 +62,17 @@ export interface TimelineEventCreateDetail {
   start: number;
   end: number;
 }
+
+export type TimelineGestureKind = "move" | "resize" | "create";
+
+/**
+ * Detail of the generic `timeline-gesture-start` / `timeline-gesture-end` signals dispatched
+ * while a pointer gesture is in progress (move/resize from their activation, create once the
+ * drag threshold is passed). Composing wrappers use these to suppress conflicting interactions
+ * (e.g. swipe navigation) for the duration of a gesture; `gestureId` pairs each start with its
+ * end.
+ */
+export interface TimelineGestureSignalDetail {
+  kind: TimelineGestureKind;
+  gestureId: number;
+}

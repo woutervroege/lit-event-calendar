@@ -40,31 +40,144 @@ time-line.timeline-main {
   min-height: 0;
 }
 
-/* Day/week composition: sidebar column beside a stack of all-day row + timed timeline.
-   The sidebar spans only the timed row, so its hour labels align with the timed cells. */
+/* ============================================================================================
+   Day/week composition: the layout wrapper is the scroll container (grid-week parity — the
+   grid stack scrolls in EventCalendar's outer overflow; here the view owns its scroll). It is
+   also a size query container: descendants derive the timed viewport from 100cqb minus the
+   measured all-day shell height (--_lc-timeline-all-day-height, set inline by a
+   ResizeObserver in CalendarTimelineView.ts). The timed timeline always renders the full 24h
+   at --_lc-timeline-hour-height per hour (set inline: viewport / visibleHours, or a 72px
+   floor when visibleHours is unset), so it grows taller than the viewport and scrolls while
+   the all-day shell (day headers + all-day row) sticks to the top and the time sidebar
+   scrolls with the timed grid. A swipe-container wraps the day columns for the narrow-week
+   pager (touch): container queries below shrink the visible column count, the stack grows
+   wider than the viewport, and swiping translates it.
+   ============================================================================================ */
 .timeline-layout--composed {
+  container: lc-timeline-composed / size;
+  /* Height must come from the flex context (host), never from the scrolled content, or the
+     hour-height math would feed back into itself in auto-height hosts. */
+  flex-basis: 0px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+  align-items: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  --_lc-timeline-timed-viewport: max(
+    0px,
+    calc(100cqb - var(--_lc-timeline-all-day-height, 0px))
+  );
+  --_lc-timeline-timed-height: calc(
+    24 * var(--_lc-timeline-hour-height, calc(var(--_lc-timeline-timed-viewport) / 24))
+  );
+  --_lc-timeline-content-height: calc(
+    var(--_lc-timeline-all-day-height, 0px) + var(--_lc-timeline-timed-height)
+  );
+  /* Divider between the sticky all-day shell and the timed area (grid-week parity). */
+  --_lc-timeline-section-divider-width: var(--_lc-week-section-divider-width, 3px);
+  --_lc-timeline-section-divider-color: var(
+    --_lc-week-section-divider-color,
+    light-dark(rgb(15 23 42 / 22%), rgb(255 255 255 / 28%))
+  );
 }
 
 .timeline-sidebar {
   grid-column: 1;
-  grid-row: 2;
+  height: var(--_lc-timeline-content-height);
+  min-height: var(--_lc-timeline-content-height);
+  background-color: var(--_lc-surface-bg, light-dark(#fff, #222));
   --_lc-time-sidebar-inline-padding: 6px;
+  /* Internal layout mirrors the composed column: no weekday header row, an all-day slot as
+     tall as the (measured) sticky shell — itself sticky, so it covers the top-left corner
+     while scrolling — and the timed hour labels below. */
+  --_lc-time-sidebar-header-height: 0px;
+  --_lc-time-sidebar-sticky-top-base: 0px;
+  --_lc-time-sidebar-all-day-height: var(--_lc-timeline-all-day-height, 0px);
+  --_lc-time-sidebar-timed-height: var(--_lc-timeline-timed-height);
+  --_lc-time-sidebar-all-day-divider-width: var(--_lc-timeline-section-divider-width);
+  --_lc-time-sidebar-all-day-divider-color: var(--_lc-timeline-section-divider-color);
   /* Center each hour label on the timed timeline's hour gridlines (grid-week parity):
      the timed <time-line>'s .viewport carries a 0.5px border, so its gridline area is 1px
-     shorter than this sidebar and starts 0.5px lower — match that height, then pull the
-     rows up by half the 12px label height so label centers land on the 1px lines. */
-  --_lc-time-sidebar-timed-height: calc(100% - 1px);
-  --_lc-time-sidebar-timed-top-offset: -6px;
+     shorter than the timed height and starts 0.5px lower — size the hour rows against that,
+     then pull the rows up by half the 12px label height so label centers land on the lines. */
+  --_lc-time-sidebar-hour-cell-height: calc((var(--_lc-timeline-timed-height) - 1px) / 24);
+  --_lc-time-sidebar-timed-top-offset: -5.5px;
   --_lc-hour-labels-margin-top: 0px;
 }
 
-.timeline-all-day-shell {
+.timeline-swipe {
   grid-column: 2;
-  grid-row: 1;
+  --_lc-swipe-height: auto;
+  --_lc-swipe-min-height: var(--_lc-timeline-content-height);
+  --_lc-swipe-overflow-x: clip;
+  --_lc-swipe-overflow-y: visible;
+  /* Narrow-week pager: how many day columns fit the viewport. Declared here (not on the
+     layout) so the container-query overrides of --_lc-timeline-visible-columns on this same
+     element actually feed the computation. */
+  --_lc-timeline-effective-visible-columns: max(
+    1,
+    min(var(--_lc-timeline-visible-columns, 7), var(--_lc-timeline-days, 7))
+  );
+  /* Virtual page width for the pager's snap points (one day column). */
+  --column-width: calc(100% / var(--_lc-timeline-effective-visible-columns));
+}
+
+.timeline-stack {
+  display: flex;
+  flex-direction: column;
+  /* Wider than the viewport when fewer columns are visible; swiping pans across it. */
+  min-width: calc(
+    (100% * var(--_lc-timeline-days, 7)) / var(--_lc-timeline-effective-visible-columns)
+  );
+}
+
+.timeline-all-day-shell {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  flex: none;
   min-height: 0;
+  background-color: var(--_lc-surface-bg, light-dark(#fff, #222));
+  border-bottom: var(--_lc-timeline-section-divider-width) solid
+    var(--_lc-timeline-section-divider-color);
+}
+
+/* Narrow-week pager breakpoints (grid-week parity: CalendarWeekView.css). Touch-first: the
+   pointer:fine override below restores all columns on desktop, where there is no swipe. */
+@container lc-timeline-composed (max-width: 1100px) {
+  .timeline-swipe {
+    --_lc-timeline-visible-columns: 6;
+  }
+}
+
+@container lc-timeline-composed (max-width: 980px) {
+  .timeline-swipe {
+    --_lc-timeline-visible-columns: 5;
+  }
+}
+
+@container lc-timeline-composed (max-width: 840px) {
+  .timeline-swipe {
+    --_lc-timeline-visible-columns: 4;
+  }
+}
+
+@container lc-timeline-composed (max-width: 700px) {
+  .timeline-swipe {
+    --_lc-timeline-visible-columns: 3;
+  }
+}
+
+@container lc-timeline-composed (max-width: 540px) {
+  .timeline-swipe {
+    --_lc-timeline-visible-columns: 2;
+  }
+}
+
+@media (pointer: fine) {
+  .timeline-swipe {
+    --_lc-timeline-visible-columns: var(--_lc-timeline-days, 7);
+  }
 }
 
 /* Keep at least one event lane of empty drag surface so all-day drag-to-create works on days
@@ -73,6 +186,9 @@ time-line.timeline-main {
    per-cell lane stack inside its own stylesheet (see --cell-min-height in TimeLine.css). */
 time-line.timeline-all-day {
   --cell-min-height: var(--event-height, 32px);
+  /* Let vertical touch pans reach the composed scroll container; drags still work via
+     TimeLine's touch long-press activation. */
+  --time-line-touch-action: pan-y;
 }
 
 /* All-day row disabled (default): the strip only carries the day headers, so collapse the
@@ -82,9 +198,21 @@ time-line.timeline-all-day.timeline-all-day--header-only {
 }
 
 time-line.timeline-timed {
-  grid-column: 2;
-  grid-row: 2;
-  min-height: 0;
+  /* Full scrollable 24h at the derived hour height (taller than the viewport when zoomed). */
+  height: var(--_lc-timeline-timed-height);
+  min-height: var(--_lc-timeline-timed-height);
+  flex: none;
+  /* Floor for very short events (grid parity: event-card's own min-height in the grid stack is
+     --_lc-event-height, default 32px, 28px on fine pointers — same token family as the all-day
+     lane floor above). Both land in EventCard's compact single-line tier (≤47px) and clear the
+     WCAG 2.2 24px minimum touch target; 32px on touch keeps the bigger finger target. The card
+     keeps its true start; only the visual/hit area extends downward (see TimeLine.css). */
+  --time-line-event-min-size: var(--event-height, 32px);
+  /* Contain the timeline's internal z-order (markers z 700 etc.) so the sticky all-day shell
+     always paints above the scrolled timed content. */
+  isolation: isolate;
+  /* Let vertical touch pans reach the composed scroll container (see .timeline-all-day). */
+  --time-line-touch-action: pan-y;
   /* Hour gridlines: same look as the grid stack's timed horizontal lines
      (CalendarGridView.css `--_lc-grid-line-color-horizontal`, timed variant). */
   --time-line-grid-color: light-dark(rgb(231 235 241), rgb(84 90 101));
@@ -97,6 +225,14 @@ time-line.timeline-timed {
       var(--lc-grid-base-color, light-dark(#222, #fff)) 8%,
       var(--_lc-surface-bg, light-dark(#fff, #222))
     );
+  }
+}
+
+/* Fine pointers tighten the short-event floor to 28px (grid parity: the grid stack's
+   --_lc-default-event-height drops from 32px to 28px under the same media query). */
+@media (pointer: fine) {
+  time-line.timeline-timed {
+    --time-line-event-min-size: var(--event-height, 28px);
   }
 }
 
@@ -184,6 +320,11 @@ time-line::part(day-header-button) {
   font: inherit;
   width: 100%;
   text-align: start;
+}
+
+time-line::part(day-header-button):hover {
+  background-color: var(--_lc-grid-ghost-color, light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%)));
+  border-radius: 4px;
 }
 
 time-line::part(day-header-button):focus-visible {

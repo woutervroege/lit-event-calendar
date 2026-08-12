@@ -16,6 +16,8 @@ import type {
   TimelineEventMoveCommitDetail,
   TimelineEventPreviewRange,
   TimelineEventResizeCommitDetail,
+  TimelineGestureKind,
+  TimelineGestureSignalDetail,
   TimelineResizeEdge,
 } from "../types/TimeLine";
 import { computeStaggerLayout } from "./StaggerLayout";
@@ -31,12 +33,20 @@ type TimelineResizeSession = {
   initialEnd: number;
   horiz: boolean;
   gridMax: number;
+  gestureId: number;
 };
 
 type TimelineMoveSession = {
   pointerId: number;
   /** Host element so capture survives re-renders while the preview geometry updates. */
   captureTarget: HTMLElement;
+  /**
+   * Mouse sessions defer pointer capture until the first real pointermove: capturing on
+   * pointerdown would retarget the trailing `click` to the host, so a plain click would never
+   * reach the event card (breaking click-to-select). Touch-activated sessions capture
+   * immediately — they only start after the long-press, when the gesture is unambiguous.
+   */
+  captured: boolean;
   eventIndex: number;
   originPointerGridT: number;
   /** Pointer position at pointerdown; raw deltas from here drive the free-following card. */
@@ -46,6 +56,7 @@ type TimelineMoveSession = {
   initialEnd: number;
   horiz: boolean;
   gridMax: number;
+  gestureId: number;
 };
 
 type TimelineCreateSession = {
@@ -60,10 +71,33 @@ type TimelineCreateSession = {
   gridMax: number;
   /** Becomes true once the pointer travels past the drag threshold; plain clicks never commit. */
   dragging: boolean;
+  gestureId: number;
+};
+
+/**
+ * Touch pointer waiting for long-press activation of a move/create gesture. Until the timer
+ * fires the pointer is untouched (no capture, no preventDefault), so composed interactions —
+ * native panning where `--time-line-touch-action` allows it, or a wrapper's swipe handling —
+ * keep working; travelling past the cancel distance abandons the gesture in their favour.
+ */
+type PendingTouchGesture = {
+  pointerId: number;
+  kind: "move" | "create";
+  /** Event index for a pending move; unused for create. */
+  eventIndex: number;
+  originClientX: number;
+  originClientY: number;
+  timerId: number;
 };
 
 /** Pointer travel (px) required before a create gesture starts producing a preview. */
 const CREATE_DRAG_THRESHOLD_PX = 4;
+
+/** Touch hold (ms) before a move/create gesture activates (grid-view parity). */
+const TOUCH_GESTURE_ACTIVATION_MS = 160;
+
+/** Touch travel (px) before activation that abandons the pending gesture (pan/swipe wins). */
+const TOUCH_GESTURE_CANCEL_DISTANCE_PX = 10;
 
 type TimelineCellEventSegment = {
   ev: TimelineEvent;
@@ -101,6 +135,14 @@ type TimeLineGridLayout = {
  * `marker`, `create-preview`, `move-ghost`. Content rendered by the header/footer/event
  * template properties lives in this shadow root too, so those templates can carry their own
  * `part` attributes and be styled by the composing component via `time-line::part(...)`.
+ *
+ * Besides the commit events (`timeline-event-move` / `-resize` / `-create`), active pointer
+ * gestures are signalled generically via `timeline-gesture-start` / `timeline-gesture-end`
+ * (bubbling + composed, detail `{ kind, gestureId }`) so wrappers can suspend conflicting
+ * interactions (e.g. swipe navigation) while a drag is live. Touch pointers activate
+ * move/create gestures with a short hold (mirroring the calendar grid views); before
+ * activation the pointer is left alone so panning/swiping keeps working where
+ * `--time-line-touch-action` allows it.
  */
 @customElement("time-line")
 export class TimeLine extends LitElement {
@@ -236,7 +278,117 @@ export class TimeLine extends LitElement {
 
   #createSession: TimelineCreateSession | null = null;
 
+  #pendingTouchGesture: PendingTouchGesture | null = null;
+
+  /** Monotonic id pairing each `timeline-gesture-start` with its `timeline-gesture-end`. */
+  #gestureIdCounter = 0;
+
   static styles = unsafeCSS(componentStyle);
+
+  /**
+   * While a touch-activated gesture is live, block native touch scrolling (consumers may relax
+   * `--time-line-touch-action` to allow panning; an active gesture must still own the pointer).
+   */
+  readonly #onGestureTouchMove = (e: TouchEvent) => {
+    if (e.cancelable) e.preventDefault();
+  };
+
+  #attachGestureTouchMoveBlocker() {
+    window.addEventListener("touchmove", this.#onGestureTouchMove, {
+      passive: false,
+      capture: true,
+    });
+  }
+
+  #detachGestureTouchMoveBlocker() {
+    window.removeEventListener("touchmove", this.#onGestureTouchMove, true);
+  }
+
+  #emitGestureSignal(phase: "start" | "end", kind: TimelineGestureKind, gestureId: number) {
+    this.dispatchEvent(
+      new CustomEvent<TimelineGestureSignalDetail>(`timeline-gesture-${phase}`, {
+        bubbles: true,
+        composed: true,
+        detail: { kind, gestureId },
+      })
+    );
+  }
+
+  readonly #onPendingTouchPointerMove = (e: PointerEvent) => {
+    const pending = this.#pendingTouchGesture;
+    if (!pending || e.pointerId !== pending.pointerId) return;
+    const dx = e.clientX - pending.originClientX;
+    const dy = e.clientY - pending.originClientY;
+    if (dx * dx + dy * dy >= TOUCH_GESTURE_CANCEL_DISTANCE_PX * TOUCH_GESTURE_CANCEL_DISTANCE_PX) {
+      this.#cancelPendingTouchGesture();
+    }
+  };
+
+  readonly #onPendingTouchPointerEnd = (e: PointerEvent) => {
+    const pending = this.#pendingTouchGesture;
+    if (!pending || e.pointerId !== pending.pointerId) return;
+    this.#cancelPendingTouchGesture();
+  };
+
+  #attachPendingTouchListeners() {
+    window.addEventListener("pointermove", this.#onPendingTouchPointerMove, true);
+    window.addEventListener("pointerup", this.#onPendingTouchPointerEnd, true);
+    window.addEventListener("pointercancel", this.#onPendingTouchPointerEnd, true);
+  }
+
+  #detachPendingTouchListeners() {
+    window.removeEventListener("pointermove", this.#onPendingTouchPointerMove, true);
+    window.removeEventListener("pointerup", this.#onPendingTouchPointerEnd, true);
+    window.removeEventListener("pointercancel", this.#onPendingTouchPointerEnd, true);
+  }
+
+  #beginPendingTouchGesture(kind: "move" | "create", eventIndex: number, e: PointerEvent) {
+    this.#cancelPendingTouchGesture();
+    const timerId = window.setTimeout(
+      () => this.#activatePendingTouchGesture(),
+      TOUCH_GESTURE_ACTIVATION_MS
+    );
+    this.#pendingTouchGesture = {
+      pointerId: e.pointerId,
+      kind,
+      eventIndex,
+      originClientX: e.clientX,
+      originClientY: e.clientY,
+      timerId,
+    };
+    this.#attachPendingTouchListeners();
+  }
+
+  #cancelPendingTouchGesture() {
+    const pending = this.#pendingTouchGesture;
+    if (!pending) return;
+    clearTimeout(pending.timerId);
+    this.#detachPendingTouchListeners();
+    this.#pendingTouchGesture = null;
+  }
+
+  #activatePendingTouchGesture() {
+    const pending = this.#pendingTouchGesture;
+    if (!pending) return;
+    this.#detachPendingTouchListeners();
+    this.#pendingTouchGesture = null;
+    if (pending.kind === "move") {
+      this.#startMoveSession(
+        pending.eventIndex,
+        pending.pointerId,
+        pending.originClientX,
+        pending.originClientY,
+        true
+      );
+      return;
+    }
+    this.#startCreateSession(
+      pending.pointerId,
+      pending.originClientX,
+      pending.originClientY,
+      true
+    );
+  }
 
   readonly #onResizeWindowPointerMove = (e: PointerEvent) => {
     const session = this.#resizeSession;
@@ -264,6 +416,10 @@ export class TimeLine extends LitElement {
     const session = this.#moveSession;
     if (!session || e.pointerId !== session.pointerId) return;
     if (e.cancelable) e.preventDefault();
+    if (!session.captured) {
+      this.#trySetPointerCapture(session.captureTarget, session.pointerId);
+      session.captured = true;
+    }
     this.#applyMovePointer(e.clientX, e.clientY, session);
   };
 
@@ -346,9 +502,11 @@ export class TimeLine extends LitElement {
     if (create) {
       this.#releasePointerCaptureSafe(create.captureTarget, create.pointerId);
     }
+    this.#cancelPendingTouchGesture();
     this.#detachResizeWindowListeners();
     this.#detachMoveWindowListeners();
     this.#detachCreateWindowListeners();
+    this.#detachGestureTouchMoveBlocker();
     this.#resizeSession = null;
     this.#moveSession = null;
     this.#createSession = null;
@@ -674,8 +832,10 @@ export class TimeLine extends LitElement {
     cancelled: boolean
   ) {
     this.#detachResizeWindowListeners();
+    this.#detachGestureTouchMoveBlocker();
     this.#resizeSession = null;
     this.#releasePointerCaptureSafe(session.handle, session.pointerId);
+    this.#emitGestureSignal("end", "resize", session.gestureId);
 
     if (!cancelled) {
       this.#applyResizePointer(clientX, clientY, session);
@@ -767,9 +927,11 @@ export class TimeLine extends LitElement {
     cancelled: boolean
   ) {
     this.#detachMoveWindowListeners();
+    this.#detachGestureTouchMoveBlocker();
     this.#moveSession = null;
     this.#releasePointerCaptureSafe(session.captureTarget, session.pointerId);
     this.draggingEventIndex = null;
+    this.#emitGestureSignal("end", "move", session.gestureId);
 
     if (!cancelled) {
       this.#applyMovePointer(clientX, clientY, session);
@@ -819,6 +981,7 @@ export class TimeLine extends LitElement {
       const dy = clientY - session.originClientY;
       if (dx * dx + dy * dy < CREATE_DRAG_THRESHOLD_PX * CREATE_DRAG_THRESHOLD_PX) return;
       session.dragging = true;
+      this.#emitGestureSignal("start", "create", session.gestureId);
     }
     const span = this.max > 0 ? this.max : 1;
     const cellCount = Math.max(1, this.cells);
@@ -851,12 +1014,14 @@ export class TimeLine extends LitElement {
     cancelled: boolean
   ) {
     this.#detachCreateWindowListeners();
+    this.#detachGestureTouchMoveBlocker();
     this.#createSession = null;
     this.#releasePointerCaptureSafe(session.captureTarget, session.pointerId);
 
     if (!cancelled) {
       this.#applyCreatePointer(clientX, clientY, session);
     }
+    if (session.dragging) this.#emitGestureSignal("end", "create", session.gestureId);
 
     const range = cancelled || !session.dragging ? null : this.createPreview;
     this.createPreview = null;
@@ -867,8 +1032,10 @@ export class TimeLine extends LitElement {
 
   #cancelCreateGesture(session: TimelineCreateSession) {
     this.#detachCreateWindowListeners();
+    this.#detachGestureTouchMoveBlocker();
     this.#createSession = null;
     this.#releasePointerCaptureSafe(session.captureTarget, session.pointerId);
+    if (session.dragging) this.#emitGestureSignal("end", "create", session.gestureId);
     this.createPreview = null;
   }
 
@@ -905,7 +1072,7 @@ export class TimeLine extends LitElement {
 
   #onEventBodyPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
-    if (this.#resizeSession || this.#moveSession) return;
+    if (this.#resizeSession || this.#moveSession || this.#pendingTouchGesture) return;
     if (this.#interactiveControlUnderPointer(e.target)) return;
     if (this.#composedPathContainsResizeHandle(e.composedPath())) return;
 
@@ -918,32 +1085,59 @@ export class TimeLine extends LitElement {
     const ev = this.events[index];
     if (!ev) return;
 
+    // Touch: hold to activate (grid-view parity); before activation the pointer stays free
+    // for native panning / a wrapper's swipe handling, and travelling cancels the gesture.
+    if (e.pointerType === "touch") {
+      this.#beginPendingTouchGesture("move", index, e);
+      return;
+    }
+
     e.stopPropagation();
     if (e.cancelable) e.preventDefault();
 
-    this.#trySetPointerCapture(this, e.pointerId);
+    this.#startMoveSession(index, e.pointerId, e.clientX, e.clientY, false);
+  };
+
+  #startMoveSession(
+    index: number,
+    pointerId: number,
+    clientX: number,
+    clientY: number,
+    touchActivated: boolean
+  ) {
+    const ev = this.events[index];
+    if (!ev) return;
+
+    // Mouse: capture is deferred to the first pointermove (see TimelineMoveSession.captured)
+    // so a movement-free click still reaches the event card for click-to-select.
+    if (touchActivated) this.#trySetPointerCapture(this, pointerId);
 
     const layout = this.#readGridLayout();
-    const originPointerGridT = this.#pointerGridTime(e.clientX, e.clientY, layout);
+    const originPointerGridT = this.#pointerGridTime(clientX, clientY, layout);
+    const gestureId = ++this.#gestureIdCounter;
 
     this.#moveSession = {
-      pointerId: e.pointerId,
+      pointerId,
       captureTarget: this,
+      captured: touchActivated,
       eventIndex: index,
       originPointerGridT,
-      originClientX: e.clientX,
-      originClientY: e.clientY,
+      originClientX: clientX,
+      originClientY: clientY,
       initialStart: ev.start,
       initialEnd: ev.end,
       horiz: layout.horiz,
       gridMax: layout.gridMax,
+      gestureId,
     };
 
     this.draggingEventIndex = index;
     this.moveDragOffset = { x: 0, y: 0 };
     this.#beginSingleEventResizePreview(index, ev.start, ev.end);
     this.#attachMoveWindowListeners();
-  };
+    if (touchActivated) this.#attachGestureTouchMoveBlocker();
+    this.#emitGestureSignal("start", "move", gestureId);
+  }
 
   #onResizeHandlePointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
@@ -970,6 +1164,7 @@ export class TimeLine extends LitElement {
 
     const layout = this.#readGridLayout();
     const originPointerGridT = this.#pointerGridTime(e.clientX, e.clientY, layout);
+    const gestureId = ++this.#gestureIdCounter;
 
     this.#resizeSession = {
       pointerId: e.pointerId,
@@ -981,10 +1176,15 @@ export class TimeLine extends LitElement {
       initialEnd: ev.end,
       horiz: layout.horiz,
       gridMax: layout.gridMax,
+      gestureId,
     };
 
     this.#beginSingleEventResizePreview(index, ev.start, ev.end);
     this.#attachResizeWindowListeners();
+    // Resize handles are explicit affordances, so touch activates immediately — but native
+    // scrolling must not hijack the drag.
+    if (e.pointerType === "touch") this.#attachGestureTouchMoveBlocker();
+    this.#emitGestureSignal("start", "resize", gestureId);
   };
 
   /**
@@ -996,30 +1196,56 @@ export class TimeLine extends LitElement {
   #onCellMainPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
     if (this.#resizeSession || this.#moveSession || this.#createSession) return;
+    if (this.#pendingTouchGesture) return;
     if (this.#interactiveControlUnderPointer(e.target)) return;
     const path = e.composedPath();
     if (this.#composedPathContainsResizeHandle(path)) return;
     if (path.some((n) => n instanceof Element && n.classList.contains("event"))) return;
 
+    // Touch: long-press to start drag-to-create (grid-view parity); see the move handler.
+    if (e.pointerType === "touch") {
+      this.#beginPendingTouchGesture("create", -1, e);
+      return;
+    }
+
     if (e.cancelable) e.preventDefault();
-    this.#trySetPointerCapture(this, e.pointerId);
+    this.#startCreateSession(e.pointerId, e.clientX, e.clientY, false);
+  };
+
+  #startCreateSession(
+    pointerId: number,
+    clientX: number,
+    clientY: number,
+    touchActivated: boolean
+  ) {
+    this.#trySetPointerCapture(this, pointerId);
 
     const layout = this.#readGridLayout();
-    const originT = this.#pointerGridTime(e.clientX, e.clientY, layout);
+    const originT = this.#pointerGridTime(clientX, clientY, layout);
 
-    this.#createSession = {
-      pointerId: e.pointerId,
+    const session: TimelineCreateSession = {
+      pointerId,
       captureTarget: this,
-      originClientX: e.clientX,
-      originClientY: e.clientY,
+      originClientX: clientX,
+      originClientY: clientY,
       originT,
       horiz: layout.horiz,
       gridMax: layout.gridMax,
       dragging: false,
+      gestureId: ++this.#gestureIdCounter,
     };
+    this.#createSession = session;
 
     this.#attachCreateWindowListeners();
-  };
+    if (touchActivated) {
+      // The long-press itself activates the gesture: show a one-step preview at the hold
+      // point right away, and commit it on release even without further travel.
+      session.dragging = true;
+      this.#attachGestureTouchMoveBlocker();
+      this.#emitGestureSignal("start", "create", session.gestureId);
+      this.createPreview = this.#createRangeForPointer(session, session.originT);
+    }
+  }
 
   protected updated(changed: PropertyValues) {
     super.updated(changed);

@@ -12,7 +12,9 @@
   width: 100%;
   min-height: 100%;
   border: var(--border);
-  touch-action: none;
+  /* Consumers composing the timeline into a scroll/swipe context can relax this (e.g. pan-y);
+     active gestures still block native panning via a touchmove blocker while they run. */
+  touch-action: var(--time-line-touch-action, none);
   user-select: none;
   display: flex;
   --__event-height: var(--event-height, 32px);
@@ -202,12 +204,17 @@
 }
 
 /* Time axis in vertical flow: % on top/bottom resolve against .cell-main height (not margin-% which uses width). */
+/* --time-line-event-min-size: consumer-set floor for very short events (default 0 = pure
+   geometry). The event keeps its true start (top); when the time range resolves shorter than
+   the floor, min-height wins over the bottom inset and the card extends downward only —
+   visual/hit area grows, the underlying range (and gesture math, which reads event data and
+   .cell-main rects, never this element's height) is untouched. */
 :host([flow="vertical"]) .event {
   inset-inline: 0;
   top: var(--__start, 0);
   bottom: var(--__end, 0);
   height: auto;
-  min-height: 0;
+  min-height: var(--time-line-event-min-size, 0px);
 }
 
 /* Vertical: split cell width across overlap lanes (see `masonryLanes` / timeline in TimeLine.ts). */
