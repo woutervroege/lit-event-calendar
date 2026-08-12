@@ -142,8 +142,8 @@ time-line.timeline-main {
    Overlaps the sidebar's grid cell (both are explicitly placed at row 1 / column 1) and
    sticks with the shell; grid column 1 is the inline-start column, so the corner flips to
    the right edge automatically under RTL. It paints above the sidebar's sticky slots
-   (z 2/3 in its shadow tree) and the all-day shell (z 3). Metrics mirror the day-header
-   part (24px min-height + 3px block padding) so the number centers on the header row. */
+   (z 2/3 in its shadow tree) and the all-day shell (z 3). Metrics mirror the weekday-header
+   row (26px min-height + 4px bottom padding = 30px) so the number centers on it. */
 .timeline-week-number {
   grid-row: 1;
   grid-column: 1;
@@ -244,13 +244,13 @@ time-line.timeline-main {
   }
 }
 
-/* Dedicated day-header row (weekday name + number buttons): a header-only strip with zero
-   events, so collapse the empty event lane / drag surface entirely (no floor → auto-height
-   cells collapse and only the header buttons remain). */
-time-line.timeline-day-header-row {
-  --cell-min-height: initial;
-  /* Let vertical touch pans reach the composed scroll container. */
-  --time-line-touch-action: pan-y;
+/* Dedicated day-header row: the shared calendar-weekday-header in its date mode (weekday
+   name + day-number day-selection buttons) — same type scale and borderless look as the
+   month/year weekday headers, no per-cell borders. Zero the component's edge padding so its
+   1fr day columns line up exactly with the time-line cell columns below (which span the
+   full stack width edge to edge). */
+calendar-weekday-header.timeline-day-header-row {
+  --_lc-weekday-header-inline-padding: 0px;
 }
 
 /* Keep at least one event lane of empty drag surface so all-day drag-to-create works on days
@@ -262,12 +262,6 @@ time-line.timeline-all-day {
   /* Let vertical touch pans reach the composed scroll container; drags still work via
      TimeLine's touch long-press activation. */
   --time-line-touch-action: pan-y;
-}
-
-/* The all-day row always sits directly below the day-header row inside the shell; drop its
-   top viewport border so the two stacked strips don't paint a double seam. */
-time-line.timeline-all-day::part(viewport) {
-  border-top: none;
 }
 
 time-line.timeline-timed {

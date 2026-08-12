@@ -808,9 +808,10 @@ export class CalendarTimelineView extends CalendarViewBase {
   }
 
   /**
-   * Per-cell day header for day/week/gantt (today highlight, weekend tint): an interactive
-   * button showing a locale-aware weekday name + day number, emitting `day-selection` on
-   * click/Enter/Space like the month header buttons (grid-view parity).
+   * Per-cell day header for the single-timeline paths (gantt/custom flows; the composed
+   * day/week header row is calendar-weekday-header instead): an interactive button showing
+   * a locale-aware weekday name + day number, emitting `day-selection` on click/Enter/Space
+   * like the month header buttons (grid-view parity).
    */
   #dayHeaderTemplate = (cellIndex: number): TemplateResult => {
     const day = this.#gridStartDate.add({ days: cellIndex });
@@ -1346,22 +1347,21 @@ export class CalendarTimelineView extends CalendarViewBase {
     const numDays = this.#resolvedNumDays;
     const unitsPerDay = this.#resolvedTimelineMax;
 
-    // Header-only strip (zero events, collapsed lanes): same cells/columns config as the
-    // all-day row and the timed grid below, so the day columns stay aligned — including with
-    // the swipe pager's responsive visible-column count, which scales the shared stack width.
+    // Day-header row: the shared calendar-weekday-header (the same chrome the view group
+    // composes above the month grid and each year card composes) in its date mode — weekday
+    // name + day-number pill per column, today badge, clickable day-selection buttons. Its
+    // columns are plain 1fr fractions of the shared stack width, exactly like the time-line
+    // cells below, so the day columns stay aligned — including with the swipe pager's
+    // responsive visible-column count, which scales that stack width.
     const dayHeaderRowTemplate = html`
-      <time-line
+      <calendar-weekday-header
         class="timeline-day-header-row"
-        .events=${[]}
-        .cells=${numDays}
-        .columns=${numDays}
-        .max=${unitsPerDay}
-        .step=${unitsPerDay}
-        flow="horizontal"
-        layout="masonry"
-        height="auto"
-        .headerTemplate=${this.#dayHeaderTemplate}
-      ></time-line>
+        .lang=${this.lang}
+        .daysPerWeek=${numDays}
+        .startDate=${this.#gridStartDate.toString()}
+        .currentDate=${this.#currentDateTime.toPlainDate().toString()}
+        ?rtl=${this.rtl}
+      ></calendar-weekday-header>
     `;
 
     const allDayRowTemplate = showAllDayRow
@@ -1527,10 +1527,12 @@ export class CalendarTimelineView extends CalendarViewBase {
     const shell = this.renderRoot.querySelector<HTMLElement>(".timeline-all-day-shell");
     const timed = this.renderRoot.querySelector<HTMLElement>("time-line.timeline-timed");
     if (!layout || !shell || !timed) return;
-    // The shell strips (day-header row + optional all-day row) render asynchronously; until
-    // they all have, the shell measurement (and with it the derived hour height) is stale —
-    // keep the scroll pending, the ResizeObserver re-triggers this when the shell settles.
-    const shellStrips = Array.from(shell.querySelectorAll("time-line")) as {
+    // The shell strips (weekday-header row + optional all-day row) render asynchronously;
+    // until they all have, the shell measurement (and with it the derived hour height) is
+    // stale — keep the scroll pending, the ResizeObserver re-triggers when the shell settles.
+    const shellStrips = Array.from(
+      shell.querySelectorAll("time-line, calendar-weekday-header")
+    ) as {
       hasUpdated?: boolean;
     }[];
     if (shellStrips.some((strip) => strip.hasUpdated === false)) return;
