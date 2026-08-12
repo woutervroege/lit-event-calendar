@@ -262,6 +262,14 @@ time-line.timeline-all-day {
   /* Let vertical touch pans reach the composed scroll container; drags still work via
      TimeLine's touch long-press activation. */
   --time-line-touch-action: pan-y;
+  /* Match timed day/week cards: 4px gutter so all-day bars and timed cards share inline edges
+     within a day column (see --time-line-event-inline-inset on .timeline-timed). */
+  --time-line-event-inline-inset: 4px;
+}
+
+/* Standalone all-day presentation (variant="all-day", class timeline-main): same gutter. */
+:host([variant="all-day"]) time-line.timeline-main {
+  --time-line-event-inline-inset: 4px;
 }
 
 time-line.timeline-timed {
@@ -293,7 +301,8 @@ time-line.timeline-timed {
   --_lc-event-card-cutout-ring: 0 0 0 1.5px var(--_lc-surface-bg, light-dark(#fff, #222));
   /* Horizontal gutter beside timed cards so day-column separators stay visible (the cutout ring
      alone only separates overlaps; solo cards were flush to the column edges). 4px clears the
-     1.5px cutout ring and leaves a thin surface strip over the cell outline. */
+     1.5px cutout ring and leaves a thin surface strip over the cell outline. Same token on
+     .timeline-all-day so all-day bars line up with timed cards in the composed day/week view. */
   --time-line-event-inline-inset: 4px;
 }
 

@@ -147,8 +147,9 @@
 :host([flow="horizontal"]) .move-ghost {
   top: 0;
   height: var(--__event-height);
-  inset-inline-start: var(--__start, 0);
-  inset-inline-end: var(--__end, 0);
+  /* Same end-of-bar gutter as horizontal events (whole span, not per day). */
+  inset-inline-start: calc(var(--__start, 0%) + var(--time-line-event-inline-inset, 0px));
+  inset-inline-end: calc(var(--__end, 0%) + var(--time-line-event-inline-inset, 0px));
 }
 
 /* Horizontal lane layouts: park the ghost on the dragged event's (frozen) lane. */
@@ -179,8 +180,8 @@
 :host([flow="horizontal"]) .create-preview {
   top: 0;
   height: var(--__event-height);
-  inset-inline-start: var(--__start, 0);
-  inset-inline-end: var(--__end, 0);
+  inset-inline-start: calc(var(--__start, 0%) + var(--time-line-event-inline-inset, 0px));
+  inset-inline-end: calc(var(--__end, 0%) + var(--time-line-event-inline-inset, 0px));
 }
 
 .event {
@@ -260,13 +261,17 @@
   z-index: 600;
 }
 
+/* Horizontal: --__start/--__end are the time-axis placement (%, or a multi-day calc for
+   --__end when rowSpan > 0). Adding --time-line-event-inline-inset insets only the bar's
+   overall start/end — mid-span day boundaries stay flush so a multi-day bar reads continuous
+   (Google Calendar–style). */
 :host([flow="horizontal"]) .event {
   top: 0;
   min-height: var(--__event-height);
   max-height: var(--__event-height);
   height: var(--__event-height);
-  inset-inline-start: var(--__start);
-  inset-inline-end: var(--__end);
+  inset-inline-start: calc(var(--__start) + var(--time-line-event-inline-inset, 0px));
+  inset-inline-end: calc(var(--__end) + var(--time-line-event-inline-inset, 0px));
 }
 
 /* Horizontal flow has no stagger geometry; [layout="stagger"] falls back to masonry lanes
