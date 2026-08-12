@@ -789,7 +789,6 @@ export class EventCalendar extends BaseElement {
           </header>
           <calendar-grid-view-group
             class="event-calendar-content"
-            style="--_lc-week-sticky-top: 0px;"
             role="region"
             tabindex="0"
             aria-label=${getCalendarContentRegionLabel(this.lang)}
