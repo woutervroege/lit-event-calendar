@@ -23,7 +23,6 @@ export type {
   CalendarEventView,
   CalendarEventViewMap,
 } from "../domain/events-api/eventMapBridge.js";
-export type { AllDayLayout, AllDayLayoutItem } from "./AllDayLayout.js";
 
 export type {
   CalendarEventRequestTrigger,

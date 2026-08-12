@@ -65,7 +65,7 @@ const meta: Meta = {
     daysPerWeek: {
       control: { type: "number", min: 1, max: 42 },
       description:
-        "Number of day cells (same as CalendarGridView). For >7 days, set columns to 7 for a week-column month grid.",
+        "Number of day cells. For >7 days, set columns to 7 for a week-column month grid.",
     },
     columns: {
       control: { type: "number", min: 1, max: 42 },

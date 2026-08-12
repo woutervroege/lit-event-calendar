@@ -30,7 +30,7 @@ export abstract class EventBase extends BaseElement {
   protected dragOffsetX = 0;
   protected dragOffsetY = 0;
 
-  /** Dates visible in the parent calendar strip (from `calendar-grid-view`). */
+  /** Dates visible in the parent calendar strip (e.g. overflow popover day). */
   @property({ type: Array })
   viewDays: Temporal.PlainDate[] = [];
 

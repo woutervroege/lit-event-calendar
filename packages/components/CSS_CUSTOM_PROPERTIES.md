@@ -5,12 +5,14 @@ This package uses the following convention:
 - Public, supported tokens: `--lc-*`
 - Internal implementation tokens: `--_lc-*` (private, not stable)
 
-## CalendarGridView (`calendar-grid-view`)
+## Shared / timeline surface
+
+Common public tokens consumed by `calendar-timeline-view`, `event-card`, and related chrome:
 
 - `--lc-higlight-color`
-- `--lc-event-height`
-- `--lc-days-per-row`
 - `--lc-grid-base-color`
+- `--lc-event-card-radius`
+- `--lc-weekend-day-label-color`
 
 ## Notes
 
