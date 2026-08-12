@@ -85,13 +85,15 @@ export function toTimelineAllDayRange(
 }
 
 /**
- * Render order for day-snapped presentations (month cells, all-day rows), matching the grid
- * views' all-day comparator: start date first, then longer spans win lower stack rows, then
- * summary as a stable tie-breaker.
+ * Render order for day-snapped presentations (month cells, all-day rows), following the common
+ * calendar convention (FullCalendar's default `eventOrder: "start,-duration,allDay,title"`,
+ * Google/Apple/Outlook month cells): start date first, then longer spans win lower stack rows
+ * (so multi-day bars align across cells), then all-day events above timed ones, then timed
+ * events by start time, then summary as a stable tie-breaker.
  */
 export function compareDaySnappedRenderOrder(
-  a: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime; summary: string },
-  b: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime; summary: string }
+  a: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime; summary: string; allDay: boolean },
+  b: { start: Temporal.PlainDateTime; end: Temporal.PlainDateTime; summary: string; allDay: boolean }
 ): number {
   const startDateDiff = Temporal.PlainDate.compare(a.start.toPlainDate(), b.start.toPlainDate());
   if (startDateDiff !== 0) return startDateDiff;
@@ -100,6 +102,11 @@ export function compareDaySnappedRenderOrder(
   const bEndDate = b.end.subtract({ nanoseconds: 1 }).toPlainDate();
   const endDateDiff = Temporal.PlainDate.compare(aEndDate, bEndDate);
   if (endDateDiff !== 0) return -endDateDiff;
+
+  if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+
+  const startTimeDiff = Temporal.PlainDateTime.compare(a.start, b.start);
+  if (startTimeDiff !== 0) return startTimeDiff;
 
   return a.summary.localeCompare(b.summary);
 }

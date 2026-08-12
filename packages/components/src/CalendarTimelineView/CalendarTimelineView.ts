@@ -1268,12 +1268,22 @@ export class CalendarTimelineView extends CalendarViewBase {
     return entries;
   }
 
-  /** Grid-parity stacking order inside day-snapped cells (month, all-day rows). */
+  /** Conventional stacking order inside day-snapped cells (month, all-day rows). */
   #sortDaySnappedEntries(entries: [string, ApiCalendarEvent][]): [string, ApiCalendarEvent][] {
     return entries.sort(([, a], [, b]) =>
       compareDaySnappedRenderOrder(
-        { start: a.data.start, end: resolvedDataEnd(a.data), summary: a.data.summary },
-        { start: b.data.start, end: resolvedDataEnd(b.data), summary: b.data.summary }
+        {
+          start: a.data.start,
+          end: resolvedDataEnd(a.data),
+          summary: a.data.summary,
+          allDay: a.data.allDay === true,
+        },
+        {
+          start: b.data.start,
+          end: resolvedDataEnd(b.data),
+          summary: b.data.summary,
+          allDay: b.data.allDay === true,
+        }
       )
     );
   }

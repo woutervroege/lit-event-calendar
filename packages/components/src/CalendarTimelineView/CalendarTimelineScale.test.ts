@@ -282,11 +282,12 @@ describe("resolveTimelineEventFilter (per-presentation all-day filtering)", () =
   });
 });
 
-describe("compareDaySnappedRenderOrder (grid-parity cell stacking)", () => {
-  const entry = (start: string, end: string, summary: string) => ({
+describe("compareDaySnappedRenderOrder (conventional cell stacking)", () => {
+  const entry = (start: string, end: string, summary: string, allDay = false) => ({
     start: Temporal.PlainDateTime.from(start),
     end: Temporal.PlainDateTime.from(end),
     summary,
+    allDay,
   });
 
   it("orders by start date first", () => {
@@ -297,23 +298,42 @@ describe("compareDaySnappedRenderOrder (grid-parity cell stacking)", () => {
   });
 
   it("puts longer spans before shorter ones on the same start date", () => {
-    const multiDay = entry("2025-01-15T00:00", "2025-01-18T00:00", "Zebra Offsite");
+    const multiDay = entry("2025-01-15T00:00", "2025-01-18T00:00", "Zebra Offsite", true);
     const timed = entry("2025-01-15T09:00", "2025-01-15T09:30", "Alpha Standup");
     expect(compareDaySnappedRenderOrder(multiDay, timed)).toBeLessThan(0);
   });
 
-  it("falls back to summary for same-day, same-span events (time of day is ignored)", () => {
+  it("puts all-day events before timed events on the same day, regardless of summary", () => {
+    const allDay = entry("2025-01-15T00:00", "2025-01-16T00:00", "Team Offsite", true);
+    const timed = entry("2025-01-15T09:00", "2025-01-15T09:30", "Daily Standup");
+    expect(compareDaySnappedRenderOrder(allDay, timed)).toBeLessThan(0);
+    expect(compareDaySnappedRenderOrder(timed, allDay)).toBeGreaterThan(0);
+  });
+
+  it("orders same-day timed events by start time, not summary", () => {
     const afternoon = entry("2025-01-15T16:30", "2025-01-15T17:30", "Drinks");
-    const morning = entry("2025-01-15T09:00", "2025-01-15T09:30", "Daily Standup");
+    const morning = entry("2025-01-15T09:00", "2025-01-15T09:30", "Standup");
     expect(compareDaySnappedRenderOrder(morning, afternoon)).toBeLessThan(0);
     expect(compareDaySnappedRenderOrder(afternoon, morning)).toBeGreaterThan(0);
   });
 
-  it("treats an all-day event ending at next midnight as ending on its own day", () => {
-    const allDay = entry("2025-01-15T00:00", "2025-01-16T00:00", "Team Offsite");
-    const timed = entry("2025-01-15T09:00", "2025-01-15T09:30", "Daily Standup");
-    // Same effective span → summary decides.
-    expect(compareDaySnappedRenderOrder(allDay, timed)).toBeGreaterThan(0);
+  it("falls back to summary for same-day all-day events", () => {
+    const design = entry("2025-01-15T00:00", "2025-01-16T00:00", "Design Review", true);
+    const engineering = entry("2025-01-15T00:00", "2025-01-16T00:00", "Engineering Sync", true);
+    expect(compareDaySnappedRenderOrder(design, engineering)).toBeLessThan(0);
+    expect(compareDaySnappedRenderOrder(engineering, design)).toBeGreaterThan(0);
+  });
+
+  it("stacks a day cell as all-day events first, then timed events by start time", () => {
+    const designReview = entry("2025-01-15T00:00", "2025-01-16T00:00", "Design Review", true);
+    const drinks = entry("2025-01-15T16:30", "2025-01-15T17:30", "Drinks");
+    const engineeringSync = entry("2025-01-15T00:00", "2025-01-16T00:00", "Engineering Sync", true);
+    const sorted = [designReview, drinks, engineeringSync].sort(compareDaySnappedRenderOrder);
+    expect(sorted.map((e) => e.summary)).toEqual([
+      "Design Review",
+      "Engineering Sync",
+      "Drinks",
+    ]);
   });
 });
 
