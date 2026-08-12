@@ -94,229 +94,11 @@ type CalendarTimelineEvent = TimelineEvent & {
   exception: boolean;
 };
 
-/* Header/footer templates render inside <time-line>'s shadow root, out of reach of this
- * component's stylesheet, so their chrome is styled inline (same trade-off as the selection
- * ring on event cards). */
-const DAY_HEADER_STYLE = [
-  "display:flex",
-  "align-items:center",
-  "gap:6px",
-  "min-height:24px",
-  "padding:3px 6px",
-  "font-size:12px",
-  "font-weight:500",
-  "line-height:1.2",
-  "white-space:nowrap",
-  "overflow:hidden",
-  "user-select:none",
-  "color:var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)))",
-].join(";");
-
-const DAY_NUMBER_STYLE = [
-  "display:inline-flex",
-  "align-items:center",
-  "justify-content:center",
-  "min-width:20px",
-  "height:20px",
-  "padding:0 5px",
-  "border-radius:999px",
-  "font-variant-numeric:tabular-nums",
-].join(";");
-
-const DAY_NUMBER_TODAY_STYLE = [
-  DAY_NUMBER_STYLE,
-  "background:var(--lc-higlight-color, #ff0000)",
-  "color:#fff",
-  "font-weight:600",
-].join(";");
-
-/* Ported from the grid month view's overflow affordance (CalendarGridView.css:
- * `.day-overflow-button` / `.day-overflow-dots` / `.day-overflow-dot`): colored per-event
- * dots next to the "+N more" count, ghost hover background and a focus ring. */
-const OVERFLOW_BUTTON_STYLE = [
-  "pointer-events:auto",
-  "appearance:none",
-  "border:0",
-  "cursor:pointer",
-  "display:flex",
-  "align-items:center",
-  "justify-content:flex-start",
-  "gap:5px",
-  "width:100%",
-  "min-height:24px",
-  "margin:0",
-  "padding:2px 8px",
-  "border-radius:4px",
-  "font-size:12px",
-  "font-weight:500",
-  "line-height:1",
-  "white-space:nowrap",
-  "overflow:hidden",
-  "text-overflow:ellipsis",
-  "text-align:start",
-  "user-select:none",
-  "color:var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)))",
-].join(";");
-
-const OVERFLOW_DOTS_STYLE = ["display:inline-flex", "align-items:center", "gap:3px", "flex:none"].join(
-  ";"
-);
-
-const OVERFLOW_DOT_STYLE = [
-  "width:7px",
-  "height:7px",
-  "border-radius:var(--lc-event-card-radius, 4px)",
-  "opacity:0.85",
-  "flex:none",
-].join(";");
-
-/* Hover/focus states cannot be expressed inline; this small sheet renders with the footer
- * inside <time-line>'s shadow root (same ghost hover + focus ring as the grid's button).
- * The background lives here too — an inline `background` would outrank the state rules. */
-const OVERFLOW_BUTTON_STATE_CSS = `
-  .day-overflow-button {
-    background: transparent;
-  }
-  .day-overflow-button:hover:not(:focus-visible) {
-    background-color: var(--_lc-grid-ghost-color, light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%)));
-  }
-  .day-overflow-button:focus-visible {
-    background-color: var(--_lc-grid-ghost-color, light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%)));
-    outline: 2px solid light-dark(rgb(15 23 42 / 92%), rgb(255 255 255 / 96%));
-    outline-offset: -2px;
-  }
-`;
-
-/** Month cells narrower than this degrade to the compact (year-style) treatment. */
-const COMPACT_MONTH_CELL_MIN_WIDTH = 72;
-
-/**
- * Compact query threshold on the month layout wrapper: 7 columns × the per-cell minimum.
- * Must stay in sync with the `@container lc-timeline-month` query in CalendarTimelineView.css.
- */
-const COMPACT_MONTH_MAX_INLINE_SIZE = 7 * COMPACT_MONTH_CELL_MIN_WIDTH;
-
-/* Month-mode day headers render inside <time-line>'s shadow root (like the overflow footer), so
- * their chrome ships as an injected <style> with the cell-0 header. The base rules replicate the
- * inline-styled day/week header look; MONTH_DAY_HEADER_COMPACT_CSS below is the compact
- * treatment for tiny cells, applied either behind the `lc-timeline-month` container query
- * (standalone month views that shrink) or unconditionally when the instance is composed with
- * `forceCompact` (year mode) — see #monthDayHeaderStyles. The query container is the month
- * layout wrapper in this component's own shadow root — container lookup follows the flat tree,
- * so it resolves from inside <time-line>'s shadow root too. Compound selectors are used where
- * TimeLine's own rules (adopted stylesheets sort after this tree <style>) must lose the tie. */
-const MONTH_DAY_HEADER_BASE_CSS = `
-  .timeline-day-header {
-    /* TimeLine's .viewport disables pointer events; re-enable for the interactive header
-       (same as the overflow footer button). */
-    pointer-events: auto;
-    appearance: none;
-    border: 0;
-    margin: 0;
-    background: transparent;
-    cursor: pointer;
-    font: inherit;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-    min-height: 24px;
-    padding: 3px 6px;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    user-select: none;
-    text-align: start;
-    color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
-  }
-  .timeline-day-header:focus-visible {
-    outline: 2px solid light-dark(rgb(15 23 42 / 92%), rgb(255 255 255 / 96%));
-    outline-offset: -2px;
-    border-radius: 4px;
-  }
-  .timeline-day-header.is-outside-month {
-    opacity: 0.45;
-  }
-  .timeline-day-header.is-weekend:not(.is-outside-month) {
-    color: var(--lc-weekend-day-label-color, light-dark(rgb(15 23 42 / 64%), rgb(255 255 255 / 66%)));
-  }
-  .timeline-day-number {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    height: 20px;
-    padding: 0 5px;
-    border-radius: 999px;
-    font-variant-numeric: tabular-nums;
-  }
-  .timeline-day-number.is-today {
-    background: var(--lc-higlight-color, #ff0000);
-    color: #fff;
-    font-weight: 600;
-  }
-  /* Keep the locale's spacing around the day number ("Jan 1"): flex items trim edge spaces. */
-  .timeline-day-month-prefix {
-    white-space: pre;
-  }
-  /* Event-day bullets: hidden at regular size, shown by the compact treatment below. Absolute
-     under the day number so it stays perfectly centered in the compact cell. */
-  .timeline-day-dots {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    align-items: center;
-    gap: 3px;
-    margin-top: 1px;
-    pointer-events: none;
-  }
-  .timeline-day-dot {
-    width: 4px;
-    height: 4px;
-    border-radius: 999px;
-    opacity: 0.9;
-    flex: none;
-  }
-`;
-
-const MONTH_DAY_HEADER_COMPACT_CSS = `
-  /* Chrome off: no outer border, no per-cell borders. */
-  div.viewport {
-    border: none;
-  }
-  .cells > .cell {
-    outline: none;
-  }
-  /* No chips, markers or drag-create surface in tiny cells; the "+N more" footer goes too. */
-  .cell > .cell-main,
-  .cell > .cell-footer {
-    display: none;
-  }
-  /* The header becomes the whole cell so the day number centers in it. */
-  .cell > .cell-header {
-    display: flex;
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-  .timeline-day-header {
-    flex: 1 1 auto;
-    justify-content: center;
-    gap: 0;
-    min-height: 0;
-    padding: 0;
-  }
-  .timeline-day-month-prefix {
-    display: none;
-  }
-  .timeline-day-dots {
-    display: inline-flex;
-  }
-`;
+/* Header/footer/event templates render inside <time-line>'s shadow root, out of reach of this
+ * component's plain selectors. The rendered elements carry `part` attributes instead and all
+ * their static chrome lives in CalendarTimelineView.css as `time-line::part(...)` rules
+ * (including the compact month treatment, hover/focus states and the selection ring). Only
+ * per-cell/per-event DYNAMIC values (event colors, anchor names) stay inline. */
 
 @customElement("calendar-timeline-view")
 export class CalendarTimelineView extends CalendarViewBase {
@@ -905,25 +687,19 @@ export class CalendarTimelineView extends CalendarViewBase {
     const timelineEvent = event as CalendarTimelineEvent;
     const selected = this.#selectedEventKey === timelineEvent.key;
     const timeLabel = this.#timelineEventTimeLabel(variant, timelineEvent, preview);
-    // The card renders inside <time-line>'s shadow root, out of reach of this component's
-    // stylesheet, so the selection ring is applied inline.
-    const selectionStyle = selected
-      ? {
-          outline: "2px solid var(--_lc-event-accent-color, currentColor)",
-          "outline-offset": "1px",
-        }
-      : {};
+    // The card renders inside <time-line>'s shadow root; the selection ring is styled from
+    // CalendarTimelineView.css via time-line::part(event-card-selected).
     return html`
       <event-card
         layout="flow"
         tabindex="0"
         role="button"
+        part=${selected ? "event-card event-card-selected" : "event-card"}
         aria-pressed=${selected ? "true" : "false"}
         ?data-selected=${selected}
         ?past=${timelineEvent.past}
         ?recurring=${timelineEvent.recurring}
         ?exception=${timelineEvent.exception}
-        style=${styleMap(selectionStyle)}
         .summary=${timelineEvent.summary}
         .location=${timelineEvent.location}
         .time=${timeLabel}
@@ -966,19 +742,19 @@ export class CalendarTimelineView extends CalendarViewBase {
             new Date(Date.UTC(day.year, day.month - 1, day.day))
           )
         : new Intl.NumberFormat(this.lang).format(day.day);
-    const headerStyle = [
-      DAY_HEADER_STYLE,
-      outsideMonth ? "opacity:0.45" : "",
-      isWeekend && !outsideMonth
-        ? "color:var(--lc-weekend-day-label-color, light-dark(rgb(15 23 42 / 64%), rgb(255 255 255 / 66%)))"
-        : "",
+    // State variants travel as extra part names; the weekend part is only set inside the
+    // anchor month (outside-month dimming wins), mirroring the CSS the parts map to.
+    const headerParts = [
+      "day-header",
+      outsideMonth ? "day-header-outside-month" : "",
+      isWeekend && !outsideMonth ? "day-header-weekend" : "",
     ]
       .filter(Boolean)
-      .join(";");
+      .join(" ");
     return html`
-      <div style=${headerStyle} aria-hidden="true">
+      <div part=${headerParts} aria-hidden="true">
         ${weekdayLabel ? html`<span>${weekdayLabel}</span>` : nothing}
-        <span style=${isToday ? DAY_NUMBER_TODAY_STYLE : DAY_NUMBER_STYLE}>${dayNumber}</span>
+        <span part="day-number${isToday ? " day-number-today" : ""}">${dayNumber}</span>
       </div>
     `;
   };
@@ -1002,21 +778,6 @@ export class CalendarTimelineView extends CalendarViewBase {
     const raw = getComputedStyle(element).getPropertyValue("--_lc-timeline-compact-month");
     const state = Number.parseFloat(raw.trim());
     return Number.isFinite(state) && state >= 0.5;
-  }
-
-  /**
-   * Injected month day-header sheet: base chrome plus the compact treatment — unconditional
-   * when this instance is forced compact (year mode), otherwise behind the size container query
-   * so standalone month views degrade only when genuinely small.
-   */
-  get #monthDayHeaderStyles(): string {
-    if (this.forceCompact) {
-      return `${MONTH_DAY_HEADER_BASE_CSS}${MONTH_DAY_HEADER_COMPACT_CSS}`;
-    }
-    return `${MONTH_DAY_HEADER_BASE_CSS}
-      @container lc-timeline-month (max-width: ${COMPACT_MONTH_MAX_INLINE_SIZE}px) {
-        ${MONTH_DAY_HEADER_COMPACT_CSS}
-      }`;
   }
 
   /**
@@ -1155,9 +916,9 @@ export class CalendarTimelineView extends CalendarViewBase {
   /**
    * Month-mode day header: an interactive day-number button (grid-view parity: click/Enter/Space
    * emit `day-selection`; in the compact treatment event days open their events popover instead).
-   * Styled by the injected #monthDayHeaderStyles sheet, which also carries the compact
-   * treatment (container-query-driven, or unconditional under forceCompact); the sheet ships
-   * once with cell 0.
+   * Styled via CSS shadow parts from CalendarTimelineView.css, which also carries the compact
+   * treatment (behind the lc-timeline-month container query, or unconditionally under the
+   * reflected force-compact attribute).
    */
   #monthDayHeaderTemplate = (cellIndex: number): TemplateResult => {
     const day = this.#gridStartDate.add({ days: cellIndex });
@@ -1186,9 +947,13 @@ export class CalendarTimelineView extends CalendarViewBase {
         .map((part) => part.value)
         .join("");
       return html`${
-        before ? html`<span class="timeline-day-month-prefix">${before}</span>` : nothing
+        before
+          ? html`<span part="day-month-prefix">${before}</span>`
+          : nothing
       }<span>${dayText}</span>${
-        after ? html`<span class="timeline-day-month-prefix">${after}</span>` : nothing
+        after
+          ? html`<span part="day-month-prefix">${after}</span>`
+          : nothing
       }`;
     })();
     const dayEvents = this.#monthEventsForCell(cellIndex);
@@ -1199,34 +964,37 @@ export class CalendarTimelineView extends CalendarViewBase {
     const popoverId = `timeline-day-header-popover-${cellIndex}`;
     const anchorName = `--timeline-day-header-anchor-${cellIndex}`;
     const active = this.#activeHeaderPopoverCellIndex === cellIndex;
-    const headerClasses = [
-      "timeline-day-header",
-      outsideMonth ? "is-outside-month" : "",
-      isWeekend ? "is-weekend" : "",
+    // State variants as extra part names; weekend only inside the anchor month (parity with
+    // the plain #dayHeaderTemplate and the old `.is-weekend:not(.is-outside-month)` rule).
+    const headerParts = [
+      "day-header",
+      "day-header-button",
+      outsideMonth ? "day-header-outside-month" : "",
+      isWeekend && !outsideMonth ? "day-header-weekend" : "",
     ]
       .filter(Boolean)
       .join(" ");
     return html`
-      ${cellIndex === 0 ? html`<style>${this.#monthDayHeaderStyles}</style>` : nothing}
       <button
         type="button"
-        class=${headerClasses}
+        class="timeline-day-header"
+        part=${headerParts}
         style=${`anchor-name:${anchorName}`}
         .ariaLabel=${fullDateLabel}
         .ariaCurrent=${isToday ? "date" : null}
         @click=${(clickEvent: MouseEvent) =>
           this.#handleMonthDayHeaderClick(cellIndex, day, clickEvent)}
       >
-        <span class="timeline-day-number ${isToday ? "is-today" : ""}">
+        <span part="day-number${isToday ? " day-number-today" : ""}">
           ${dayNumberContent}
           ${
             dotColors.length
               ? html`
-                  <span class="timeline-day-dots" aria-hidden="true">
+                  <span part="day-dots" aria-hidden="true">
                     ${dotColors.map(
                       (color) =>
                         html`<span
-                          class="timeline-day-dot"
+                          part="day-dot"
                           style=${`background-color:${color}`}
                         ></span>`
                     )}
@@ -1292,11 +1060,11 @@ export class CalendarTimelineView extends CalendarViewBase {
     const anchor = this.#parsedStartDate;
     const inlineAlign = this.#popoverInlineAlign(cellIndex);
     return html`
-      <style>${OVERFLOW_BUTTON_STATE_CSS}</style>
       <button
         type="button"
         class="day-overflow-button"
-        style=${`${OVERFLOW_BUTTON_STYLE};anchor-name:${anchorName}`}
+        part="overflow-button"
+        style=${`anchor-name:${anchorName}`}
         aria-haspopup="dialog"
         .ariaLabel=${`Show all ${allCellEvents.length} events on ${fullDateLabel}`}
         popovertarget=${popoverId}
@@ -1343,15 +1111,17 @@ export class CalendarTimelineView extends CalendarViewBase {
     }
     const shownColors = colors.slice(0, hiddenCount);
     return html`
-      <span style=${OVERFLOW_DOTS_STYLE} aria-hidden="true">
+      <span part="overflow-dots" aria-hidden="true">
         ${
           shownColors.length
             ? shownColors.map(
-                (color) => html`<span style=${`${OVERFLOW_DOT_STYLE};background-color:${color}`}></span>`
+                (color) =>
+                  html`<span part="overflow-dot" style=${`background-color:${color}`}></span>`
               )
             : Array.from(
                 { length: hiddenCount },
-                () => html`<span style=${`${OVERFLOW_DOT_STYLE};background-color:currentColor`}></span>`
+                () =>
+                  html`<span part="overflow-dot" style="background-color:currentColor"></span>`
               )
         }
       </span>

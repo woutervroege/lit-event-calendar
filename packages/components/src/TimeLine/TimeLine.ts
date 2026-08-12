@@ -95,6 +95,13 @@ type TimeLineGridLayout = {
   gridMax: number;
 };
 
+/**
+ * Structural shadow elements are exposed as CSS shadow parts for external styling:
+ * `viewport`, `cells`, `cell`, `cell-header`, `cell-main`, `cell-footer`, `event`,
+ * `marker`, `create-preview`, `move-ghost`. Content rendered by the header/footer/event
+ * template properties lives in this shadow root too, so those templates can carry their own
+ * `part` attributes and be styled by the composing component via `time-line::part(...)`.
+ */
 @customElement("time-line")
 export class TimeLine extends LitElement {
   @property({ type: Number }) accessor max = 100;
@@ -1425,6 +1432,7 @@ export class TimeLine extends LitElement {
     return html`
       <div
         class="event${draggingClass}"
+        part="event"
         data-index=${index}
         data-segment=${segIndex}
         @pointerdown=${this.#onEventBodyPointerDown}
@@ -1452,7 +1460,7 @@ export class TimeLine extends LitElement {
       if (Math.floor(m / span) !== cell) continue;
       const pct = this.#axisPct(m - cell * span, w0, w1);
       if (pct < 0 || pct > 100) continue;
-      frags.push(html`<div class="marker" style="--__marker-pos:${pct}%"></div>`);
+      frags.push(html`<div class="marker" part="marker" style="--__marker-pos:${pct}%"></div>`);
     }
     return frags;
   }
@@ -1484,6 +1492,7 @@ export class TimeLine extends LitElement {
         seg.rowSpan > 0 ? `calc(-${seg.rowSpan * 100}% + ${100 - endPct}%)` : `${100 - endPct}%`;
       return html`<div
         class="create-preview"
+        part="create-preview"
         style="--__start:${this.#axisPct(seg.segStart, w0, w1)}%;--__end:${endInset};"
       ></div>`;
     });
@@ -1529,6 +1538,7 @@ export class TimeLine extends LitElement {
         seg.rowSpan > 0 ? `calc(-${seg.rowSpan * 100}% + ${100 - endPct}%)` : `${100 - endPct}%`;
       return html`<div
         class="move-ghost"
+        part="move-ghost"
         style="--__lane:${lane};--__start:${this.#axisPct(seg.segStart, w0, w1)}%;--__end:${endInset};"
       ></div>`;
     });
@@ -1586,14 +1596,15 @@ export class TimeLine extends LitElement {
     const gridClass = this.#effectiveGridInterval() > 0 && w1 > w0 ? " cell-main--grid" : "";
 
     return html`
-      <div class="cell" data-cell=${cell} style="${laneVars}">
+      <div class="cell" part="cell" data-cell=${cell} style="${laneVars}">
         ${
           this.headerTemplate
-            ? html`<div class="cell-header">${this.renderHeaderTemplate(cell)}</div>`
+            ? html`<div class="cell-header" part="cell-header">${this.renderHeaderTemplate(cell)}</div>`
             : nothing
         }
         <div
           class="cell-main${windowed ? " cell-main--windowed" : ""}${gridClass}"
+          part="cell-main"
           @pointerdown=${this.#onCellMainPointerDown}
         >
           ${visibleCellEvents.map((seg) =>
@@ -1605,7 +1616,7 @@ export class TimeLine extends LitElement {
         </div>
         ${
           this.footerTemplate
-            ? html`<div class="cell-footer">
+            ? html`<div class="cell-footer" part="cell-footer">
               ${this.renderFooterTemplate(cell, visibleEvents, allCellEvents)}
             </div>`
             : nothing
@@ -1668,9 +1679,10 @@ export class TimeLine extends LitElement {
     return html`
       <div
         class="viewport"
+        part="viewport"
         style="--time-line-grid-rows: repeat(${this.columns}, 1fr)${this.#gridLineVars(span)}"
       >
-        <div class="cells">
+        <div class="cells" part="cells">
           ${cellIndexes.map((cell) => {
             const rl = horiz && laneMode ? rowLayouts[Math.floor(cell / cols)] : null;
             const vl = !horiz && laneMode ? verticalCellLayouts[cell] : null;

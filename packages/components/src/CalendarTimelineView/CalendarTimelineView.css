@@ -19,19 +19,13 @@ time-line {
 }
 
 /* Month mode: the layout wrapper is the query container driving the compact treatment for
-   standalone month views that shrink. Cells are 1/7th of it, so 504px = 7 x 72px cells; keep in
-   sync with COMPACT_MONTH_MAX_INLINE_SIZE in CalendarTimelineView.ts. Months composed by year
-   mode do NOT rely on this query — year-grid column breakpoints leave card-width windows above
-   504px (1-column cards up to 512px; 4-column cards past ~2208px grids), so those instances are
-   forced compact via `forceCompact` instead. */
+   standalone month views that shrink. Cells are 1/7th of it, so 504px = 7 x 72px cells. Months
+   composed by year mode do NOT rely on this query — year-grid column breakpoints leave
+   card-width windows above 504px (1-column cards up to 512px; 4-column cards past ~2208px
+   grids), so those instances are forced compact via `forceCompact` instead (see the
+   :host([force-compact]) compact block below). */
 .timeline-layout--month {
   container: lc-timeline-month / inline-size;
-}
-
-@container lc-timeline-month (max-width: 504px) {
-  time-line.timeline-main {
-    --_lc-timeline-compact-month: 1;
-  }
 }
 
 .timeline-layout {
@@ -164,4 +158,264 @@ time-line.timeline-timed {
   .year-grid {
     --_lc-year-grid-effective-columns: 1;
   }
+}
+
+/* ============================================================================================
+   Chrome rendered into <time-line>'s shadow root (day headers, overflow footer, event cards).
+   These elements are produced by this component's header/footer/event templates but live in
+   TimeLine's shadow tree, out of reach of plain selectors here — so the templates tag them
+   with `part` attributes and everything static is styled below via time-line::part(...).
+   Outer-tree ::part declarations override TimeLine's own shadow styles for normal rules, so
+   no specificity tricks are needed. Per-cell/per-event dynamic values (event colors, anchor
+   names, lane variables) stay inline in the templates — that is the data channel, not styling.
+   ============================================================================================ */
+
+/* Button chrome for the interactive month day header (the day/week/gantt header is a plain
+   div and only gets the shared `day-header` rules below). `font: inherit` is overridden back
+   to the shared 12px/500 metrics by the later day-header rule. TimeLine's .viewport disables
+   pointer events; re-enable for the interactive header (same as the overflow footer button). */
+time-line::part(day-header-button) {
+  pointer-events: auto;
+  appearance: none;
+  border: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  width: 100%;
+  text-align: start;
+}
+
+time-line::part(day-header-button):focus-visible {
+  outline: 2px solid light-dark(rgb(15 23 42 / 92%), rgb(255 255 255 / 96%));
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+/* Per-cell day header (today highlight, month-outside dimming, weekend tint). */
+time-line::part(day-header) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  user-select: none;
+  color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
+}
+
+time-line::part(day-header-outside-month) {
+  opacity: 0.45;
+}
+
+/* The templates only set the weekend part on days inside the anchor month, encoding the old
+   `.is-weekend:not(.is-outside-month)` exclusion in the part list itself. */
+time-line::part(day-header-weekend) {
+  color: var(--lc-weekend-day-label-color, light-dark(rgb(15 23 42 / 64%), rgb(255 255 255 / 66%)));
+}
+
+/* position: relative anchors the compact event-day bullets under the number. */
+time-line::part(day-number) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+time-line::part(day-number-today) {
+  background: var(--lc-higlight-color, #ff0000);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Keep the locale's spacing around the day number ("Jan 1"): flex items trim edge spaces. */
+time-line::part(day-month-prefix) {
+  white-space: pre;
+}
+
+/* Event-day bullets: hidden at regular size, shown by the compact treatment below. Absolute
+   under the day number so it stays perfectly centered in the compact cell. */
+time-line::part(day-dots) {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+  gap: 3px;
+  margin-top: 1px;
+  pointer-events: none;
+}
+
+/* Bullet colors are per-event data and stay inline (background-color on the part). */
+time-line::part(day-dot) {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  opacity: 0.9;
+  flex: none;
+}
+
+/* "+N more" overflow affordance, ported from the grid month view (CalendarGridView.css:
+   `.day-overflow-button` / `.day-overflow-dots` / `.day-overflow-dot`): colored per-event dots
+   next to the count, ghost hover background and a focus ring. */
+time-line::part(overflow-button) {
+  pointer-events: auto;
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  width: 100%;
+  min-height: 24px;
+  margin: 0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: start;
+  user-select: none;
+  color: var(--_lc-grid-line-day-color, light-dark(rgb(15 23 42 / 72%), rgb(255 255 255 / 72%)));
+  background: transparent;
+}
+
+/* Hover and focus paint the same ghost background, so no :not(:focus-visible) guard is needed
+   on the hover rule; focus-visible only adds the ring on top. */
+time-line::part(overflow-button):hover {
+  background-color: var(--_lc-grid-ghost-color, light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%)));
+}
+
+time-line::part(overflow-button):focus-visible {
+  background-color: var(--_lc-grid-ghost-color, light-dark(rgb(15 23 42 / 10%), rgb(255 255 255 / 12%)));
+  outline: 2px solid light-dark(rgb(15 23 42 / 92%), rgb(255 255 255 / 96%));
+  outline-offset: -2px;
+}
+
+time-line::part(overflow-dots) {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+}
+
+/* Dot colors are per-event data and stay inline (background-color on the part). */
+time-line::part(overflow-dot) {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--lc-event-card-radius, 4px);
+  opacity: 0.85;
+  flex: none;
+}
+
+/* Selection ring on the selected event card. --_lc-event-accent-color is set by EventCard on
+   its own host element, so it resolves here. */
+time-line::part(event-card-selected) {
+  outline: 2px solid var(--_lc-event-accent-color, currentColor);
+  outline-offset: 1px;
+}
+
+/* ---- Compact (year-style) month treatment -------------------------------------------------
+   Applied behind the lc-timeline-month size container query for standalone month views that
+   shrink (504px = 7 x 72px minimum cells; the container is .timeline-layout--month above —
+   container lookup follows the flat tree, so it resolves for parts inside <time-line>'s
+   shadow root too), and unconditionally under the reflected force-compact attribute for the
+   twelve months composed by year mode. Keep both blocks in sync. */
+
+@container lc-timeline-month (max-width: 504px) {
+  /* Compact flag: inherits into <time-line>'s shadow content so click handlers can read it
+     via getComputedStyle (same pattern as the grid's --_lc-compact-month-view). */
+  time-line.timeline-main {
+    --_lc-timeline-compact-month: 1;
+  }
+
+  /* Chrome off: no outer border, no per-cell borders. */
+  time-line.timeline-main::part(viewport) {
+    border: none;
+  }
+
+  time-line.timeline-main::part(cell) {
+    outline: none;
+  }
+
+  /* No chips, markers or drag-create surface in tiny cells; the "+N more" footer goes too. */
+  time-line.timeline-main::part(cell-main),
+  time-line.timeline-main::part(cell-footer) {
+    display: none;
+  }
+
+  /* The header becomes the whole cell so the day number centers in it. */
+  time-line.timeline-main::part(cell-header) {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  time-line.timeline-main::part(day-header) {
+    flex: 1 1 auto;
+    justify-content: center;
+    gap: 0;
+    min-height: 0;
+    padding: 0;
+  }
+
+  time-line.timeline-main::part(day-month-prefix) {
+    display: none;
+  }
+
+  time-line.timeline-main::part(day-dots) {
+    display: inline-flex;
+  }
+}
+
+/* force-compact duplicate of the container-query block above (year mode cannot rely on the
+   size query — see the .timeline-layout--month comment). The flag custom property is not set
+   here: #isCompactMonthPresentation short-circuits on the forceCompact property. */
+:host([force-compact]) time-line.timeline-main::part(viewport) {
+  border: none;
+}
+
+:host([force-compact]) time-line.timeline-main::part(cell) {
+  outline: none;
+}
+
+:host([force-compact]) time-line.timeline-main::part(cell-main),
+:host([force-compact]) time-line.timeline-main::part(cell-footer) {
+  display: none;
+}
+
+:host([force-compact]) time-line.timeline-main::part(cell-header) {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+:host([force-compact]) time-line.timeline-main::part(day-header) {
+  flex: 1 1 auto;
+  justify-content: center;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+:host([force-compact]) time-line.timeline-main::part(day-month-prefix) {
+  display: none;
+}
+
+:host([force-compact]) time-line.timeline-main::part(day-dots) {
+  display: inline-flex;
 }
