@@ -45,7 +45,8 @@ export function applyCreate(input: CreateInput, context: ReduceContext): ApplyRe
     input.key ??
     envelope.eventId ??
     `event-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  const event: CalendarEvent = { ...envelope, data };
+  const event: CalendarEvent =
+    context.trackPending ? { ...envelope, data, pendingOp: "created" } : { ...envelope, data };
   state.set(key, event);
   changes.push({ type: "created", key, event });
   return { nextState: state, changes, effects };
