@@ -56,16 +56,9 @@ export function attachRequestEventHandlers(
     if (!isCreateRequestDetail(detail)) return;
     logCreateRequested(detail);
 
-    const confirmed = globalThis.confirm("Create this event?");
-    if (!confirmed) {
-      event.preventDefault();
-      logCreateCancelled(detail);
-      return;
-    }
-
     const nextSummary = globalThis.prompt(
       "Event title",
-      detail.content.summary ?? "New event"
+      detail.content.summary || "New event"
     );
     if (nextSummary === null) {
       event.preventDefault();

@@ -47,41 +47,11 @@ describe("attachRequestEventHandlers", () => {
     el.dispatchEvent(new CustomEvent("event-selected", { detail: { key: "daily" } }));
   });
 
-  it("cancels create when confirm is declined", () => {
+  it("applies prompted summary when create proceeds", () => {
     const el = new MockHostElement() as unknown as HTMLElement & {
       events: Map<string, CalendarEvent>;
     };
     attachRequestEventHandlers(el);
-    const confirmSpy = vi.fn(() => false);
-    const promptSpy = vi.fn(() => "ignored");
-    vi.stubGlobal("confirm", confirmSpy);
-    vi.stubGlobal("prompt", promptSpy);
-
-    const detail = {
-      envelope: { calendarId: "cal-john-work", accountId: "account-john" },
-      content: {
-        start: Temporal.PlainDateTime.from("2025-01-13T10:00:00"),
-        end: Temporal.PlainDateTime.from("2025-01-13T11:00:00"),
-        summary: "New event",
-      },
-    };
-    const accepted = el.dispatchEvent(
-      new CustomEvent("event-create-requested", {
-        detail,
-        cancelable: true,
-      })
-    );
-
-    expect(accepted).toBe(false);
-    expect(promptSpy).not.toHaveBeenCalled();
-  });
-
-  it("applies prompted summary when create is confirmed", () => {
-    const el = new MockHostElement() as unknown as HTMLElement & {
-      events: Map<string, CalendarEvent>;
-    };
-    attachRequestEventHandlers(el);
-    vi.stubGlobal("confirm", vi.fn(() => true));
     vi.stubGlobal("prompt", vi.fn(() => " Team sync "));
 
     const detail = {
@@ -108,7 +78,6 @@ describe("attachRequestEventHandlers", () => {
       events: Map<string, CalendarEvent>;
     };
     attachRequestEventHandlers(el);
-    vi.stubGlobal("confirm", vi.fn(() => true));
     vi.stubGlobal("prompt", vi.fn(() => null));
 
     const detail = {
