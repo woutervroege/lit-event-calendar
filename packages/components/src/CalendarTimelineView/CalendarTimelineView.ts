@@ -1098,6 +1098,8 @@ export class CalendarTimelineView extends CalendarViewBase {
                 ?outside-visible-month=${outsideMonth}
                 ?is-weekend=${isWeekend}
                 .events=${active ? this.#popoverEventsFor(dayEvents) : []}
+                @day-label-selection=${(event: Event) =>
+                  this.#handlePopoverDaySelection(day, cellIndex, event)}
                 @toggle=${(event: Event) => this.#handleHeaderPopoverToggle(cellIndex, event)}
                 @select=${this.#handleOverflowPopoverSelect}
                 @delete=${this.#handleOverflowPopoverDelete}
@@ -1168,6 +1170,8 @@ export class CalendarTimelineView extends CalendarViewBase {
         (day.month !== anchor.month || day.year !== anchor.year)}
         ?is-weekend=${this.#isWeekendDay(day)}
         .events=${popoverEvents}
+        @day-label-selection=${(event: Event) =>
+          this.#handlePopoverDaySelection(day, cellIndex, event)}
         @toggle=${(event: Event) => this.#handleOverflowPopoverToggle(cellIndex, event)}
         @select=${this.#handleOverflowPopoverSelect}
         @delete=${this.#handleOverflowPopoverDelete}
@@ -1220,6 +1224,43 @@ export class CalendarTimelineView extends CalendarViewBase {
     if (newState === "closed" && this.#activeOverflowCellIndex === cellIndex) {
       this.#activeOverflowCellIndex = null;
       this.requestUpdate();
+    }
+  }
+
+  /**
+   * Overflow popover day-number click/Enter/Space → grid-parity `day-selection` (same payload
+   * as the in-cell day headers). Closing the popover is expected so navigation isn't buried.
+   */
+  #handlePopoverDaySelection(day: Temporal.PlainDate, dayIndex: number, event: Event) {
+    if (!(event instanceof CustomEvent)) return;
+    const detail =
+      (event.detail as
+        | {
+            trigger?: "click" | "keyboard";
+            pointerType?: string;
+            sourceEvent?: Event;
+          }
+        | undefined) ?? {};
+    this.dispatchEvent(
+      new CustomEvent("day-selection", {
+        bubbles: true,
+        composed: true,
+        detail: {
+          date: day.toString(),
+          dayIndex,
+          trigger: detail.trigger ?? "click",
+          pointerType: detail.pointerType ?? "mouse",
+          sourceEvent: detail.sourceEvent ?? event,
+        },
+      })
+    );
+    const popover = event.currentTarget;
+    if (
+      popover instanceof HTMLElement &&
+      typeof popover.hidePopover === "function" &&
+      popover.matches(":popover-open")
+    ) {
+      popover.hidePopover();
     }
   }
 
