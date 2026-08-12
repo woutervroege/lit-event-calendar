@@ -690,10 +690,12 @@ export class CalendarTimelineView extends CalendarViewBase {
       return;
     }
     // TimeLine cancels pointerdown (for the move gesture), which suppresses native focus;
-    // restore it so keyboard Delete works right after a click-selection.
+    // restore it so keyboard Delete works right after a click-selection. focusVisible: false
+    // keeps the UA focus ring off for this pointer path (script focus would otherwise match
+    // :focus-visible); keyboard focus still shows the ring.
     const card = event.currentTarget;
     if (card instanceof HTMLElement) {
-      card.focus({ preventScroll: true });
+      card.focus({ preventScroll: true, focusVisible: false } as FocusOptions);
     }
     this.#selectTimelineEvent(key);
   }
@@ -754,8 +756,8 @@ export class CalendarTimelineView extends CalendarViewBase {
     const timelineEvent = event as CalendarTimelineEvent;
     const selected = this.#selectedEventKey === timelineEvent.key;
     const timeLabel = this.#timelineEventTimeLabel(variant, timelineEvent, preview);
-    // The card renders inside <time-line>'s shadow root; the selection ring is styled from
-    // CalendarTimelineView.css via time-line::part(event-card-selected).
+    // The card renders inside <time-line>'s shadow root. Selection has no persistent ring
+    // (grid parity); it is exposed via aria-pressed and the event-card-selected part.
     return html`
       <event-card
         layout="flow"

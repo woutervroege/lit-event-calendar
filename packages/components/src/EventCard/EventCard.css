@@ -82,9 +82,8 @@
   @apply absolute inset-px z-0;
   @apply bg-[var(--_lc-event-card-bg)];
   @apply text-[var(--_lc-event-card-accent-color)];
-  @apply transition-[color,background-color,border-color] duration-100;
+  @apply transition-[color,background-color] duration-100;
   content: "";
-  border-inline-start: 3px solid var(--_lc-event-card-accent-color);
   border-radius: var(--_lc-event-card-segment-radius);
   outline: var(--_lc-event-focus-ring-width) solid var(--_lc-event-focus-ring-color);
   outline-offset: var(--_lc-event-focus-ring-gap);
@@ -103,6 +102,22 @@
     var(--_lc-event-card-cutout-ring, 0 0 0 transparent),
     var(--_lc-event-card-overlap-shadow),
     inset 0 0 0 var(--_lc-event-focus-ring-inset-width) var(--_lc-event-focus-ring-color);
+}
+
+/* Accent bar: an inset rounded pill at the inline-start edge (calendar convention) instead of
+   a border hugging the card's outer radius. 3px wide, 5px in from the card background's edges
+   (the ::before above is inset 1px from the shell, so 6px shell-relative). Raw accent color;
+   paints above the ::before card background (later pseudo, same stacking level) and fades with
+   the shell's past-event opacity. Content clearance: see the heading padding override below. */
+:host .event-card-shell::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 6px;
+  inset-block: 6px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--_lc-event-card-accent-color);
+  pointer-events: none;
 }
 
 :host([layout="flow"]) .event-card-heading {
@@ -230,6 +245,14 @@
   }
 }
 
+/* Content clears the inset accent bar: 6px inset + 3px bar + 4px gap. Placed after the base,
+   flow and compact heading rules above so this start padding wins over their symmetric px-*
+   values in every tier (equal-or-higher specificity, later in the file). */
+:host .event-card-heading,
+:host([layout="flow"]) .event-card-heading {
+  padding-inline-start: 13px;
+}
+
 /* Very small cards: hide compact time, keep summary visible. */
 @container event-card-content (max-width: 120px) {
   :host {
@@ -247,7 +270,15 @@
     @apply min-h-0 p-0;
   }
 
-  :host > div::before {
+  /* The collapsed tier turns ::before itself into an accent pill; the inset bar goes away. */
+  :host .event-card-shell::after {
+    display: none;
+  }
+
+  /* Class-qualified (not the old `:host > div::before` / `:host h6`) so these tier rules
+     actually outrank the base shell/heading rules above — element-typed selectors lose that
+     cascade fight and left the tier half-applied (text visible over a full-height strip). */
+  :host .event-card-shell::before {
     top: 0;
     bottom: auto;
     left: 2px;
@@ -261,8 +292,8 @@
     box-shadow: none;
   }
 
-  :host h6,
-  :host time,
+  :host .event-card-heading,
+  :host .event-card-time,
   :host .event-card-recurring-icon-wrap {
     @apply hidden;
   }

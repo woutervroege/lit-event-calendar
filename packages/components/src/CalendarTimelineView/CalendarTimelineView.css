@@ -554,12 +554,9 @@ time-line::part(overflow-dot) {
   flex: none;
 }
 
-/* Selection ring on the selected event card. --_lc-event-accent-color is set by EventCard on
-   its own host element, so it resolves here. */
-time-line::part(event-card-selected) {
-  outline: 2px solid var(--_lc-event-accent-color, currentColor);
-  outline-offset: 1px;
-}
+/* Selection deliberately has no persistent ring (grid-view parity): the selected card is
+   exposed via aria-pressed/part=event-card-selected, and keyboard users see the
+   :focus-visible ring. */
 
 /* ---- Compact (year-style) month treatment -------------------------------------------------
    Applied behind the lc-timeline-month size container query for standalone month views that
