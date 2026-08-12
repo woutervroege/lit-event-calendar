@@ -138,7 +138,8 @@
 }
 
 :host([flow="vertical"]) .move-ghost {
-  inset-inline: 0;
+  /* Match event gutters so the drop target aligns with the card, not the column edges. */
+  inset-inline: var(--time-line-event-inline-inset, 0px);
   top: var(--__start, 0);
   bottom: var(--__end, 0);
 }
@@ -168,7 +169,7 @@
 }
 
 :host([flow="vertical"]) .create-preview {
-  inset-inline: 0;
+  inset-inline: var(--time-line-event-inline-inset, 0px);
   top: var(--__start, 0);
   bottom: var(--__end, 0);
 }
@@ -210,7 +211,10 @@
    visual/hit area grows, the underlying range (and gesture math, which reads event data and
    .cell-main rects, never this element's height) is untouched. */
 :host([flow="vertical"]) .event {
-  inset-inline: 0;
+  /* --time-line-event-inline-inset: horizontal gutter so day-column separators stay visible
+     beside cards (Google Calendar–style). Default 0; CalendarTimelineView sets it on timed
+     day/week. Applied on the wrapper (and matching ghosts), not box-shadow. */
+  inset-inline: var(--time-line-event-inline-inset, 0px);
   top: var(--__start, 0);
   bottom: var(--__end, 0);
   height: auto;
@@ -220,8 +224,13 @@
 /* Vertical: split cell width across overlap lanes (see `masonryLanes` / timeline in TimeLine.ts). */
 :host([flow="vertical"][layout="timeline"]) .event,
 :host([flow="vertical"][layout="masonry"]) .event {
-  inset-inline-start: calc(var(--__lane, 0) * 100% / var(--__lane-count, 1));
-  inset-inline-end: calc((var(--__lane-count, 1) - var(--__lane, 0) - 1) * 100% / var(--__lane-count, 1));
+  inset-inline-start: calc(
+    var(--__lane, 0) * 100% / var(--__lane-count, 1) + var(--time-line-event-inline-inset, 0px)
+  );
+  inset-inline-end: calc(
+    (var(--__lane-count, 1) - var(--__lane, 0) - 1) * 100% / var(--__lane-count, 1) +
+      var(--time-line-event-inline-inset, 0px)
+  );
 }
 
 /* Vertical stagger (calendar-style overlaps, see `verticalCellStaggerLayouts` in TimeLine.ts):
@@ -234,12 +243,14 @@
     100% /
     var(--__lane-count, 1) +
     var(--__indent, 0) *
-    var(--time-line-stagger-indent, 12px)
+    var(--time-line-stagger-indent, 12px) +
+    var(--time-line-event-inline-inset, 0px)
   );
   inset-inline-end: calc(
     (var(--__lane-count, 1) - var(--__lane, 0) - 1) *
     100% /
-    var(--__lane-count, 1)
+    var(--__lane-count, 1) +
+    var(--time-line-event-inline-inset, 0px)
   );
   z-index: calc(2 + var(--__indent, 0));
 }

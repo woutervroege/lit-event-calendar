@@ -291,6 +291,10 @@ time-line.timeline-timed {
      so non-overlapping cards are unchanged. Inherits through <time-line>'s shadow tree into
      each event-card. */
   --_lc-event-card-cutout-ring: 0 0 0 1.5px var(--_lc-surface-bg, light-dark(#fff, #222));
+  /* Horizontal gutter beside timed cards so day-column separators stay visible (the cutout ring
+     alone only separates overlaps; solo cards were flush to the column edges). 4px clears the
+     1.5px cutout ring and leaves a thin surface strip over the cell outline. */
+  --time-line-event-inline-inset: 4px;
 }
 
 @supports (color: color-mix(in srgb, black, white)) {
