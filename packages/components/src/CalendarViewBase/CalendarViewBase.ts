@@ -60,7 +60,6 @@ export abstract class CalendarViewBase extends BaseElement {
   });
 
   declare events?: EventsMap;
-  defaultEventSummary = "New event";
   selectedCalendarId?: string;
 
   static get properties() {
@@ -76,7 +75,6 @@ export abstract class CalendarViewBase extends BaseElement {
       dir: { type: String, reflect: true },
       timezone: { type: String },
       currentTime: { type: String, attribute: "current-time" },
-      defaultEventSummary: { type: String, attribute: "default-event-summary" },
       selectedCalendarId: { type: String, attribute: "selected-calendar-id" },
     } as const;
   }

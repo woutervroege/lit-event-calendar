@@ -147,7 +147,6 @@ export class EventCalendar extends BaseElement {
   snapInterval = 15;
   visibleHours?: number;
   rtl = false;
-  defaultEventSummary = "New event";
   selectedCalendarId?: string;
   /** When set and non-empty, shows a calendar list beside the grid; on narrow containers it opens as an overlay. */
   declare calendars?: CalendarsMap;
@@ -228,7 +227,6 @@ export class EventCalendar extends BaseElement {
       snapInterval: { type: Number, attribute: "snap-interval" },
       visibleHours: { type: Number, attribute: "visible-hours" },
       rtl: { type: Boolean, reflect: true },
-      defaultEventSummary: { type: String, attribute: "default-event-summary" },
       selectedCalendarId: {
         type: String,
         attribute: "selected-calendar-id",
@@ -804,7 +802,6 @@ export class EventCalendar extends BaseElement {
             .snapInterval=${this.snapInterval}
             .visibleHours=${this.visibleHours}
             .rtl=${isHeaderRtl}
-            .defaultEventSummary=${this.defaultEventSummary}
             @view-changed=${this.#syncFromViewGroup}
             @start-date-changed=${this.#syncFromViewGroup}
             @day-selection=${this.#syncFromViewGroup}

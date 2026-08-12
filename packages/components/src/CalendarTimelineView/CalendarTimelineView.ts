@@ -524,7 +524,8 @@ export class CalendarTimelineView extends CalendarViewBase {
         start: input.start,
         end: input.end,
         allDay: input.allDay,
-        summary: this.defaultEventSummary,
+        // Intent event listeners may set a summary via detail.content before the create applies.
+        summary: "",
         color: this.resolveNewEventColor(calendarId),
       },
     };
@@ -1594,7 +1595,6 @@ export class CalendarTimelineView extends CalendarViewBase {
                 .timezone=${this.timezone}
                 .currentTime=${this.currentTime}
                 .weekStart=${this.weekStart}
-                .defaultEventSummary=${this.defaultEventSummary}
                 .selectedCalendarId=${this.selectedCalendarId}
                 ?rtl=${this.rtl}
                 @day-selection=${this.forwardCalendarEvent}
