@@ -19,7 +19,7 @@ type RangeLabelPart = {
   isYear: boolean;
 };
 
-@customElement("calendar-grid-view-group")
+@customElement("calendar-view-group")
 export class CalendarViewGroup extends CalendarViewBase {
   #view: CalendarViewMode = "month";
   #presentation: CalendarPresentationMode = "grid";
@@ -77,7 +77,7 @@ export class CalendarViewGroup extends CalendarViewBase {
 
   render() {
     return html`
-      <div class="calendar-grid-view-group">
+      <div class="calendar-view-group">
         <section class="content" role="tabpanel">
           ${cache(this.#renderViewFor(this.view))}
         </section>

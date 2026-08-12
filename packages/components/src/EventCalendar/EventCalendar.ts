@@ -552,7 +552,7 @@ export class EventCalendar extends BaseElement {
   }
 
   get #calendarViewGroup(): CalendarViewGroup | null {
-    return this.renderRoot.querySelector("calendar-grid-view-group");
+    return this.renderRoot.querySelector("calendar-view-group");
   }
 
   #disableThreeDayRange() {
@@ -785,7 +785,7 @@ export class EventCalendar extends BaseElement {
               ></tab-switch>
             </div>
           </header>
-          <calendar-grid-view-group
+          <calendar-view-group
             class="event-calendar-content"
             role="region"
             tabindex="0"
@@ -810,7 +810,7 @@ export class EventCalendar extends BaseElement {
             @event-selected=${this.#reemit}
             @event-updated=${this.#reemit}
             @event-deleted=${this.#reemit}
-          ></calendar-grid-view-group>
+          ></calendar-view-group>
         </div>
       </div>
     `;

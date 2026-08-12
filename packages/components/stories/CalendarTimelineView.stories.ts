@@ -103,8 +103,8 @@ const meta: Meta = {
     visibleHours: {
       control: { type: "number", min: 1, max: 24 },
       description:
-        "Grid-parity visibleHours zoom for day/week: hour height = viewport height / visibleHours; " +
-        "the full 24h render and the rest scrolls into view (like the grid week view).",
+        "visibleHours zoom for day/week: hour height = viewport height / visibleHours; " +
+        "the full 24h render and the rest scrolls into view.",
     },
     visibleHoursStart: {
       control: { type: "number", min: 0, max: 23 },
@@ -211,7 +211,7 @@ export const HorizontalWeek: Story = {
 };
 
 export const HorizontalMonthSixBySeven: Story = {
-  name: "Month View",
+  name: "Horizontal month (6×7 masonry)",
   args: {
     daysPerWeek: 42,
     columns: 7,

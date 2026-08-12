@@ -4,7 +4,7 @@
   @apply block w-full h-full min-h-0;
 }
 
-.calendar-grid-view-group {
+.calendar-view-group {
   @apply block w-full h-full min-h-0;
 }
 
